@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Compare provided password with stored hash
-    const isPasswordValid = await comparePassword(password, user.password);
+    const isPasswordValid = comparePassword(password, user.password);
 
     if (!isPasswordValid) {
       return NextResponse.json(

@@ -66,7 +66,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Hash the password before storing
-    const hashedPassword = await hashPassword(password);
+    const hashedPassword = hashPassword(password);
 
     // Create new user in database
     const newUser = await prisma.user.create({
