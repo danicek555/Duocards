@@ -1,6 +1,13 @@
 "use client";
 
 import { useState } from "react";
+import {
+  validatePassword,
+  getPasswordStrengthColor,
+  getPasswordStrengthProgress,
+} from "@/lib/passwordValidation";
+import Notification from "@/components/Notification";
+import Modal from "@/components/Modal";
 
 export default function Home() {
   const [isLogin, setIsLogin] = useState(true);
@@ -8,14 +15,70 @@ export default function Home() {
     email: "",
     password: "",
     confirmPassword: "",
-    name: "",
+    nickname: "",
+  });
+  const [passwordValidation, setPasswordValidation] = useState(
+    validatePassword("")
+  );
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+  // Notification and Modal states
+  const [notification, setNotification] = useState<{
+    message: string;
+    type: "success" | "error" | "warning" | "info";
+    isVisible: boolean;
+  }>({
+    message: "",
+    type: "info",
+    isVisible: false,
   });
 
+  const [modal, setModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    type: "success" | "error" | "warning" | "info";
+  }>({
+    isOpen: false,
+    title: "",
+    message: "",
+    type: "info",
+  });
+
+  // Check if passwords match
+  const passwordsMatch =
+    formData.password &&
+    formData.confirmPassword &&
+    formData.password === formData.confirmPassword;
+
+  // Helper functions for notifications and modals
+  const showNotification = (
+    message: string,
+    type: "success" | "error" | "warning" | "info"
+  ) => {
+    setNotification({ message, type, isVisible: true });
+  };
+
+  const showModal = (
+    title: string,
+    message: string,
+    type: "success" | "error" | "warning" | "info"
+  ) => {
+    setModal({ isOpen: true, title, message, type });
+  };
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData({
+    const newFormData = {
       ...formData,
       [e.target.name]: e.target.value,
-    });
+    };
+    setFormData(newFormData);
+
+    // Validate password in real-time when password field changes
+    if (e.target.name === "password") {
+      setPasswordValidation(validatePassword(e.target.value));
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -43,20 +106,35 @@ export default function Home() {
         if (response.ok) {
           // Login successful
           console.log("Login successful:", data);
-          alert(`Welcome back, ${data.user.name}!`);
-          // Here you would typically:
-          // 1. Store user data in context/state
-          // 2. Redirect to dashboard
-          // 3. Set authentication tokens
+
+          // Store user data in localStorage
+          localStorage.setItem("user", JSON.stringify(data.user));
+
+          // Redirect to dashboard
+          window.location.href = "/dashboard";
         } else {
           // Login failed
           console.error("Login failed:", data.error);
-          alert(data.error || "Login failed");
+          showNotification(data.error || "Login failed", "error");
         }
       } else {
         // Handle registration
-        if (formData.password !== formData.confirmPassword) {
-          alert("Passwords do not match");
+        // Check password strength
+        if (!passwordValidation.isValid) {
+          showModal(
+            "Password Requirements Not Met",
+            "Your password doesn't meet the security requirements. Please check the requirements below and try again.",
+            "warning"
+          );
+          return;
+        }
+
+        // Check if passwords match
+        if (!passwordsMatch) {
+          showNotification(
+            "Passwords do not match. Please check your password confirmation.",
+            "error"
+          );
           return;
         }
 
@@ -68,7 +146,7 @@ export default function Home() {
           body: JSON.stringify({
             email: formData.email,
             password: formData.password,
-            name: formData.name,
+            nickname: formData.nickname,
           }),
         });
 
@@ -77,20 +155,21 @@ export default function Home() {
         if (response.ok) {
           // Registration successful
           console.log("Registration successful:", data);
-          alert(`Welcome to DuoCards, ${data.user.name}!`);
-          // Here you would typically:
-          // 1. Switch to login mode
-          // 2. Clear the form
-          // 3. Show success message
+
+          // Store user data in localStorage
+          localStorage.setItem("user", JSON.stringify(data.user));
+
+          // Redirect to dashboard
+          window.location.href = "/dashboard";
         } else {
           // Registration failed
           console.error("Registration failed:", data.error);
-          alert(data.error || "Registration failed");
+          showNotification(data.error || "Registration failed", "error");
         }
       }
     } catch (error) {
       console.error("Network error:", error);
-      alert("Network error. Please try again.");
+      showNotification("Network error. Please try again.", "error");
     }
   };
 
@@ -138,20 +217,20 @@ export default function Home() {
             {!isLogin && (
               <div>
                 <label
-                  htmlFor="name"
+                  htmlFor="nickname"
                   className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
                 >
-                  Full Name
+                  Nickname
                 </label>
                 <input
                   type="text"
-                  id="name"
-                  name="name"
-                  value={formData.name}
+                  id="nickname"
+                  name="nickname"
+                  value={formData.nickname}
                   onChange={handleInputChange}
                   required={!isLogin}
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-colors"
-                  placeholder="Enter your full name"
+                  placeholder="Choose a nickname"
                 />
               </div>
             )}
@@ -182,16 +261,205 @@ export default function Home() {
               >
                 Password
               </label>
-              <input
-                type="password"
-                id="password"
-                name="password"
-                value={formData.password}
-                onChange={handleInputChange}
-                required
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-colors"
-                placeholder="Enter your password"
-              />
+              <div className="relative">
+                <input
+                  type={showPassword ? "text" : "password"}
+                  id="password"
+                  name="password"
+                  value={formData.password}
+                  onChange={handleInputChange}
+                  required
+                  className="w-full px-3 py-2 pr-10 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-colors"
+                  placeholder="Enter your password"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                >
+                  {showPassword ? (
+                    <svg
+                      className="w-5 h-5"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21"
+                      />
+                    </svg>
+                  ) : (
+                    <svg
+                      className="w-5 h-5"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                      />
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                      />
+                    </svg>
+                  )}
+                </button>
+              </div>
+
+              {/* Password Requirements - Only show during registration */}
+              {!isLogin && formData.password && (
+                <div className="mt-3 p-3 rounded-lg border">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                      Password Requirements:
+                    </span>
+                    <span
+                      className={`text-xs px-2 py-1 rounded-full border ${getPasswordStrengthColor(
+                        passwordValidation.strength
+                      )}`}
+                    >
+                      {passwordValidation.strength}
+                    </span>
+                  </div>
+
+                  {/* Progress bar */}
+                  <div className="w-full bg-gray-200 dark:bg-gray-600 rounded-full h-2 mb-3">
+                    <div
+                      className={`h-2 rounded-full transition-all duration-300 ${
+                        passwordValidation.strength === "weak"
+                          ? "bg-red-500"
+                          : passwordValidation.strength === "medium"
+                          ? "bg-yellow-500"
+                          : "bg-green-500"
+                      }`}
+                      style={{
+                        width: `${getPasswordStrengthProgress(
+                          passwordValidation.strength
+                        )}%`,
+                      }}
+                    ></div>
+                  </div>
+
+                  {/* Requirements checklist */}
+                  <div className="space-y-1">
+                    <div className="flex items-center text-sm">
+                      <span
+                        className={`mr-2 ${
+                          passwordValidation.requirements.minLength
+                            ? "text-green-600"
+                            : "text-gray-400"
+                        }`}
+                      >
+                        {passwordValidation.requirements.minLength ? "✓" : "✗"}
+                      </span>
+                      <span
+                        className={
+                          passwordValidation.requirements.minLength
+                            ? "text-green-600"
+                            : "text-gray-600 dark:text-gray-400"
+                        }
+                      >
+                        at least 8 characters long
+                      </span>
+                    </div>
+                    <div className="flex items-center text-sm">
+                      <span
+                        className={`mr-2 ${
+                          passwordValidation.requirements.hasUppercase
+                            ? "text-green-600"
+                            : "text-gray-400"
+                        }`}
+                      >
+                        {passwordValidation.requirements.hasUppercase
+                          ? "✓"
+                          : "✗"}
+                      </span>
+                      <span
+                        className={
+                          passwordValidation.requirements.hasUppercase
+                            ? "text-green-600"
+                            : "text-gray-600 dark:text-gray-400"
+                        }
+                      >
+                        contains uppercase letters (A-Z)
+                      </span>
+                    </div>
+                    <div className="flex items-center text-sm">
+                      <span
+                        className={`mr-2 ${
+                          passwordValidation.requirements.hasLowercase
+                            ? "text-green-600"
+                            : "text-gray-400"
+                        }`}
+                      >
+                        {passwordValidation.requirements.hasLowercase
+                          ? "✓"
+                          : "✗"}
+                      </span>
+                      <span
+                        className={
+                          passwordValidation.requirements.hasLowercase
+                            ? "text-green-600"
+                            : "text-gray-600 dark:text-gray-400"
+                        }
+                      >
+                        contains lowercase letters (a-z)
+                      </span>
+                    </div>
+                    <div className="flex items-center text-sm">
+                      <span
+                        className={`mr-2 ${
+                          passwordValidation.requirements.hasNumbers
+                            ? "text-green-600"
+                            : "text-gray-400"
+                        }`}
+                      >
+                        {passwordValidation.requirements.hasNumbers ? "✓" : "✗"}
+                      </span>
+                      <span
+                        className={
+                          passwordValidation.requirements.hasNumbers
+                            ? "text-green-600"
+                            : "text-gray-600 dark:text-gray-400"
+                        }
+                      >
+                        contains numbers (0-9)
+                      </span>
+                    </div>
+                    <div className="flex items-center text-sm">
+                      <span
+                        className={`mr-2 ${
+                          passwordValidation.requirements.hasSpecialChars
+                            ? "text-green-600"
+                            : "text-gray-400"
+                        }`}
+                      >
+                        {passwordValidation.requirements.hasSpecialChars
+                          ? "✓"
+                          : "✗"}
+                      </span>
+                      <span
+                        className={
+                          passwordValidation.requirements.hasSpecialChars
+                            ? "text-green-600"
+                            : "text-gray-600 dark:text-gray-400"
+                        }
+                      >
+                        contains special characters (!@#$%^&*)
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
             {!isLogin && (
@@ -202,16 +470,87 @@ export default function Home() {
                 >
                   Confirm Password
                 </label>
-                <input
-                  type="password"
-                  id="confirmPassword"
-                  name="confirmPassword"
-                  value={formData.confirmPassword}
-                  onChange={handleInputChange}
-                  required={!isLogin}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-colors"
-                  placeholder="Confirm your password"
-                />
+                <div className="relative">
+                  <input
+                    type={showConfirmPassword ? "text" : "password"}
+                    id="confirmPassword"
+                    name="confirmPassword"
+                    value={formData.confirmPassword}
+                    onChange={handleInputChange}
+                    required={!isLogin}
+                    className={`w-full px-3 py-2 pr-10 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-colors ${
+                      formData.confirmPassword && formData.password
+                        ? passwordsMatch
+                          ? "border-green-500 dark:border-green-500"
+                          : "border-red-500 dark:border-red-500"
+                        : "border-gray-300 dark:border-gray-600"
+                    }`}
+                    placeholder="Confirm your password"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                  >
+                    {showConfirmPassword ? (
+                      <svg
+                        className="w-5 h-5"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21"
+                        />
+                      </svg>
+                    ) : (
+                      <svg
+                        className="w-5 h-5"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                        />
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                        />
+                      </svg>
+                    )}
+                  </button>
+                </div>
+
+                {/* Password Match Indicator */}
+                {formData.confirmPassword && formData.password && (
+                  <div className="mt-2 flex items-center text-sm">
+                    <span
+                      className={`mr-2 ${
+                        passwordsMatch ? "text-green-600" : "text-red-600"
+                      }`}
+                    >
+                      {passwordsMatch ? "✓" : "✗"}
+                    </span>
+                    <span
+                      className={
+                        passwordsMatch ? "text-green-600" : "text-red-600"
+                      }
+                    >
+                      {passwordsMatch
+                        ? "Passwords match"
+                        : "Passwords do not match"}
+                    </span>
+                  </div>
+                )}
               </div>
             )}
 
@@ -294,6 +633,23 @@ export default function Home() {
           </div>
         </div>
       </div>
+
+      {/* Custom Notification */}
+      <Notification
+        message={notification.message}
+        type={notification.type}
+        isVisible={notification.isVisible}
+        onClose={() => setNotification({ ...notification, isVisible: false })}
+      />
+
+      {/* Custom Modal */}
+      <Modal
+        isOpen={modal.isOpen}
+        onClose={() => setModal({ ...modal, isOpen: false })}
+        title={modal.title}
+        message={modal.message}
+        type={modal.type}
+      />
     </div>
   );
 }

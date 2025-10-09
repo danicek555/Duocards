@@ -14,13 +14,16 @@ datasource db {
 
 // User model - represents a user in your database
 model User {
-  id        Int      @id @default(autoincrement()) // Primary key, auto-incrementing
-  email     String   @unique                       // Email must be unique across all users
-  password  String                                 // Hashed password (never store plain text!)
-  name      String                                 // User's full name
-  words     Word[]                                 // One user can have many words (one-to-many relationship)
-  createdAt DateTime @default(now())               // Automatically set when user is created
-  updatedAt DateTime @updatedAt                    // Automatically updated when user is modified
+  id                Int      @id @default(autoincrement()) // Primary key, auto-incrementing
+  email             String   @unique                       // Email must be unique across all users
+  password          String                                 // Hashed password (never store plain text!)
+  nickname          String   @default("User")              // User's nickname
+  emailVerified     Boolean  @default(false)               // Email verification status
+  verificationCode  String?                                // Email verification code (optional)
+  verificationCodeExpires DateTime?                        // When verification code expires (optional)
+  words             Word[]                                 // One user can have many words (one-to-many relationship)
+  createdAt         DateTime @default(now())               // Automatically set when user is created
+  updatedAt         DateTime @updatedAt                    // Automatically updated when user is modified
 
   // This creates an index on email for faster lookups
   @@map("users") // Maps to "users" table in database

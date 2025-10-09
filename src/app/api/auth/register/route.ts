@@ -13,25 +13,26 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { hashPassword, isValidEmail, validatePassword } from "@/lib/auth";
+import { hashPassword, isValidEmail } from "@/lib/auth";
+import { validatePassword } from "@/lib/passwordValidation";
 
 // Define the expected request body structure
 interface RegisterRequest {
   email: string;
   password: string;
-  name: string;
+  nickname: string;
 }
 
 export async function POST(request: NextRequest) {
   try {
     // Parse JSON from request body
     const body: RegisterRequest = await request.json();
-    const { email, password, name } = body;
+    const { email, password, nickname } = body;
 
     // Validate input data
-    if (!email || !password || !name) {
+    if (!email || !password || !nickname) {
       return NextResponse.json(
-        { error: "Email, password, and name are required" },
+        { error: "Email, password, and nickname are required" },
         { status: 400 }
       );
     }
@@ -73,13 +74,13 @@ export async function POST(request: NextRequest) {
       data: {
         email: email.toLowerCase(), // Store in lowercase for consistency
         password: hashedPassword, // Store hashed password, never plain text!
-        name: name.trim(), // Trim whitespace
+        nickname: nickname.trim(), // Trim whitespace
       },
       // Don't return the password in the response
       select: {
         id: true,
         email: true,
-        name: true,
+        nickname: true,
         createdAt: true,
       },
     });
