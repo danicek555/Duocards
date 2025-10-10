@@ -76,12 +76,16 @@ export async function POST(request: NextRequest) {
     });
 
     // Send verification email
-    const emailSent = await sendVerificationEmail(email, verificationCode);
+    const emailResult = await sendVerificationEmail(email, verificationCode);
 
-    if (!emailSent) {
+    if (!emailResult.success) {
       return NextResponse.json(
-        { error: "Failed to send verification email. Please try again." },
-        { status: 500 }
+        {
+          error:
+            emailResult.error ||
+            "Failed to send verification email. Please try again.",
+        },
+        { status: 400 }
       );
     }
 

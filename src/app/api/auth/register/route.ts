@@ -98,14 +98,18 @@ export async function POST(request: NextRequest) {
     });
 
     // Send verification email
-    const emailSent = await sendVerificationEmail(email, verificationCode);
+    const emailResult = await sendVerificationEmail(email, verificationCode);
 
-    if (!emailSent) {
-      // If email sending fails, delete the user and return error
+    if (!emailResult.success) {
+      // If email sending fails, delete the user and return specific error
       await prisma.user.delete({ where: { id: newUser.id } });
       return NextResponse.json(
-        { error: "Failed to send verification email. Please try again." },
-        { status: 500 }
+        {
+          error:
+            emailResult.error ||
+            "Failed to send verification email. Please try again.",
+        },
+        { status: 400 }
       );
     }
 

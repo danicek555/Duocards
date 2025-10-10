@@ -136,9 +136,11 @@ function VerifyEmailContent() {
       } else {
         showNotification(data.error || "Verification failed", "error");
       }
-    } catch (error) {
-      console.error("Verification error:", error);
-      showNotification("Network error. Please try again.", "error");
+    } catch {
+      showNotification(
+        "Network error. Please check your connection and try again.",
+        "error"
+      );
     } finally {
       setLoading(false);
     }
@@ -172,9 +174,11 @@ function VerifyEmailContent() {
           "error"
         );
       }
-    } catch (error) {
-      console.error("Resend error:", error);
-      showNotification("Network error. Please try again.", "error");
+    } catch {
+      showNotification(
+        "Network error. Please check your connection and try again.",
+        "error"
+      );
     } finally {
       setResendLoading(false);
     }

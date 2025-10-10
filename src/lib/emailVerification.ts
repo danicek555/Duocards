@@ -18,24 +18,26 @@ export function generateVerificationCode(): string {
  *
  * @param email - Email address to send verification to
  * @param code - Verification code
- * @returns Promise<boolean> - Success status
+ * @returns Promise<{ success: boolean; error?: string }> - Success status and error message
  */
 export async function sendVerificationEmail(
   email: string,
   code: string
-): Promise<boolean> {
+): Promise<{ success: boolean; error?: string }> {
   try {
     // Initialize Resend with API key
     const resend = new Resend(process.env.RESEND_API_KEY);
 
     // Check if API key is configured
     if (!process.env.RESEND_API_KEY) {
-      console.error("❌ RESEND_API_KEY is not configured");
-      return false;
+      return {
+        success: false,
+        error: "Email service is not configured. Please contact support.",
+      };
     }
 
     // Send verification email
-    const { data, error } = await resend.emails.send({
+    const { error } = await resend.emails.send({
       from: process.env.FROM_EMAIL || "DuoCards <onboarding@resend.dev>",
       to: [email],
       subject: "Verify your DuoCards account",
@@ -86,15 +88,33 @@ export async function sendVerificationEmail(
     });
 
     if (error) {
-      console.error("❌ Failed to send verification email:", error);
-      return false;
+      // Handle specific Resend errors
+      if (error.message?.includes("Invalid email")) {
+        return {
+          success: false,
+          error: "Please enter a valid email address.",
+        };
+      }
+      if (error.message?.includes("domain is not verified")) {
+        return {
+          success: false,
+          error:
+            "Email service is temporarily unavailable. Please try again later.",
+        };
+      }
+      return {
+        success: false,
+        error:
+          "Failed to send verification email. Please check your email address and try again.",
+      };
     }
 
-    console.log("✅ Verification email sent successfully:", data?.id);
-    return true;
-  } catch (error) {
-    console.error("❌ Error sending verification email:", error);
-    return false;
+    return { success: true };
+  } catch {
+    return {
+      success: false,
+      error: "Failed to send verification email. Please try again.",
+    };
   }
 }
 

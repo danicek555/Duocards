@@ -172,14 +172,16 @@ export default function Home() {
             window.location.href = "/dashboard";
           }
         } else {
-          // Registration failed
-          console.error("Registration failed:", data.error);
+          // Registration failed - show user-friendly error without console logging
           showNotification(data.error || "Registration failed", "error");
         }
       }
-    } catch (error) {
-      console.error("Network error:", error);
-      showNotification("Network error. Please try again.", "error");
+    } catch {
+      // Network error - show user-friendly message without console logging
+      showNotification(
+        "Network error. Please check your connection and try again.",
+        "error"
+      );
     }
   };
 
