@@ -156,11 +156,21 @@ export default function Home() {
           // Registration successful
           console.log("Registration successful:", data);
 
-          // Store user data in localStorage
-          localStorage.setItem("user", JSON.stringify(data.user));
+          if (data.requiresVerification) {
+            // Store email for verification
+            localStorage.setItem("pendingVerificationEmail", formData.email);
 
-          // Redirect to dashboard
-          window.location.href = "/dashboard";
+            // Redirect to verification page
+            window.location.href = `/verify?email=${encodeURIComponent(
+              formData.email
+            )}`;
+          } else {
+            // Store user data in localStorage
+            localStorage.setItem("user", JSON.stringify(data.user));
+
+            // Redirect to dashboard
+            window.location.href = "/dashboard";
+          }
         } else {
           // Registration failed
           console.error("Registration failed:", data.error);

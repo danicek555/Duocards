@@ -1,45 +1,36 @@
-// This is your Prisma schema file
-// It defines your database structure and how Prisma will interact with it
-
-// Generator tells Prisma what client to generate
 generator client {
-  provider = "prisma-client-js"  // Generates TypeScript client
+  provider = "prisma-client-js"
 }
 
-// Datasource defines your database connection
 datasource db {
-  provider = "postgresql"        // We're using PostgreSQL
-  url      = env("DATABASE_URL") // Connection string from environment variables
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
-// User model - represents a user in your database
 model User {
-  id                Int      @id @default(autoincrement()) // Primary key, auto-incrementing
-  email             String   @unique                       // Email must be unique across all users
-  password          String                                 // Hashed password (never store plain text!)
-  nickname          String   @default("User")              // User's nickname
-  emailVerified     Boolean  @default(false)               // Email verification status
-  verificationCode  String?                                // Email verification code (optional)
-  verificationCodeExpires DateTime?                        // When verification code expires (optional)
-  words             Word[]                                 // One user can have many words (one-to-many relationship)
-  createdAt         DateTime @default(now())               // Automatically set when user is created
-  updatedAt         DateTime @updatedAt                    // Automatically updated when user is modified
+  id                      Int       @id @default(autoincrement())
+  email                   String    @unique
+  password                String
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+  nickname                String    @default("User")
+  emailVerified           Boolean   @default(false)
+  verificationCode        String?
+  verificationCodeExpires DateTime?
+  words                   Word[]
 
-  // This creates an index on email for faster lookups
-  @@map("users") // Maps to "users" table in database
+  @@map("users")
 }
 
-// Word model - represents a word/translation pair
 model Word {
-  id           Int      @id @default(autoincrement()) // Primary key
-  word         String                                 // The word to learn (e.g., "hello")
-  translation  String                                 // Translation (e.g., "ahoj")
-  difficulty   Int      @default(1)                   // Difficulty level (1-5)
-  userId       Int                                     // Foreign key to User
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade) // Relationship: belongs to User
-  createdAt    DateTime @default(now())               // When word was added
-  updatedAt    DateTime @updatedAt                    // When word was last modified
+  id          Int      @id @default(autoincrement())
+  word        String
+  translation String
+  difficulty  Int      @default(1)
+  userId      Int
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  // This creates an index on userId for faster queries
-  @@map("words") // Maps to "words" table in database
+  @@map("words")
 }

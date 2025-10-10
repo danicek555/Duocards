@@ -1,7 +1,9 @@
 /**
  * Email verification utilities
- * Simple email verification system for development
+ * Real email verification system using Resend
  */
+
+import { Resend } from "resend";
 
 /**
  * Generate a random verification code
@@ -12,12 +14,7 @@ export function generateVerificationCode(): string {
 }
 
 /**
- * Send verification email (mock implementation)
- * In production, you would integrate with an email service like:
- * - SendGrid
- * - AWS SES
- * - Nodemailer with SMTP
- * - Resend
+ * Send verification email using Resend
  *
  * @param email - Email address to send verification to
  * @param code - Verification code
@@ -27,19 +24,78 @@ export async function sendVerificationEmail(
   email: string,
   code: string
 ): Promise<boolean> {
-  // Mock implementation - in production, replace with real email service
-  console.log(`📧 Verification email would be sent to: ${email}`);
-  console.log(`🔐 Verification code: ${code}`);
-  console.log(
-    `📝 Email content: "Your DuoCards verification code is: ${code}"`
-  );
+  try {
+    // Initialize Resend with API key
+    const resend = new Resend(process.env.RESEND_API_KEY);
 
-  // Simulate email sending delay
-  await new Promise((resolve) => setTimeout(resolve, 1000));
+    // Check if API key is configured
+    if (!process.env.RESEND_API_KEY) {
+      console.error("❌ RESEND_API_KEY is not configured");
+      return false;
+    }
 
-  // For development, always return true
-  // In production, handle actual email sending errors
-  return true;
+    // Send verification email
+    const { data, error } = await resend.emails.send({
+      from: process.env.FROM_EMAIL || "DuoCards <onboarding@resend.dev>",
+      to: [email],
+      subject: "Verify your DuoCards account",
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <div style="text-align: center; margin-bottom: 30px;">
+            <h1 style="color: #333; margin: 0;">DuoCards</h1>
+            <p style="color: #666; margin: 5px 0;">Your language learning companion</p>
+          </div>
+          
+          <div style="background: #f8f9fa; padding: 30px; border-radius: 8px; text-align: center;">
+            <h2 style="color: #333; margin: 0 0 20px 0;">Verify Your Email Address</h2>
+            <p style="color: #666; margin: 0 0 30px 0; line-height: 1.5;">
+              Thank you for signing up for DuoCards! To complete your registration, 
+              please use the verification code below:
+            </p>
+            
+            <div style="background: #fff; border: 2px solid #e9ecef; border-radius: 8px; padding: 20px; margin: 20px 0;">
+              <span style="font-size: 32px; font-weight: bold; color: #007bff; letter-spacing: 5px; font-family: 'Courier New', monospace;">
+                ${code}
+              </span>
+            </div>
+            
+            <p style="color: #666; margin: 20px 0 0 0; font-size: 14px;">
+              This code will expire in 10 minutes.
+            </p>
+          </div>
+          
+          <div style="text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #e9ecef;">
+            <p style="color: #999; font-size: 12px; margin: 0;">
+              If you didn't create an account with DuoCards, you can safely ignore this email.
+            </p>
+          </div>
+        </div>
+      `,
+      text: `
+        DuoCards - Verify Your Email Address
+        
+        Thank you for signing up for DuoCards! To complete your registration, 
+        please use the verification code below:
+        
+        ${code}
+        
+        This code will expire in 10 minutes.
+        
+        If you didn't create an account with DuoCards, you can safely ignore this email.
+      `,
+    });
+
+    if (error) {
+      console.error("❌ Failed to send verification email:", error);
+      return false;
+    }
+
+    console.log("✅ Verification email sent successfully:", data?.id);
+    return true;
+  } catch (error) {
+    console.error("❌ Error sending verification email:", error);
+    return false;
+  }
 }
 
 /**

@@ -15,6 +15,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { hashPassword, isValidEmail } from "@/lib/auth";
 import { validatePassword } from "@/lib/passwordValidation";
+import {
+  generateVerificationCode,
+  sendVerificationEmail,
+} from "@/lib/emailVerification";
 
 // Define the expected request body structure
 interface RegisterRequest {
@@ -69,27 +73,49 @@ export async function POST(request: NextRequest) {
     // Hash the password before storing
     const hashedPassword = hashPassword(password);
 
-    // Create new user in database
+    // Generate verification code
+    const verificationCode = generateVerificationCode();
+    const verificationCodeExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes from now
+
+    // Create new user in database (unverified)
     const newUser = await prisma.user.create({
       data: {
         email: email.toLowerCase(), // Store in lowercase for consistency
         password: hashedPassword, // Store hashed password, never plain text!
         nickname: nickname.trim(), // Trim whitespace
+        emailVerified: false, // User is not verified yet
+        verificationCode: verificationCode,
+        verificationCodeExpires: verificationCodeExpires,
       },
       // Don't return the password in the response
       select: {
         id: true,
         email: true,
         nickname: true,
+        emailVerified: true,
         createdAt: true,
       },
     });
 
+    // Send verification email
+    const emailSent = await sendVerificationEmail(email, verificationCode);
+
+    if (!emailSent) {
+      // If email sending fails, delete the user and return error
+      await prisma.user.delete({ where: { id: newUser.id } });
+      return NextResponse.json(
+        { error: "Failed to send verification email. Please try again." },
+        { status: 500 }
+      );
+    }
+
     // Return success response
     return NextResponse.json(
       {
-        message: "User created successfully",
+        message:
+          "Registration successful! Please check your email for verification code.",
         user: newUser,
+        requiresVerification: true,
       },
       { status: 201 } // 201 = Created
     );

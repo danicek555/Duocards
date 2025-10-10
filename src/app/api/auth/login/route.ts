@@ -55,6 +55,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Check if email is verified
+    if (!user.emailVerified) {
+      return NextResponse.json(
+        {
+          error:
+            "Please verify your email before logging in. Check your inbox for a verification code.",
+        },
+        { status: 403 } // 403 = Forbidden
+      );
+    }
+
     // Compare provided password with stored hash
     const isPasswordValid = comparePassword(password, user.password);
 
