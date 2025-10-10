@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Notification from "@/components/Notification";
 import Modal from "@/components/Modal";
 
-export default function VerifyEmail() {
+function VerifyEmailContent() {
   const [code, setCode] = useState("");
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
@@ -265,7 +265,7 @@ export default function VerifyEmail() {
             {/* Resend Code */}
             <div className="text-center">
               <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
-                Didn't receive the code?
+                Didn&apos;t receive the code?
               </p>
               <button
                 type="button"
@@ -308,5 +308,22 @@ export default function VerifyEmail() {
         type={modal.type}
       />
     </div>
+  );
+}
+
+export default function VerifyEmail() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <p className="text-gray-600 dark:text-gray-400">Loading...</p>
+          </div>
+        </div>
+      }
+    >
+      <VerifyEmailContent />
+    </Suspense>
   );
 }
