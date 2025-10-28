@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   validatePassword,
   getPasswordStrengthColor,
@@ -25,8 +25,9 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(false);
 
   // Feature flags - set to true to show these features
-  const [showRememberMe, setShowRememberMe] = useState(false);
-  const [showSocialLogin, setShowSocialLogin] = useState(false);
+  const [showRememberMe, setShowRememberMe] = useState(true);
+  const [showSocialLogin, setShowSocialLogin] = useState(true);
+  const [rememberMe, setRememberMe] = useState(false);
 
   // Notification and Modal states
   const [notification, setNotification] = useState<{
@@ -51,6 +52,17 @@ export default function Home() {
     type: "info",
   });
 
+  // Load remembered email on component mount
+  useEffect(() => {
+    const rememberedEmail = localStorage.getItem("rememberedEmail");
+    const isRemembered = localStorage.getItem("rememberMe") === "true";
+
+    if (rememberedEmail && isRemembered) {
+      setFormData((prev) => ({ ...prev, email: rememberedEmail }));
+      setRememberMe(true);
+    }
+  }, []);
+
   // Check if passwords match
   const passwordsMatch =
     formData.password &&
@@ -71,6 +83,21 @@ export default function Home() {
     type: "success" | "error" | "warning" | "info"
   ) => {
     setModal({ isOpen: true, title, message, type });
+  };
+
+  // Social login handlers
+  const handleGoogleLogin = () => {
+    showNotification(
+      "Google login coming soon! This feature is under development.",
+      "info"
+    );
+  };
+
+  const handleFacebookLogin = () => {
+    showNotification(
+      "Facebook login coming soon! This feature is under development.",
+      "info"
+    );
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -95,16 +122,19 @@ export default function Home() {
     try {
       if (isLogin) {
         // Handle login
-        const response = await fetch("/api/auth/login", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            email: formData.email,
-            password: formData.password,
-          }),
-        });
+        const response = await fetch(
+          `${process.env.NEXT_PUBLIC_API_BASE_URL || "/api"}/auth/login`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              email: formData.email,
+              password: formData.password,
+            }),
+          }
+        );
 
         const data = await response.json();
 
@@ -114,6 +144,15 @@ export default function Home() {
 
           // Store user data in localStorage
           localStorage.setItem("user", JSON.stringify(data.user));
+
+          // Handle Remember Me functionality
+          if (rememberMe) {
+            localStorage.setItem("rememberMe", "true");
+            localStorage.setItem("rememberedEmail", formData.email);
+          } else {
+            localStorage.removeItem("rememberMe");
+            localStorage.removeItem("rememberedEmail");
+          }
 
           // Redirect to dashboard
           window.location.href = "/dashboard";
@@ -143,17 +182,20 @@ export default function Home() {
           return;
         }
 
-        const response = await fetch("/api/auth/register", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            email: formData.email,
-            password: formData.password,
-            nickname: formData.nickname,
-          }),
-        });
+        const response = await fetch(
+          `${process.env.NEXT_PUBLIC_API_BASE_URL || "/api"}/auth/register`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              email: formData.email,
+              password: formData.password,
+              nickname: formData.nickname,
+            }),
+          }
+        );
 
         const data = await response.json();
 
@@ -579,6 +621,8 @@ export default function Home() {
                 <label className="flex items-center">
                   <input
                     type="checkbox"
+                    checked={rememberMe}
+                    onChange={(e) => setRememberMe(e.target.checked)}
                     className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                   />
                   <span className="ml-2 text-sm text-gray-600 dark:text-gray-400">
@@ -652,7 +696,10 @@ export default function Home() {
 
                 {/* Social Login Buttons */}
                 <div className="mt-6 grid grid-cols-2 gap-3">
-                  <button className="w-full inline-flex justify-center py-2 px-4 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm bg-white dark:bg-gray-700 text-sm font-medium text-gray-500 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors">
+                  <button
+                    onClick={handleGoogleLogin}
+                    className="w-full inline-flex justify-center py-2 px-4 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm bg-white dark:bg-gray-700 text-sm font-medium text-gray-500 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
+                  >
                     <svg className="w-5 h-5" viewBox="0 0 24 24">
                       <path
                         fill="currentColor"
@@ -674,7 +721,10 @@ export default function Home() {
                     <span className="ml-2">Google</span>
                   </button>
 
-                  <button className="w-full inline-flex justify-center py-2 px-4 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm bg-white dark:bg-gray-700 text-sm font-medium text-gray-500 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors">
+                  <button
+                    onClick={handleFacebookLogin}
+                    className="w-full inline-flex justify-center py-2 px-4 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm bg-white dark:bg-gray-700 text-sm font-medium text-gray-500 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
+                  >
                     <svg
                       className="w-5 h-5"
                       fill="currentColor"

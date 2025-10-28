@@ -13,35 +13,45 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(
+    process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
+  ),
   title: {
-    default: "Next.js Auth Starter",
-    template: "%s | Next.js Auth Starter",
+    default: "Duocards",
+    template: "%s | Duocards",
   },
   description:
-    "A comprehensive Next.js boilerplate for authentication, user management, and email verification.",
-  applicationName: "Next.js Auth Starter",
-  authors: [{ name: "Your Name", url: "https://yourwebsite.com" }], // Customize with your name and website
+    "Duocards: Your ultimate flashcard learning web app. Create, organize, and master your knowledge with interactive flashcards.",
+  applicationName: "Duocards",
+  authors: [
+    {
+      name: "Your Name",
+      url: process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000",
+    },
+  ], // Customize with your name and website
   keywords: [
+    "Duocards",
+    "Flashcards",
+    "Learning",
+    "Study",
+    "Education",
+    "Memory",
+    "Spaced Repetition",
+    "Web App",
     "Next.js",
-    "Auth",
-    "Authentication",
-    "Boilerplate",
-    "User Management",
-    "Email Verification",
-    "Fullstack",
   ],
   openGraph: {
-    title: "Next.js Auth Starter",
+    title: "Duocards - Master Your Knowledge with Flashcards",
     description:
-      "A comprehensive Next.js boilerplate for authentication, user management, and email verification.",
-    url: "https://yourwebsite.com", // Customize with your application's URL
-    siteName: "Next.js Auth Starter",
+      "Create, organize, and learn effectively with Duocards, the interactive flashcard web app.",
+    url: process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000", // Customize with your application's URL
+    siteName: "Duocards",
     images: [
       {
         url: "/og-image.png", // Add an Open Graph image to your public directory (e.g., 1200x630px)
         width: 1200,
         height: 630,
-        alt: "Next.js Auth Starter",
+        alt: "Duocards Flashcard Learning App",
       },
     ],
     locale: "en_US",
@@ -49,9 +59,9 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "Next.js Auth Starter",
+    title: "Duocards - Flashcard Learning App",
     description:
-      "A comprehensive Next.js boilerplate for authentication, user management, and email verification.",
+      "Boost your learning with Duocards! Create custom flashcards and ace your studies.",
     creator: "@yourtwitterhandle", // Customize with your Twitter handle
     images: ["/twitter-image.png"], // Add a Twitter card image to your public directory (e.g., 1200x675px)
   },
