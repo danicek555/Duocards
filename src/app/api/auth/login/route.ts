@@ -45,6 +45,13 @@ export async function POST(request: NextRequest) {
     // Find user by email (case-insensitive)
     const user = await prisma.user.findUnique({
       where: { email: email.toLowerCase() },
+      select: {
+        id: true,
+        email: true,
+        password: true,
+        nickname: true,
+        createdAt: true,
+      },
     });
 
     // If user doesn't exist, return error (don't reveal if email exists)
@@ -52,17 +59,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: "Invalid email or password" }, // Generic message for security
         { status: 401 } // 401 = Unauthorized
-      );
-    }
-
-    // Check if email is verified
-    if (!user.emailVerified) {
-      return NextResponse.json(
-        {
-          error:
-            "Please verify your email before logging in. Check your inbox for a verification code.",
-        },
-        { status: 403 } // 403 = Forbidden
       );
     }
 
@@ -77,17 +73,15 @@ export async function POST(request: NextRequest) {
     }
 
     // Login successful - return user data (without password)
-    const userData = {
-      id: user.id,
-      email: user.email,
-      nickname: user.nickname,
-      createdAt: user.createdAt,
-    };
-
     return NextResponse.json(
       {
         message: "Login successful",
-        user: userData,
+        user: {
+          id: user.id,
+          email: user.email,
+          nickname: user.nickname,
+          createdAt: user.createdAt,
+        },
       },
       { status: 200 }
     );

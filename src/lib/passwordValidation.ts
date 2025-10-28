@@ -94,3 +94,11 @@ export function getPasswordStrengthProgress(
       return 0;
   }
 }
+
+
+
+
+
+
+
+

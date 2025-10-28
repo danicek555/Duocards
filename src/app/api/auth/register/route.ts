@@ -58,9 +58,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check if user already exists
+    // Check if user already exists or has pending registration
     const existingUser = await prisma.user.findUnique({
-      where: { email: email.toLowerCase() }, // Store emails in lowercase
+      where: { email: email.toLowerCase() },
+      select: { id: true, email: true },
     });
 
     if (existingUser) {
@@ -77,32 +78,43 @@ export async function POST(request: NextRequest) {
     const verificationCode = generateVerificationCode();
     const verificationCodeExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes from now
 
-    // Create new user in database (unverified)
-    const newUser = await prisma.user.create({
-      data: {
-        email: email.toLowerCase(), // Store in lowercase for consistency
-        password: hashedPassword, // Store hashed password, never plain text!
-        nickname: nickname.trim(), // Trim whitespace
-        emailVerified: false, // User is not verified yet
-        verificationCode: verificationCode,
-        verificationCodeExpires: verificationCodeExpires,
-      },
-      // Don't return the password in the response
-      select: {
-        id: true,
-        email: true,
-        nickname: true,
-        emailVerified: true,
-        createdAt: true,
-      },
+    // Check if there's already a pending registration for this email
+    const existingPending = await prisma.pendingRegistration.findUnique({
+      where: { email: email.toLowerCase() },
     });
+
+    if (existingPending) {
+      // Update existing pending registration
+      await prisma.pendingRegistration.update({
+        where: { id: existingPending.id },
+        data: {
+          password: hashedPassword,
+          nickname: nickname.trim(),
+          verificationCode: verificationCode,
+          verificationCodeExpires: verificationCodeExpires,
+        },
+      });
+    } else {
+      // Create new pending registration
+      await prisma.pendingRegistration.create({
+        data: {
+          email: email.toLowerCase(),
+          password: hashedPassword,
+          nickname: nickname.trim(),
+          verificationCode: verificationCode,
+          verificationCodeExpires: verificationCodeExpires,
+        },
+      });
+    }
 
     // Send verification email
     const emailResult = await sendVerificationEmail(email, verificationCode);
 
     if (!emailResult.success) {
-      // If email sending fails, delete the user and return specific error
-      await prisma.user.delete({ where: { id: newUser.id } });
+      // If email sending fails, delete the pending registration and return specific error
+      await prisma.pendingRegistration.delete({
+        where: { email: email.toLowerCase() },
+      });
       return NextResponse.json(
         {
           error:
@@ -118,7 +130,7 @@ export async function POST(request: NextRequest) {
       {
         message:
           "Registration successful! Please check your email for verification code.",
-        user: newUser,
+        email: email,
         requiresVerification: true,
       },
       { status: 201 } // 201 = Created

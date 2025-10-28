@@ -44,21 +44,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Find user by email
-    const user = await prisma.user.findUnique({
+    // Find pending registration by email
+    const pendingRegistration = await prisma.pendingRegistration.findUnique({
       where: { email: email.toLowerCase() },
     });
 
-    // If user doesn't exist, return error
-    if (!user) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
-    }
-
-    // Check if user is already verified
-    if (user.emailVerified) {
+    // If pending registration doesn't exist, return error
+    if (!pendingRegistration) {
       return NextResponse.json(
-        { error: "Email is already verified" },
-        { status: 400 }
+        { error: "No pending registration found. Please register first." },
+        { status: 404 }
       );
     }
 
@@ -66,9 +61,9 @@ export async function POST(request: NextRequest) {
     const verificationCode = generateVerificationCode();
     const verificationCodeExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes from now
 
-    // Update user with new verification code
-    await prisma.user.update({
-      where: { id: user.id },
+    // Update pending registration with new verification code
+    await prisma.pendingRegistration.update({
+      where: { id: pendingRegistration.id },
       data: {
         verificationCode: verificationCode,
         verificationCodeExpires: verificationCodeExpires,

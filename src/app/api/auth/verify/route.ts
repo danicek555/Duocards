@@ -55,34 +55,24 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Find user by email
-    const user = await prisma.user.findUnique({
+    // Find pending registration by email
+    const pendingRegistration = await prisma.pendingRegistration.findUnique({
       where: { email: email.toLowerCase() },
     });
 
-    // If user doesn't exist, return error
-    if (!user) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
-    }
-
-    // Check if user is already verified
-    if (user.emailVerified) {
+    // If pending registration doesn't exist, return error
+    if (!pendingRegistration) {
       return NextResponse.json(
-        { error: "Email is already verified" },
-        { status: 400 }
-      );
-    }
-
-    // Check if verification code exists
-    if (!user.verificationCode || !user.verificationCodeExpires) {
-      return NextResponse.json(
-        { error: "No verification code found. Please request a new one." },
-        { status: 400 }
+        {
+          error:
+            "No pending registration found for this email. Please register first.",
+        },
+        { status: 404 }
       );
     }
 
     // Check if verification code matches
-    if (user.verificationCode !== code) {
+    if (pendingRegistration.verificationCode !== code) {
       return NextResponse.json(
         { error: "Invalid verification code" },
         { status: 400 }
@@ -90,20 +80,45 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if verification code is expired
-    if (isVerificationCodeExpired(user.verificationCodeExpires.getTime())) {
+    if (
+      isVerificationCodeExpired(
+        pendingRegistration.verificationCodeExpires.getTime()
+      )
+    ) {
+      // Clean up expired pending registration
+      await prisma.pendingRegistration.delete({
+        where: { email: email.toLowerCase() },
+      });
       return NextResponse.json(
-        { error: "Verification code has expired. Please request a new one." },
+        { error: "Verification code has expired. Please register again." },
         { status: 400 }
       );
     }
 
-    // Mark user as verified and clear verification code
-    const verifiedUser = await prisma.user.update({
-      where: { id: user.id },
+    // Check if user already exists (race condition check)
+    const existingUser = await prisma.user.findUnique({
+      where: { email: email.toLowerCase() },
+      select: { id: true, email: true },
+    });
+
+    if (existingUser) {
+      // Delete pending registration since user already exists
+      await prisma.pendingRegistration.delete({
+        where: { email: email.toLowerCase() },
+      });
+      return NextResponse.json(
+        { error: "User already exists. Please login." },
+        { status: 400 }
+      );
+    }
+
+    // Create the user and delete pending registration
+    const newUser = await prisma.user.create({
       data: {
+        email: email.toLowerCase(),
+        password: pendingRegistration.password,
+        nickname: pendingRegistration.nickname,
         emailVerified: true,
-        verificationCode: null,
-        verificationCodeExpires: null,
       },
       select: {
         id: true,
@@ -113,6 +128,13 @@ export async function POST(request: NextRequest) {
         createdAt: true,
       },
     });
+
+    // Delete the pending registration
+    await prisma.pendingRegistration.delete({
+      where: { email: email.toLowerCase() },
+    });
+
+    const verifiedUser = newUser;
 
     // Return success response
     return NextResponse.json(
