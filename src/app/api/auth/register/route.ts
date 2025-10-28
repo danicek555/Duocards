@@ -19,6 +19,7 @@ import {
   generateVerificationCode,
   sendVerificationEmail,
 } from "@/lib/emailVerification";
+import { logEnvironmentStatus } from "@/lib/envValidation";
 
 // Define the expected request body structure
 interface RegisterRequest {
@@ -29,6 +30,19 @@ interface RegisterRequest {
 
 export async function POST(request: NextRequest) {
   try {
+    // Validate environment variables
+    const envValidation = logEnvironmentStatus();
+    if (!envValidation.isValid) {
+      console.error("Environment validation failed:", envValidation.errors);
+      return NextResponse.json(
+        {
+          error: "Server configuration error. Please contact support.",
+          code: "ENV_VALIDATION_FAILED",
+        },
+        { status: 500 }
+      );
+    }
+
     // Parse JSON from request body
     const body: RegisterRequest = await request.json();
     const { email, password, nickname } = body;
@@ -135,12 +149,83 @@ export async function POST(request: NextRequest) {
       },
       { status: 201 } // 201 = Created
     );
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("Registration error:", error);
 
-    // Return generic error message (don't expose internal errors)
+    // Type guard for Prisma errors
+    const isPrismaError = (
+      err: unknown
+    ): err is { code: string; meta?: unknown; message: string } => {
+      return typeof err === "object" && err !== null && "code" in err;
+    };
+
+    // Type guard for standard errors
+    const isStandardError = (err: unknown): err is Error => {
+      return err instanceof Error;
+    };
+
+    // Handle specific error types with more detailed messages
+    if (isPrismaError(error) && error.code === "P2021") {
+      console.error("Database table not found:", error.meta);
+      return NextResponse.json(
+        {
+          error: "Database configuration error. Please contact support.",
+          code: "DB_TABLE_NOT_FOUND",
+        },
+        { status: 500 }
+      );
+    }
+
+    if (isPrismaError(error) && error.code === "P2002") {
+      return NextResponse.json(
+        {
+          error: "User with this email already exists",
+          code: "EMAIL_EXISTS",
+        },
+        { status: 409 }
+      );
+    }
+
+    if (isPrismaError(error) && error.code === "P1001") {
+      console.error("Database connection failed:", error.message);
+      return NextResponse.json(
+        {
+          error: "Database connection failed. Please try again later.",
+          code: "DB_CONNECTION_FAILED",
+        },
+        { status: 503 }
+      );
+    }
+
+    if (isStandardError(error) && error.name === "SyntaxError") {
+      return NextResponse.json(
+        {
+          error: "Invalid request format",
+          code: "INVALID_REQUEST_FORMAT",
+        },
+        { status: 400 }
+      );
+    }
+
+    // Log detailed error info for debugging
+    console.error("Detailed error info:", {
+      name: isStandardError(error) ? error.name : "Unknown",
+      code: isPrismaError(error) ? error.code : "Unknown",
+      message: isStandardError(error) ? error.message : "Unknown error",
+      stack: isStandardError(error)
+        ? error.stack?.split("\n").slice(0, 3)
+        : undefined,
+    });
+
+    // Return generic error message for unknown errors
     return NextResponse.json(
-      { error: "Internal server error" },
+      {
+        error: "An unexpected error occurred. Please try again.",
+        code: "UNKNOWN_ERROR",
+        ...(process.env.NODE_ENV === "development" && {
+          debug: isStandardError(error) ? error.message : "Unknown error",
+        }),
+      },
       { status: 500 }
     );
   }
