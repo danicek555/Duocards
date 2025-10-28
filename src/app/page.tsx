@@ -25,8 +25,8 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(false);
 
   // Feature flags - set to true to show these features
-  const [showRememberMe, setShowRememberMe] = useState(true);
-  const [showSocialLogin, setShowSocialLogin] = useState(true);
+  const showRememberMe = true;
+  const showSocialLogin = true;
   const [rememberMe, setRememberMe] = useState(false);
 
   // Notification and Modal states
