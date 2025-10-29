@@ -23,6 +23,7 @@ export default function Home() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
 
   // Feature flags - set to true to show these features
   const showRememberMe = true;
@@ -52,8 +53,9 @@ export default function Home() {
     type: "info",
   });
 
-  // Load remembered email on component mount
+  // Handle client-side mounting to prevent hydration mismatches
   useEffect(() => {
+    setIsMounted(true);
     const rememberedEmail = localStorage.getItem("rememberedEmail");
     const isRemembered = localStorage.getItem("rememberMe") === "true";
 
@@ -275,286 +277,82 @@ export default function Home() {
           </div>
 
           {/* Form */}
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {!isLogin && (
-              <div>
-                <label
-                  htmlFor="nickname"
-                  className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
-                >
-                  Nickname
-                </label>
-                <input
-                  type="text"
-                  id="nickname"
-                  name="nickname"
-                  value={formData.nickname}
-                  onChange={handleInputChange}
-                  required={!isLogin}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-colors"
-                  placeholder="Choose a nickname"
-                />
-              </div>
-            )}
-
-            <div>
-              <label
-                htmlFor="email"
-                className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
-              >
-                Email Address
-              </label>
-              <input
-                type="email"
-                id="email"
-                name="email"
-                value={formData.email}
-                onChange={handleInputChange}
-                required
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-colors"
-                placeholder="Enter your email"
-              />
+          {!isMounted ? (
+            <div className="space-y-4">
+              <div className="h-10 bg-gray-200 dark:bg-gray-700 rounded-lg animate-pulse"></div>
+              <div className="h-10 bg-gray-200 dark:bg-gray-700 rounded-lg animate-pulse"></div>
+              <div className="h-10 bg-gray-200 dark:bg-gray-700 rounded-lg animate-pulse"></div>
             </div>
-
-            <div>
-              <label
-                htmlFor="password"
-                className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
-              >
-                Password
-              </label>
-              <div className="relative">
-                <input
-                  type={showPassword ? "text" : "password"}
-                  id="password"
-                  name="password"
-                  value={formData.password}
-                  onChange={handleInputChange}
-                  required
-                  className="w-full px-3 py-2 pr-10 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-colors"
-                  placeholder="Enter your password"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                >
-                  {showPassword ? (
-                    <svg
-                      className="w-5 h-5"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21"
-                      />
-                    </svg>
-                  ) : (
-                    <svg
-                      className="w-5 h-5"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                      />
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
-                      />
-                    </svg>
-                  )}
-                </button>
-              </div>
-
-              {/* Password Requirements - Only show during registration */}
-              {!isLogin && formData.password && (
-                <div className="mt-3 p-3 rounded-lg border">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                      Password Requirements:
-                    </span>
-                    <span
-                      className={`text-xs px-2 py-1 rounded-full border ${getPasswordStrengthColor(
-                        passwordValidation.strength
-                      )}`}
-                    >
-                      {passwordValidation.strength}
-                    </span>
-                  </div>
-
-                  {/* Progress bar */}
-                  <div className="w-full bg-gray-200 dark:bg-gray-600 rounded-full h-2 mb-3">
-                    <div
-                      className={`h-2 rounded-full transition-all duration-300 ${
-                        passwordValidation.strength === "weak"
-                          ? "bg-red-500"
-                          : passwordValidation.strength === "medium"
-                          ? "bg-yellow-500"
-                          : "bg-green-500"
-                      }`}
-                      style={{
-                        width: `${getPasswordStrengthProgress(
-                          passwordValidation.strength
-                        )}%`,
-                      }}
-                    ></div>
-                  </div>
-
-                  {/* Requirements checklist */}
-                  <div className="space-y-1">
-                    <div className="flex items-center text-sm">
-                      <span
-                        className={`mr-2 ${
-                          passwordValidation.requirements.minLength
-                            ? "text-green-600"
-                            : "text-gray-400"
-                        }`}
-                      >
-                        {passwordValidation.requirements.minLength ? "✓" : "✗"}
-                      </span>
-                      <span
-                        className={
-                          passwordValidation.requirements.minLength
-                            ? "text-green-600"
-                            : "text-gray-600 dark:text-gray-400"
-                        }
-                      >
-                        at least 8 characters long
-                      </span>
-                    </div>
-                    <div className="flex items-center text-sm">
-                      <span
-                        className={`mr-2 ${
-                          passwordValidation.requirements.hasUppercase
-                            ? "text-green-600"
-                            : "text-gray-400"
-                        }`}
-                      >
-                        {passwordValidation.requirements.hasUppercase
-                          ? "✓"
-                          : "✗"}
-                      </span>
-                      <span
-                        className={
-                          passwordValidation.requirements.hasUppercase
-                            ? "text-green-600"
-                            : "text-gray-600 dark:text-gray-400"
-                        }
-                      >
-                        contains uppercase letters (A-Z)
-                      </span>
-                    </div>
-                    <div className="flex items-center text-sm">
-                      <span
-                        className={`mr-2 ${
-                          passwordValidation.requirements.hasLowercase
-                            ? "text-green-600"
-                            : "text-gray-400"
-                        }`}
-                      >
-                        {passwordValidation.requirements.hasLowercase
-                          ? "✓"
-                          : "✗"}
-                      </span>
-                      <span
-                        className={
-                          passwordValidation.requirements.hasLowercase
-                            ? "text-green-600"
-                            : "text-gray-600 dark:text-gray-400"
-                        }
-                      >
-                        contains lowercase letters (a-z)
-                      </span>
-                    </div>
-                    <div className="flex items-center text-sm">
-                      <span
-                        className={`mr-2 ${
-                          passwordValidation.requirements.hasNumbers
-                            ? "text-green-600"
-                            : "text-gray-400"
-                        }`}
-                      >
-                        {passwordValidation.requirements.hasNumbers ? "✓" : "✗"}
-                      </span>
-                      <span
-                        className={
-                          passwordValidation.requirements.hasNumbers
-                            ? "text-green-600"
-                            : "text-gray-600 dark:text-gray-400"
-                        }
-                      >
-                        contains numbers (0-9)
-                      </span>
-                    </div>
-                    <div className="flex items-center text-sm">
-                      <span
-                        className={`mr-2 ${
-                          passwordValidation.requirements.hasSpecialChars
-                            ? "text-green-600"
-                            : "text-gray-400"
-                        }`}
-                      >
-                        {passwordValidation.requirements.hasSpecialChars
-                          ? "✓"
-                          : "✗"}
-                      </span>
-                      <span
-                        className={
-                          passwordValidation.requirements.hasSpecialChars
-                            ? "text-green-600"
-                            : "text-gray-600 dark:text-gray-400"
-                        }
-                      >
-                        contains special characters (!@#$%^&*)
-                      </span>
-                    </div>
-                  </div>
+          ) : (
+            <form
+              onSubmit={handleSubmit}
+              className="space-y-4"
+              suppressHydrationWarning
+            >
+              {!isLogin && (
+                <div>
+                  <label
+                    htmlFor="nickname"
+                    className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                  >
+                    Nickname
+                  </label>
+                  <input
+                    type="text"
+                    id="nickname"
+                    name="nickname"
+                    value={formData.nickname}
+                    onChange={handleInputChange}
+                    required={!isLogin}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-colors"
+                    placeholder="Choose a nickname"
+                  />
                 </div>
               )}
-            </div>
 
-            {!isLogin && (
               <div>
                 <label
-                  htmlFor="confirmPassword"
+                  htmlFor="email"
                   className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
                 >
-                  Confirm Password
+                  Email Address
+                </label>
+                <input
+                  type="email"
+                  id="email"
+                  name="email"
+                  value={formData.email}
+                  onChange={handleInputChange}
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-colors"
+                  placeholder="Enter your email"
+                />
+              </div>
+
+              <div>
+                <label
+                  htmlFor="password"
+                  className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                >
+                  Password
                 </label>
                 <div className="relative">
                   <input
-                    type={showConfirmPassword ? "text" : "password"}
-                    id="confirmPassword"
-                    name="confirmPassword"
-                    value={formData.confirmPassword}
+                    type={showPassword ? "text" : "password"}
+                    id="password"
+                    name="password"
+                    value={formData.password}
                     onChange={handleInputChange}
-                    required={!isLogin}
-                    className={`w-full px-3 py-2 pr-10 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-colors ${
-                      formData.confirmPassword && formData.password
-                        ? passwordsMatch
-                          ? "border-green-500 dark:border-green-500"
-                          : "border-red-500 dark:border-red-500"
-                        : "border-gray-300 dark:border-gray-600"
-                    }`}
-                    placeholder="Confirm your password"
+                    required
+                    className="w-full px-3 py-2 pr-10 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-colors"
+                    placeholder="Enter your password"
                   />
                   <button
                     type="button"
-                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    onClick={() => setShowPassword(!showPassword)}
                     className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
                   >
-                    {showConfirmPassword ? (
+                    {showPassword ? (
                       <svg
                         className="w-5 h-5"
                         fill="none"
@@ -592,92 +390,314 @@ export default function Home() {
                   </button>
                 </div>
 
-                {/* Password Match Indicator */}
-                {formData.confirmPassword && formData.password && (
-                  <div className="mt-2 flex items-center text-sm">
-                    <span
-                      className={`mr-2 ${
-                        passwordsMatch ? "text-green-600" : "text-red-600"
-                      }`}
-                    >
-                      {passwordsMatch ? "✓" : "✗"}
-                    </span>
-                    <span
-                      className={
-                        passwordsMatch ? "text-green-600" : "text-red-600"
-                      }
-                    >
-                      {passwordsMatch
-                        ? "Passwords match"
-                        : "Passwords do not match"}
-                    </span>
+                {/* Password Requirements - Only show during registration */}
+                {!isLogin && formData.password && (
+                  <div className="mt-3 p-3 rounded-lg border">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                        Password Requirements:
+                      </span>
+                      <span
+                        className={`text-xs px-2 py-1 rounded-full border ${getPasswordStrengthColor(
+                          passwordValidation.strength
+                        )}`}
+                      >
+                        {passwordValidation.strength}
+                      </span>
+                    </div>
+
+                    {/* Progress bar */}
+                    <div className="w-full bg-gray-200 dark:bg-gray-600 rounded-full h-2 mb-3">
+                      <div
+                        className={`h-2 rounded-full transition-all duration-300 ${
+                          passwordValidation.strength === "weak"
+                            ? "bg-red-500"
+                            : passwordValidation.strength === "medium"
+                            ? "bg-yellow-500"
+                            : "bg-green-500"
+                        }`}
+                        style={{
+                          width: `${getPasswordStrengthProgress(
+                            passwordValidation.strength
+                          )}%`,
+                        }}
+                      ></div>
+                    </div>
+
+                    {/* Requirements checklist */}
+                    <div className="space-y-1">
+                      <div className="flex items-center text-sm">
+                        <span
+                          className={`mr-2 ${
+                            passwordValidation.requirements.minLength
+                              ? "text-green-600"
+                              : "text-gray-400"
+                          }`}
+                        >
+                          {passwordValidation.requirements.minLength
+                            ? "✓"
+                            : "✗"}
+                        </span>
+                        <span
+                          className={
+                            passwordValidation.requirements.minLength
+                              ? "text-green-600"
+                              : "text-gray-600 dark:text-gray-400"
+                          }
+                        >
+                          at least 8 characters long
+                        </span>
+                      </div>
+                      <div className="flex items-center text-sm">
+                        <span
+                          className={`mr-2 ${
+                            passwordValidation.requirements.hasUppercase
+                              ? "text-green-600"
+                              : "text-gray-400"
+                          }`}
+                        >
+                          {passwordValidation.requirements.hasUppercase
+                            ? "✓"
+                            : "✗"}
+                        </span>
+                        <span
+                          className={
+                            passwordValidation.requirements.hasUppercase
+                              ? "text-green-600"
+                              : "text-gray-600 dark:text-gray-400"
+                          }
+                        >
+                          contains uppercase letters (A-Z)
+                        </span>
+                      </div>
+                      <div className="flex items-center text-sm">
+                        <span
+                          className={`mr-2 ${
+                            passwordValidation.requirements.hasLowercase
+                              ? "text-green-600"
+                              : "text-gray-400"
+                          }`}
+                        >
+                          {passwordValidation.requirements.hasLowercase
+                            ? "✓"
+                            : "✗"}
+                        </span>
+                        <span
+                          className={
+                            passwordValidation.requirements.hasLowercase
+                              ? "text-green-600"
+                              : "text-gray-600 dark:text-gray-400"
+                          }
+                        >
+                          contains lowercase letters (a-z)
+                        </span>
+                      </div>
+                      <div className="flex items-center text-sm">
+                        <span
+                          className={`mr-2 ${
+                            passwordValidation.requirements.hasNumbers
+                              ? "text-green-600"
+                              : "text-gray-400"
+                          }`}
+                        >
+                          {passwordValidation.requirements.hasNumbers
+                            ? "✓"
+                            : "✗"}
+                        </span>
+                        <span
+                          className={
+                            passwordValidation.requirements.hasNumbers
+                              ? "text-green-600"
+                              : "text-gray-600 dark:text-gray-400"
+                          }
+                        >
+                          contains numbers (0-9)
+                        </span>
+                      </div>
+                      <div className="flex items-center text-sm">
+                        <span
+                          className={`mr-2 ${
+                            passwordValidation.requirements.hasSpecialChars
+                              ? "text-green-600"
+                              : "text-gray-400"
+                          }`}
+                        >
+                          {passwordValidation.requirements.hasSpecialChars
+                            ? "✓"
+                            : "✗"}
+                        </span>
+                        <span
+                          className={
+                            passwordValidation.requirements.hasSpecialChars
+                              ? "text-green-600"
+                              : "text-gray-600 dark:text-gray-400"
+                          }
+                        >
+                          contains special characters (!@#$%^&*)
+                        </span>
+                      </div>
+                    </div>
                   </div>
                 )}
               </div>
-            )}
 
-            {isLogin && showRememberMe && (
-              <div className="flex items-center justify-between">
-                <label className="flex items-center">
-                  <input
-                    type="checkbox"
-                    checked={rememberMe}
-                    onChange={(e) => setRememberMe(e.target.checked)}
-                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                  />
-                  <span className="ml-2 text-sm text-gray-600 dark:text-gray-400">
-                    Remember me
-                  </span>
-                </label>
-                <a
-                  href="#"
-                  className="text-sm text-blue-600 hover:text-blue-500 dark:text-blue-400"
-                >
-                  Forgot password?
-                </a>
-              </div>
-            )}
-
-            <button
-              type="submit"
-              disabled={isLoading}
-              className={`w-full bg-blue-600 text-white font-medium py-2 px-4 rounded-lg transition-colors focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 ${
-                isLoading
-                  ? "opacity-50 cursor-not-allowed"
-                  : "hover:bg-blue-700"
-              }`}
-            >
-              {isLoading ? (
-                <span className="flex items-center justify-center">
-                  <svg
-                    className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
-                    xmlns="http://www.w3.org/2000/svg"
-                    fill="none"
-                    viewBox="0 0 24 24"
+              {!isLogin && (
+                <div>
+                  <label
+                    htmlFor="confirmPassword"
+                    className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
                   >
-                    <circle
-                      className="opacity-25"
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                    ></circle>
-                    <path
-                      className="opacity-75"
-                      fill="currentColor"
-                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                    ></path>
-                  </svg>
-                  {isLogin ? "Signing in..." : "Creating account..."}
-                </span>
-              ) : isLogin ? (
-                "Sign In"
-              ) : (
-                "Create Account"
+                    Confirm Password
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showConfirmPassword ? "text" : "password"}
+                      id="confirmPassword"
+                      name="confirmPassword"
+                      value={formData.confirmPassword}
+                      onChange={handleInputChange}
+                      required={!isLogin}
+                      className={`w-full px-3 py-2 pr-10 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-colors ${
+                        formData.confirmPassword && formData.password
+                          ? passwordsMatch
+                            ? "border-green-500 dark:border-green-500"
+                            : "border-red-500 dark:border-red-500"
+                          : "border-gray-300 dark:border-gray-600"
+                      }`}
+                      placeholder="Confirm your password"
+                    />
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setShowConfirmPassword(!showConfirmPassword)
+                      }
+                      className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                    >
+                      {showConfirmPassword ? (
+                        <svg
+                          className="w-5 h-5"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21"
+                          />
+                        </svg>
+                      ) : (
+                        <svg
+                          className="w-5 h-5"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                          />
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                          />
+                        </svg>
+                      )}
+                    </button>
+                  </div>
+
+                  {/* Password Match Indicator */}
+                  {formData.confirmPassword && formData.password && (
+                    <div className="mt-2 flex items-center text-sm">
+                      <span
+                        className={`mr-2 ${
+                          passwordsMatch ? "text-green-600" : "text-red-600"
+                        }`}
+                      >
+                        {passwordsMatch ? "✓" : "✗"}
+                      </span>
+                      <span
+                        className={
+                          passwordsMatch ? "text-green-600" : "text-red-600"
+                        }
+                      >
+                        {passwordsMatch
+                          ? "Passwords match"
+                          : "Passwords do not match"}
+                      </span>
+                    </div>
+                  )}
+                </div>
               )}
-            </button>
-          </form>
+
+              {isLogin && showRememberMe && (
+                <div className="flex items-center justify-between">
+                  <label className="flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={rememberMe}
+                      onChange={(e) => setRememberMe(e.target.checked)}
+                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
+                    <span className="ml-2 text-sm text-gray-600 dark:text-gray-400">
+                      Remember me
+                    </span>
+                  </label>
+                  <a
+                    href="#"
+                    className="text-sm text-blue-600 hover:text-blue-500 dark:text-blue-400"
+                  >
+                    Forgot password?
+                  </a>
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={isLoading}
+                className={`w-full bg-blue-600 text-white font-medium py-2 px-4 rounded-lg transition-colors focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 ${
+                  isLoading
+                    ? "opacity-50 cursor-not-allowed"
+                    : "hover:bg-blue-700"
+                }`}
+              >
+                {isLoading ? (
+                  <span className="flex items-center justify-center">
+                    <svg
+                      className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      ></circle>
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                      ></path>
+                    </svg>
+                    {isLogin ? "Signing in..." : "Creating account..."}
+                  </span>
+                ) : isLogin ? (
+                  "Sign In"
+                ) : (
+                  "Create Account"
+                )}
+              </button>
+            </form>
+          )}
 
           {/* Divider */}
           {showSocialLogin && (
