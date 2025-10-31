@@ -63,7 +63,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Compare provided password with stored hash
-    const isPasswordValid = comparePassword(password, user.password);
+    const isPasswordValid = await comparePassword(password, user.password);
 
     if (!isPasswordValid) {
       return NextResponse.json(
@@ -170,8 +170,8 @@ export async function POST(request: NextRequest) {
  * Security Notes:
  *
  * 1. Password Verification:
- *    - We use bcrypt.compare() to verify passwords
- *    - This is secure against timing attacks
+ *    - We use Argon2id to verify passwords (most secure algorithm available)
+ *    - This is secure against timing attacks, GPU attacks, and side-channel attacks
  *    - Never compare passwords directly
  *
  * 2. Error Messages:

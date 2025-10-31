@@ -1,34 +1,85 @@
 /**
  * Authentication utilities for password validation
  *
- * NOTE: This is a simplified version without bcrypt for testing
- * In production, you should use proper password hashing
+ * Uses Argon2id - the most secure password hashing algorithm available.
+ * Argon2id is the winner of the Password Hashing Competition and is
+ * recommended by OWASP for maximum security.
  */
 
+import argon2 from "argon2";
+
 /**
- * Simple password hashing (NOT SECURE - for testing only)
+ * Hash a password using Argon2id with secure parameters
  * @param password - Plain text password from user input
- * @returns string - Simple hash (NOT SECURE)
+ * @returns Promise<string> - Secure Argon2id hash (includes salt)
  */
-export function hashPassword(password: string): string {
-  // This is NOT secure - only for testing
-  // In production, use bcrypt or similar
-  return btoa(password); // Base64 encoding (NOT SECURE)
+export async function hashPassword(password: string): Promise<string> {
+  // Argon2id configuration for maximum security:
+  // - type: argon2id - hybrid version resistant to both side-channel and GPU attacks
+  // - memoryCost: 65536 (64 MB) - high memory usage makes GPU attacks expensive
+  // - timeCost: 3 - number of iterations (balance between security and performance)
+  // - parallelism: 4 - number of threads (adjust based on your server capacity)
+  // - hashLength: 32 - 256-bit hash output
+  //
+  // These parameters provide excellent security while maintaining reasonable performance
+  try {
+    const hash = await argon2.hash(password, {
+      type: argon2.argon2id, // Most secure variant - hybrid approach
+      memoryCost: 65536, // 64 MB - makes GPU attacks computationally expensive
+      timeCost: 3, // Number of iterations
+      parallelism: 4, // Number of threads
+      hashLength: 32, // 256-bit hash output
+    });
+    return hash;
+  } catch (error) {
+    // Log error but don't expose details to prevent information leakage
+    console.error("Password hashing error:", error);
+    throw new Error("Failed to hash password");
+  }
 }
 
 /**
- * Compare a plain text password with a hashed password
+ * Compare a plain text password with an Argon2id hashed password
  * @param password - Plain text password from user input
- * @param hashedPassword - Hashed password from database
- * @returns boolean - True if passwords match, false otherwise
+ * @param hashedPassword - Argon2id hash from database
+ * @returns Promise<boolean> - True if passwords match, false otherwise
  */
-export function comparePassword(
+export async function comparePassword(
   password: string,
   hashedPassword: string
-): boolean {
-  // This is NOT secure - only for testing
-  // In production, use bcrypt.compare()
-  return btoa(password) === hashedPassword;
+): Promise<boolean> {
+  try {
+    // Validate that hashedPassword is a valid Argon2 hash format
+    // Argon2 hashes always start with '$argon2' (argon2id, argon2i, or argon2d)
+    if (!hashedPassword || typeof hashedPassword !== "string") {
+      console.error(
+        "Password verification error: Invalid hash format (null or not a string)"
+      );
+      return false;
+    }
+
+    if (!hashedPassword.startsWith("$argon2")) {
+      console.error(
+        "Password verification error: Invalid hash format (does not start with $argon2)",
+        {
+          hashPrefix: hashedPassword.substring(0, 20),
+          hashLength: hashedPassword.length,
+        }
+      );
+      return false;
+    }
+
+    // argon2.verify automatically handles:
+    // - Salt extraction from the hash
+    // - Timing attack protection
+    // - Hash verification
+    const isValid = await argon2.verify(hashedPassword, password);
+    return isValid;
+  } catch (error) {
+    // Log error but return false for security (don't reveal if user exists)
+    console.error("Password verification error:", error);
+    return false;
+  }
 }
 
 /**
@@ -150,7 +201,10 @@ export interface AuthPayload {
   exp: number; // epoch seconds
 }
 
-export async function createAuthToken(payload: Omit<AuthPayload, "exp">, ttlSeconds = 60 * 60 * 24 * 7): Promise<string> {
+export async function createAuthToken(
+  payload: Omit<AuthPayload, "exp">,
+  ttlSeconds = 60 * 60 * 24 * 7
+): Promise<string> {
   const exp = Math.floor(Date.now() / 1000) + ttlSeconds;
   const body: AuthPayload = { ...payload, exp } as AuthPayload;
   const data = Buffer.from(JSON.stringify(body)).toString("base64url");
@@ -167,7 +221,9 @@ export async function createAuthToken(payload: Omit<AuthPayload, "exp">, ttlSeco
   return `${data}.${sig}`;
 }
 
-export async function verifyAuthToken(token: string | undefined): Promise<AuthPayload | null> {
+export async function verifyAuthToken(
+  token: string | undefined
+): Promise<AuthPayload | null> {
   if (!token) return null;
   const [data, sig] = token.split(".");
   if (!data || !sig) return null;
@@ -179,10 +235,17 @@ export async function verifyAuthToken(token: string | undefined): Promise<AuthPa
     false,
     ["sign", "verify"]
   );
-  const valid = await crypto.subtle.verify("HMAC", key, Buffer.from(sig, "base64url"), encoder.encode(data));
+  const valid = await crypto.subtle.verify(
+    "HMAC",
+    key,
+    Buffer.from(sig, "base64url"),
+    encoder.encode(data)
+  );
   if (!valid) return null;
   try {
-    const payload = JSON.parse(Buffer.from(data, "base64url").toString()) as AuthPayload;
+    const payload = JSON.parse(
+      Buffer.from(data, "base64url").toString()
+    ) as AuthPayload;
     if (payload.exp < Math.floor(Date.now() / 1000)) return null;
     return payload;
   } catch {

@@ -86,7 +86,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Hash the password before storing
-    const hashedPassword = hashPassword(password);
+    const hashedPassword = await hashPassword(password);
 
     // Generate verification code
     const verificationCode = generateVerificationCode();
@@ -235,7 +235,7 @@ export async function POST(request: NextRequest) {
  * Security Notes:
  *
  * 1. Password Hashing:
- *    - We hash passwords with bcrypt before storing
+ *    - We hash passwords with Argon2id before storing (most secure algorithm available)
  *    - Never store plain text passwords
  *    - We don't return the password in the response
  *

@@ -8,11 +8,13 @@
     "build:prod": "prisma generate --no-engine && next build",
     "build:vercel": "prisma migrate deploy && prisma generate --no-engine && next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "delete-users": "npx tsx scripts/delete-users.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.17.0",
     "@sentry/nextjs": "^10.22.0",
+    "argon2": "^0.44.0",
     "next": "15.5.4",
     "prisma": "^6.17.0",
     "react": "19.1.0",
