@@ -3,19 +3,21 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_DATABASE_URL")
 }
 
 model User {
-  id            Int      @id @default(autoincrement())
-  email         String   @unique
+  id            Int           @id @default(autoincrement())
+  email         String        @unique
   password      String
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  nickname      String   @default("User")
-  emailVerified Boolean  @default(true)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  nickname      String        @default("User")
+  emailVerified Boolean       @default(true)
   words         Word[]
+  flashcardSets FlashcardSet[]
 
   @@map("users")
 }
@@ -32,15 +34,29 @@ model PendingRegistration {
   @@map("pending_registrations")
 }
 
+model FlashcardSet {
+  id        Int      @id @default(autoincrement())
+  name      String
+  userId    Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  words     Word[]
+
+  @@map("flashcard_sets")
+}
+
 model Word {
-  id          Int      @id @default(autoincrement())
-  word        String
-  translation String
-  difficulty  Int      @default(1)
-  userId      Int
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id            Int          @id @default(autoincrement())
+  word          String
+  translation  String
+  difficulty   Int             @default(1)
+  userId       Int
+  flashcardSetId Int?
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+  user         User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  flashcardSet FlashcardSet?   @relation(fields: [flashcardSetId], references: [id], onDelete: Cascade)
 
   @@map("words")
 }

@@ -4,28 +4,54 @@
  * This file creates a singleton instance of PrismaClient
  * to prevent multiple connections in development (hot reloading)
  * and ensures proper connection management in production
+ *
+ * Supports both regular PostgreSQL and Prisma Accelerate connection strings
+ *
+ * For Prisma Accelerate: The DATABASE_URL should use prisma:// or prisma+postgres:// protocol
+ * The directUrl (DIRECT_DATABASE_URL) is used for migrations and introspection
  */
 
 import { PrismaClient } from "@prisma/client";
+import { withAccelerate } from "@prisma/extension-accelerate";
 
 // Global variable to store Prisma client instance
 // In development, this prevents creating multiple connections during hot reloads
 const globalForPrisma = globalThis as unknown as {
-  prisma: PrismaClient | undefined;
+  prisma: ReturnType<typeof createPrismaClient> | undefined;
 };
 
-// Create Prisma client instance
-// If it doesn't exist, create a new one
-// If it exists (in development), reuse the existing one
-export const prisma =
-  globalForPrisma.prisma ??
-  new PrismaClient({
+// Function to create Prisma client with proper configuration
+function createPrismaClient() {
+  // Check if we're using Prisma Accelerate
+  const databaseUrl = process.env.DATABASE_URL || "";
+  const isAccelerate =
+    databaseUrl.startsWith("prisma://") ||
+    databaseUrl.startsWith("prisma+postgres://");
+
+  // Create base Prisma client
+  // Prisma Client 6.x should support Accelerate URLs natively,
+  // but we'll use the extension for better compatibility
+  const baseClient = new PrismaClient({
     // Log database queries in development (helpful for debugging)
     log:
       process.env.NODE_ENV === "development"
         ? ["query", "error", "warn"]
         : ["error"],
   });
+
+  // For Accelerate URLs, apply the extension
+  // This ensures proper handling of the Accelerate connection
+  if (isAccelerate) {
+    return baseClient.$extends(withAccelerate());
+  }
+
+  return baseClient;
+}
+
+// Create Prisma client instance
+// If it doesn't exist, create a new one
+// If it exists (in development), reuse the existing one
+export const prisma = globalForPrisma.prisma ?? createPrismaClient();
 
 // In development, store the client in global variable to prevent multiple instances
 if (process.env.NODE_ENV !== "production") {

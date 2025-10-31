@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Flashcard from "@/components/Flashcard";
+import CreateFlashcardSetForm from "@/components/CreateFlashcardSetForm";
 
 interface User {
   id: number;
@@ -17,15 +18,30 @@ interface Word {
   translation: string;
   difficulty: number;
   userId: number;
+  flashcardSetId: number | null;
   createdAt: string;
   updatedAt: string;
 }
 
+interface FlashcardSet {
+  id: number;
+  name: string;
+  userId: number;
+  createdAt: string;
+  updatedAt: string;
+  words: Word[];
+}
+
+type ViewMode = "sets" | "cards";
+
 export default function Dashboard() {
   const [user, setUser] = useState<User | null>(null);
-  const [words, setWords] = useState<Word[]>([]);
+  const [flashcardSets, setFlashcardSets] = useState<FlashcardSet[]>([]);
+  const [selectedSet, setSelectedSet] = useState<FlashcardSet | null>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [viewMode, setViewMode] = useState<ViewMode>("sets");
   const router = useRouter();
 
   useEffect(() => {
@@ -38,54 +54,20 @@ export default function Dashboard() {
       router.push("/");
       return;
     }
-    fetchWords();
+    fetchFlashcardSets();
   }, [router]);
 
-  const fetchWords = async () => {
+  const fetchFlashcardSets = async () => {
     try {
-      const response = await fetch("/api/words");
+      const response = await fetch("/api/flashcard-sets");
       if (response.ok) {
         const data = await response.json();
-        setWords(data.words || []);
-        // If no words, create some sample words for demo
-        if (data.words.length === 0) {
-          await createSampleWords();
-        }
+        setFlashcardSets(data.flashcardSets || []);
       }
     } catch (error) {
-      console.error("Error fetching words:", error);
-      // Try to create sample words on error
-      await createSampleWords();
+      console.error("Error fetching flashcard sets:", error);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const createSampleWords = async () => {
-    const sampleWords = [
-      { word: "Hello", translation: "Hola", difficulty: 1 },
-      { word: "Goodbye", translation: "Adiós", difficulty: 1 },
-      { word: "Thank you", translation: "Gracias", difficulty: 1 },
-      { word: "Please", translation: "Por favor", difficulty: 1 },
-      { word: "Yes", translation: "Sí", difficulty: 1 },
-    ];
-
-    try {
-      const createdWords: Word[] = [];
-      for (const sample of sampleWords) {
-        const response = await fetch("/api/words", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(sample),
-        });
-        if (response.ok) {
-          const data = await response.json();
-          createdWords.push(data.word);
-        }
-      }
-      setWords(createdWords);
-    } catch (error) {
-      console.error("Error creating sample words:", error);
     }
   };
 
@@ -94,8 +76,20 @@ export default function Dashboard() {
     router.push("/");
   };
 
+  const handleSetClick = (set: FlashcardSet) => {
+    setSelectedSet(set);
+    setCurrentIndex(0);
+    setViewMode("cards");
+  };
+
+  const handleBackToSets = () => {
+    setSelectedSet(null);
+    setViewMode("sets");
+    setCurrentIndex(0);
+  };
+
   const handleNext = () => {
-    if (currentIndex < words.length - 1) {
+    if (selectedSet && currentIndex < selectedSet.words.length - 1) {
       setCurrentIndex(currentIndex + 1);
     }
   };
@@ -105,6 +99,16 @@ export default function Dashboard() {
       setCurrentIndex(currentIndex - 1);
     }
   };
+
+  const handleCreateSuccess = () => {
+    fetchFlashcardSets();
+  };
+
+  const totalWords = flashcardSets.reduce(
+    (sum, set) => sum + set.words.length,
+    0
+  );
+  const currentWord = selectedSet?.words[currentIndex];
 
   if (loading) {
     return (
@@ -120,8 +124,6 @@ export default function Dashboard() {
   if (!user) {
     return null; // Will redirect
   }
-
-  const currentWord = words[currentIndex];
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 flex">
@@ -141,26 +143,48 @@ export default function Dashboard() {
         <div className="p-6 space-y-4 border-b border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between">
             <span className="text-sm font-medium text-gray-600 dark:text-gray-400">
-              Total Words
+              Flashcard Sets
             </span>
             <span className="text-xl font-semibold text-gray-900 dark:text-white">
-              {words.length}
+              {flashcardSets.length}
             </span>
           </div>
           <div className="flex items-center justify-between">
             <span className="text-sm font-medium text-gray-600 dark:text-gray-400">
-              Current Card
+              Total Words
             </span>
             <span className="text-xl font-semibold text-gray-900 dark:text-white">
-              {words.length > 0 ? `${currentIndex + 1} / ${words.length}` : "0 / 0"}
+              {totalWords}
             </span>
           </div>
+          {viewMode === "cards" && selectedSet && (
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                Current Card
+              </span>
+              <span className="text-xl font-semibold text-gray-900 dark:text-white">
+                {selectedSet.words.length > 0
+                  ? `${currentIndex + 1} / ${selectedSet.words.length}`
+                  : "0 / 0"}
+              </span>
+            </div>
+          )}
         </div>
 
         {/* Navigation Links */}
         <div className="flex-1 p-6">
           <nav className="space-y-2">
-            <button className="w-full text-left px-4 py-3 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 rounded-lg font-medium transition-colors">
+            <button
+              onClick={() => {
+                setViewMode("sets");
+                handleBackToSets();
+              }}
+              className={`w-full text-left px-4 py-3 rounded-lg font-medium transition-colors ${
+                viewMode === "sets"
+                  ? "bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400"
+                  : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+              }`}
+            >
               <div className="flex items-center">
                 <svg
                   className="w-5 h-5 mr-3"
@@ -172,13 +196,16 @@ export default function Dashboard() {
                     strokeLinecap="round"
                     strokeLinejoin="round"
                     strokeWidth={2}
-                    d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"
+                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
                   />
                 </svg>
-                Flashcards
+                Flashcard Sets
               </div>
             </button>
-            <button className="w-full text-left px-4 py-3 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
+            <button
+              onClick={() => setShowCreateForm(true)}
+              className="w-full text-left px-4 py-3 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+            >
               <div className="flex items-center">
                 <svg
                   className="w-5 h-5 mr-3"
@@ -193,7 +220,7 @@ export default function Dashboard() {
                     d="M12 6v6m0 0v6m0-6h6m-6 0H6"
                   />
                 </svg>
-                Add Words
+                Make New Flashcard Set
               </div>
             </button>
             <button className="w-full text-left px-4 py-3 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
@@ -242,41 +269,162 @@ export default function Dashboard() {
       </div>
 
       {/* Right Content Area */}
-      <div className="flex-1 flex items-center justify-center p-8">
-        {words.length > 0 && currentWord ? (
-          <Flashcard
-            word={currentWord.word}
-            translation={currentWord.translation}
-            difficulty={currentWord.difficulty}
-            onNext={handleNext}
-            onPrevious={handlePrevious}
-            hasNext={currentIndex < words.length - 1}
-            hasPrevious={currentIndex > 0}
-          />
+      <div className="flex-1 p-8 overflow-y-auto">
+        {viewMode === "sets" ? (
+          <div>
+            <div className="mb-6">
+              <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+                Your Flashcard Sets
+              </h2>
+              <p className="text-gray-600 dark:text-gray-400">
+                Click on a set to start practicing
+              </p>
+            </div>
+
+            {flashcardSets.length === 0 ? (
+              <div className="text-center py-16">
+                <svg
+                  className="w-16 h-16 text-gray-400 mx-auto mb-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                  />
+                </svg>
+                <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
+                  No flashcard sets yet
+                </h3>
+                <p className="text-gray-600 dark:text-gray-400 mb-6">
+                  Create your first flashcard set to get started!
+                </p>
+                <button
+                  onClick={() => setShowCreateForm(true)}
+                  className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors inline-flex items-center gap-2"
+                >
+                  <svg
+                    className="w-5 h-5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+                    />
+                  </svg>
+                  Make New Flashcard Set
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {flashcardSets.map((set) => (
+                  <button
+                    key={set.id}
+                    onClick={() => handleSetClick(set)}
+                    className="bg-white dark:bg-gray-800 rounded-xl shadow-lg hover:shadow-xl transition-all p-6 text-left border-2 border-transparent hover:border-blue-500 dark:hover:border-blue-400"
+                  >
+                    <div className="flex items-start justify-between mb-4">
+                      <h3 className="text-xl font-bold text-gray-900 dark:text-white">
+                        {set.name}
+                      </h3>
+                      <div className="bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 px-3 py-1 rounded-full text-sm font-medium">
+                        {set.words.length}{" "}
+                        {set.words.length === 1 ? "card" : "cards"}
+                      </div>
+                    </div>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                      Created {new Date(set.createdAt).toLocaleDateString()}
+                    </p>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         ) : (
-          <div className="text-center">
-            <svg
-              className="w-16 h-16 text-gray-400 mx-auto mb-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-              />
-            </svg>
-            <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-2">
-              No flashcards yet
-            </h2>
-            <p className="text-gray-600 dark:text-gray-400">
-              Add some words to get started!
-            </p>
+          <div className="h-full flex flex-col">
+            {/* Back button and set name */}
+            <div className="mb-6">
+              <button
+                onClick={handleBackToSets}
+                className="mb-4 flex items-center text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
+              >
+                <svg
+                  className="w-5 h-5 mr-2"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M15 19l-7-7 7-7"
+                  />
+                </svg>
+                Back to Flashcard Sets
+              </button>
+              <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+                {selectedSet?.name}
+              </h2>
+              <p className="text-gray-600 dark:text-gray-400">
+                {selectedSet?.words.length || 0} cards in this set
+              </p>
+            </div>
+
+            {/* Flashcard display */}
+            <div className="flex-1 flex items-center justify-center">
+              {selectedSet && currentWord ? (
+                <Flashcard
+                  word={currentWord.word}
+                  translation={currentWord.translation}
+                  difficulty={currentWord.difficulty}
+                  onNext={handleNext}
+                  onPrevious={handlePrevious}
+                  hasNext={currentIndex < selectedSet.words.length - 1}
+                  hasPrevious={currentIndex > 0}
+                />
+              ) : (
+                <div className="text-center">
+                  <svg
+                    className="w-16 h-16 text-gray-400 mx-auto mb-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                    />
+                  </svg>
+                  <h3 className="text-2xl font-semibold text-gray-900 dark:text-white mb-2">
+                    No cards in this set
+                  </h3>
+                  <p className="text-gray-600 dark:text-gray-400">
+                    This flashcard set is empty
+                  </p>
+                </div>
+              )}
+            </div>
           </div>
         )}
       </div>
+
+      {/* Create Flashcard Set Form Modal */}
+      {showCreateForm && (
+        <CreateFlashcardSetForm
+          onClose={() => setShowCreateForm(false)}
+          onSuccess={handleCreateSuccess}
+        />
+      )}
     </div>
   );
 }
