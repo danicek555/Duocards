@@ -17,11 +17,11 @@ import { withAccelerate } from "@prisma/extension-accelerate";
 // Global variable to store Prisma client instance
 // In development, this prevents creating multiple connections during hot reloads
 const globalForPrisma = globalThis as unknown as {
-  prisma: ReturnType<typeof createPrismaClient> | undefined;
+  prisma: PrismaClient | undefined;
 };
 
 // Function to create Prisma client with proper configuration
-function createPrismaClient() {
+function createPrismaClient(): PrismaClient {
   // Check if we're using Prisma Accelerate
   const databaseUrl = process.env.DATABASE_URL || "";
   const isAccelerate =
@@ -40,9 +40,10 @@ function createPrismaClient() {
   });
 
   // For Accelerate URLs, apply the extension
-  // This ensures proper handling of the Accelerate connection
+  // Type assertion needed because $extends returns a different type
+  // but at runtime, all Prisma methods work the same way
   if (isAccelerate) {
-    return baseClient.$extends(withAccelerate());
+    return baseClient.$extends(withAccelerate()) as unknown as PrismaClient;
   }
 
   return baseClient;

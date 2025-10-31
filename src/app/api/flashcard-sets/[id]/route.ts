@@ -24,7 +24,7 @@ export async function GET(
       );
     }
 
-    const flashcardSet = await (prisma as any).flashcardSet.findFirst({
+    const flashcardSet = await prisma.flashcardSet.findFirst({
       where: {
         id: setId,
         userId: payload.userId,
