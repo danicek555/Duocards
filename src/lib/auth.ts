@@ -150,7 +150,10 @@ export interface AuthPayload {
   exp: number; // epoch seconds
 }
 
-export async function createAuthToken(payload: Omit<AuthPayload, "exp">, ttlSeconds = 60 * 60 * 24 * 7): Promise<string> {
+export async function createAuthToken(
+  payload: Omit<AuthPayload, "exp">,
+  ttlSeconds = 60 * 60 * 24 * 7
+): Promise<string> {
   const exp = Math.floor(Date.now() / 1000) + ttlSeconds;
   const body: AuthPayload = { ...payload, exp } as AuthPayload;
   const data = Buffer.from(JSON.stringify(body)).toString("base64url");
@@ -167,7 +170,9 @@ export async function createAuthToken(payload: Omit<AuthPayload, "exp">, ttlSeco
   return `${data}.${sig}`;
 }
 
-export async function verifyAuthToken(token: string | undefined): Promise<AuthPayload | null> {
+export async function verifyAuthToken(
+  token: string | undefined
+): Promise<AuthPayload | null> {
   if (!token) return null;
   const [data, sig] = token.split(".");
   if (!data || !sig) return null;
@@ -179,10 +184,17 @@ export async function verifyAuthToken(token: string | undefined): Promise<AuthPa
     false,
     ["sign", "verify"]
   );
-  const valid = await crypto.subtle.verify("HMAC", key, Buffer.from(sig, "base64url"), encoder.encode(data));
+  const valid = await crypto.subtle.verify(
+    "HMAC",
+    key,
+    Buffer.from(sig, "base64url"),
+    encoder.encode(data)
+  );
   if (!valid) return null;
   try {
-    const payload = JSON.parse(Buffer.from(data, "base64url").toString()) as AuthPayload;
+    const payload = JSON.parse(
+      Buffer.from(data, "base64url").toString()
+    ) as AuthPayload;
     if (payload.exp < Math.floor(Date.now() / 1000)) return null;
     return payload;
   } catch {
