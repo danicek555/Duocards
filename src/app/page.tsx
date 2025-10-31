@@ -53,6 +53,22 @@ export default function Home() {
     type: "info",
   });
 
+  // Helper functions for notifications and modals
+  const showNotification = (
+    message: string,
+    type: "success" | "error" | "warning" | "info"
+  ) => {
+    setNotification({ message, type, isVisible: true });
+  };
+
+  const showModal = (
+    title: string,
+    message: string,
+    type: "success" | "error" | "warning" | "info"
+  ) => {
+    setModal({ isOpen: true, title, message, type });
+  };
+
   // Handle client-side mounting to prevent hydration mismatches
   useEffect(() => {
     setIsMounted(true);
@@ -70,22 +86,6 @@ export default function Home() {
     formData.password &&
     formData.confirmPassword &&
     formData.password === formData.confirmPassword;
-
-  // Helper functions for notifications and modals
-  const showNotification = (
-    message: string,
-    type: "success" | "error" | "warning" | "info"
-  ) => {
-    setNotification({ message, type, isVisible: true });
-  };
-
-  const showModal = (
-    title: string,
-    message: string,
-    type: "success" | "error" | "warning" | "info"
-  ) => {
-    setModal({ isOpen: true, title, message, type });
-  };
 
   // Social login handlers
   const handleGoogleLogin = () => {
@@ -641,7 +641,13 @@ export default function Home() {
                     <input
                       type="checkbox"
                       checked={rememberMe}
-                      onChange={(e) => setRememberMe(e.target.checked)}
+                      onChange={(e) => {
+                        setRememberMe(e.target.checked);
+                        showNotification(
+                          "Remember me coming soon! This feature is under development.",
+                          "info"
+                        );
+                      }}
                       className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                     />
                     <span className="ml-2 text-sm text-gray-600 dark:text-gray-400">
@@ -651,6 +657,13 @@ export default function Home() {
                   <a
                     href="#"
                     className="text-sm text-blue-600 hover:text-blue-500 dark:text-blue-400"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      showNotification(
+                        "Password reset coming soon! This feature is under development.",
+                        "info"
+                      );
+                    }}
                   >
                     Forgot password?
                   </a>

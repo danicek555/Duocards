@@ -12,7 +12,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { comparePassword, isValidEmail } from "@/lib/auth";
+import { comparePassword, isValidEmail, createAuthToken } from "@/lib/auth";
 
 // Define the expected request body structure
 interface LoginRequest {
@@ -72,8 +72,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Login successful - return user data (without password)
-    return NextResponse.json(
+    // Create signed auth cookie
+    const token = await createAuthToken({ userId: user.id, email: user.email });
+    const res = NextResponse.json(
       {
         message: "Login successful",
         user: {
@@ -85,6 +86,14 @@ export async function POST(request: NextRequest) {
       },
       { status: 200 }
     );
+    res.cookies.set("auth", token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      path: "/",
+      maxAge: 60 * 60 * 24 * 7, // 7 days
+    });
+    return res;
   } catch (error: unknown) {
     console.error("Login error:", error);
 

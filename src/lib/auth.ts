@@ -133,3 +133,59 @@ export function validatePassword(password: string): {
 
   return { isValid: true, message: "Password is valid" };
 }
+
+// --- Minimal HMAC-signed auth token (JWT-like) ---
+function getAuthSecret(): string {
+  const secret = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET;
+  if (!secret) {
+    // Developer-friendly default in dev; set AUTH_SECRET in production
+    return "dev-insecure-secret-change-me";
+  }
+  return secret;
+}
+
+export interface AuthPayload {
+  userId: number;
+  email: string;
+  exp: number; // epoch seconds
+}
+
+export async function createAuthToken(payload: Omit<AuthPayload, "exp">, ttlSeconds = 60 * 60 * 24 * 7): Promise<string> {
+  const exp = Math.floor(Date.now() / 1000) + ttlSeconds;
+  const body: AuthPayload = { ...payload, exp } as AuthPayload;
+  const data = Buffer.from(JSON.stringify(body)).toString("base64url");
+  const encoder = new TextEncoder();
+  const key = await crypto.subtle.importKey(
+    "raw",
+    encoder.encode(getAuthSecret()),
+    { name: "HMAC", hash: { name: "SHA-256" } },
+    false,
+    ["sign", "verify"]
+  );
+  const sigBuf = await crypto.subtle.sign("HMAC", key, encoder.encode(data));
+  const sig = Buffer.from(new Uint8Array(sigBuf)).toString("base64url");
+  return `${data}.${sig}`;
+}
+
+export async function verifyAuthToken(token: string | undefined): Promise<AuthPayload | null> {
+  if (!token) return null;
+  const [data, sig] = token.split(".");
+  if (!data || !sig) return null;
+  const encoder = new TextEncoder();
+  const key = await crypto.subtle.importKey(
+    "raw",
+    encoder.encode(getAuthSecret()),
+    { name: "HMAC", hash: { name: "SHA-256" } },
+    false,
+    ["sign", "verify"]
+  );
+  const valid = await crypto.subtle.verify("HMAC", key, Buffer.from(sig, "base64url"), encoder.encode(data));
+  if (!valid) return null;
+  try {
+    const payload = JSON.parse(Buffer.from(data, "base64url").toString()) as AuthPayload;
+    if (payload.exp < Math.floor(Date.now() / 1000)) return null;
+    return payload;
+  } catch {
+    return null;
+  }
+}
