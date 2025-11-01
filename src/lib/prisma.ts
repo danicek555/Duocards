@@ -40,10 +40,13 @@ function createPrismaClient(): PrismaClient {
   });
 
   // For Accelerate URLs, apply the extension
-  // Type assertion needed because $extends returns a different type
-  // but at runtime, all Prisma methods work the same way
+  // The extended client is compatible with PrismaClient at runtime
+  // We use type assertion to maintain compatibility
   if (isAccelerate) {
-    return baseClient.$extends(withAccelerate()) as unknown as PrismaClient;
+    const extended = baseClient.$extends(withAccelerate());
+    // TypeScript doesn't recognize extended clients have all the same methods
+    // But at runtime they do, so we assert the type
+    return extended as unknown as PrismaClient;
   }
 
   return baseClient;
@@ -52,7 +55,8 @@ function createPrismaClient(): PrismaClient {
 // Create Prisma client instance
 // If it doesn't exist, create a new one
 // If it exists (in development), reuse the existing one
-export const prisma = globalForPrisma.prisma ?? createPrismaClient();
+export const prisma: PrismaClient =
+  globalForPrisma.prisma ?? createPrismaClient();
 
 // In development, store the client in global variable to prevent multiple instances
 if (process.env.NODE_ENV !== "production") {

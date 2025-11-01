@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Flashcard from "@/components/Flashcard";
 import CreateFlashcardSetForm from "@/components/CreateFlashcardSetForm";
+import AIGenerateFlashcardForm from "@/components/AIGenerateFlashcardForm";
 
 interface User {
   id: number;
@@ -41,6 +42,7 @@ export default function Dashboard() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [loading, setLoading] = useState(true);
   const [showCreateForm, setShowCreateForm] = useState(false);
+  const [showAIGenerateForm, setShowAIGenerateForm] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>("sets");
   const router = useRouter();
 
@@ -221,6 +223,29 @@ export default function Dashboard() {
                   />
                 </svg>
                 Make New Flashcard Set
+              </div>
+            </button>
+            <button
+              onClick={() => setShowAIGenerateForm(true)}
+              className="w-full text-left px-4 py-3 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-900/20 dark:to-blue-900/20 border border-purple-200 dark:border-purple-800"
+            >
+              <div className="flex items-center">
+                <svg
+                  className="w-5 h-5 mr-3 text-purple-600 dark:text-purple-400"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"
+                  />
+                </svg>
+                <span className="text-purple-700 dark:text-purple-300 font-medium">
+                  AI Generate Flashcards
+                </span>
               </div>
             </button>
             <button className="w-full text-left px-4 py-3 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
@@ -422,6 +447,14 @@ export default function Dashboard() {
       {showCreateForm && (
         <CreateFlashcardSetForm
           onClose={() => setShowCreateForm(false)}
+          onSuccess={handleCreateSuccess}
+        />
+      )}
+
+      {/* AI Generate Flashcard Form Modal */}
+      {showAIGenerateForm && (
+        <AIGenerateFlashcardForm
+          onClose={() => setShowAIGenerateForm(false)}
           onSuccess={handleCreateSuccess}
         />
       )}
