@@ -3,8 +3,9 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Flashcard from "@/components/Flashcard";
-import CreateFlashcardSetForm from "@/components/CreateFlashcardSetForm";
-import AIGenerateFlashcardForm from "@/components/AIGenerateFlashcardForm";
+import InlineCreateFlashcardSetForm from "@/components/InlineCreateFlashcardSetForm";
+import InlineAIGenerateForm from "@/components/InlineAIGenerateForm";
+import { getLanguageFlag } from "@/lib/flags";
 
 interface User {
   id: number;
@@ -28,6 +29,8 @@ interface FlashcardSet {
   id: number;
   name: string;
   userId: number;
+  fromLanguage: string | null;
+  toLanguage: string | null;
   createdAt: string;
   updatedAt: string;
   words: Word[];
@@ -45,6 +48,12 @@ export default function Dashboard() {
   const [showAIGenerateForm, setShowAIGenerateForm] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>("sets");
   const router = useRouter();
+
+  const handleCreateSuccess = () => {
+    setShowCreateForm(false);
+    setShowAIGenerateForm(false);
+    fetchFlashcardSets();
+  };
 
   useEffect(() => {
     // Check if user data exists in localStorage (from login)
@@ -100,10 +109,6 @@ export default function Dashboard() {
     if (currentIndex > 0) {
       setCurrentIndex(currentIndex - 1);
     }
-  };
-
-  const handleCreateSuccess = () => {
-    fetchFlashcardSets();
   };
 
   const totalWords = flashcardSets.reduce(
@@ -181,7 +186,7 @@ export default function Dashboard() {
                 setViewMode("sets");
                 handleBackToSets();
               }}
-              className={`w-full text-left px-4 py-3 rounded-lg font-medium transition-colors ${
+              className={`w-full text-left px-4 py-3 rounded-lg font-medium transition-colors cursor-pointer active:scale-[0.98] ${
                 viewMode === "sets"
                   ? "bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400"
                   : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
@@ -204,51 +209,7 @@ export default function Dashboard() {
                 Flashcard Sets
               </div>
             </button>
-            <button
-              onClick={() => setShowCreateForm(true)}
-              className="w-full text-left px-4 py-3 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-            >
-              <div className="flex items-center">
-                <svg
-                  className="w-5 h-5 mr-3"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M12 6v6m0 0v6m0-6h6m-6 0H6"
-                  />
-                </svg>
-                Make New Flashcard Set
-              </div>
-            </button>
-            <button
-              onClick={() => setShowAIGenerateForm(true)}
-              className="w-full text-left px-4 py-3 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-900/20 dark:to-blue-900/20 border border-purple-200 dark:border-purple-800"
-            >
-              <div className="flex items-center">
-                <svg
-                  className="w-5 h-5 mr-3 text-purple-600 dark:text-purple-400"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"
-                  />
-                </svg>
-                <span className="text-purple-700 dark:text-purple-300 font-medium">
-                  AI Generate Flashcards
-                </span>
-              </div>
-            </button>
-            <button className="w-full text-left px-4 py-3 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
+            <button className="w-full text-left px-4 py-3 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors cursor-pointer active:scale-[0.98]">
               <div className="flex items-center">
                 <svg
                   className="w-5 h-5 mr-3"
@@ -273,7 +234,7 @@ export default function Dashboard() {
         <div className="p-6 border-t border-gray-200 dark:border-gray-700">
           <button
             onClick={handleLogout}
-            className="w-full bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition-colors flex items-center justify-center"
+            className="w-full bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition-colors flex items-center justify-center cursor-pointer active:scale-[0.98]"
           >
             <svg
               className="w-5 h-5 mr-2"
@@ -306,7 +267,85 @@ export default function Dashboard() {
               </p>
             </div>
 
-            {flashcardSets.length === 0 ? (
+            {/* Create New Set Forms */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+              {showCreateForm ? (
+                <div className="col-span-1 md:col-span-2">
+                  <InlineCreateFlashcardSetForm
+                    onSuccess={handleCreateSuccess}
+                    onCancel={() => setShowCreateForm(false)}
+                  />
+                </div>
+              ) : showAIGenerateForm ? (
+                <div className="col-span-1 md:col-span-2">
+                  <InlineAIGenerateForm
+                    onSuccess={handleCreateSuccess}
+                    onCancel={() => setShowAIGenerateForm(false)}
+                  />
+                </div>
+              ) : (
+                <>
+                  <button
+                    onClick={() => {
+                      setShowCreateForm(true);
+                      setShowAIGenerateForm(false);
+                    }}
+                    className="bg-white dark:bg-gray-800 rounded-xl shadow-lg hover:shadow-xl transition-all p-6 text-left border-2 border-dashed border-gray-300 dark:border-gray-600 hover:border-blue-500 dark:hover:border-blue-400 flex flex-col items-center justify-center min-h-[200px] cursor-pointer active:scale-[0.98]"
+                  >
+                    <svg
+                      className="w-12 h-12 text-gray-400 dark:text-gray-500 mb-3"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+                      />
+                    </svg>
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-1">
+                      Create New Set
+                    </h3>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 text-center">
+                      Manually add words and translations
+                    </p>
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowAIGenerateForm(true);
+                      setShowCreateForm(false);
+                    }}
+                    className="bg-gradient-to-br from-purple-50 to-blue-50 dark:from-purple-900/20 dark:to-blue-900/20 rounded-xl shadow-lg hover:shadow-xl transition-all p-6 text-left border-2 border-dashed border-purple-300 dark:border-purple-600 hover:border-purple-500 dark:hover:border-purple-400 flex flex-col items-center justify-center min-h-[200px] cursor-pointer active:scale-[0.98]"
+                  >
+                    <svg
+                      className="w-12 h-12 text-purple-600 dark:text-purple-400 mb-3"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"
+                      />
+                    </svg>
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-1">
+                      AI Generate
+                    </h3>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 text-center">
+                      Let AI create flashcards for you
+                    </p>
+                  </button>
+                </>
+              )}
+            </div>
+
+            {flashcardSets.length === 0 &&
+            !showCreateForm &&
+            !showAIGenerateForm ? (
               <div className="text-center py-16">
                 <svg
                   className="w-16 h-16 text-gray-400 mx-auto mb-4"
@@ -348,28 +387,56 @@ export default function Dashboard() {
                 </button>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {flashcardSets.map((set) => (
-                  <button
-                    key={set.id}
-                    onClick={() => handleSetClick(set)}
-                    className="bg-white dark:bg-gray-800 rounded-xl shadow-lg hover:shadow-xl transition-all p-6 text-left border-2 border-transparent hover:border-blue-500 dark:hover:border-blue-400"
-                  >
-                    <div className="flex items-start justify-between mb-4">
-                      <h3 className="text-xl font-bold text-gray-900 dark:text-white">
-                        {set.name}
-                      </h3>
-                      <div className="bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 px-3 py-1 rounded-full text-sm font-medium">
-                        {set.words.length}{" "}
-                        {set.words.length === 1 ? "card" : "cards"}
-                      </div>
-                    </div>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">
-                      Created {new Date(set.createdAt).toLocaleDateString()}
-                    </p>
-                  </button>
-                ))}
-              </div>
+              <>
+                {flashcardSets.length > 0 && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {flashcardSets.map((set) => (
+                      <button
+                        key={set.id}
+                        onClick={() => handleSetClick(set)}
+                        className="bg-white dark:bg-gray-800 rounded-xl shadow-lg hover:shadow-xl transition-all p-6 text-left border-2 border-transparent hover:border-blue-500 dark:hover:border-blue-400 cursor-pointer active:scale-[0.98]"
+                      >
+                        <div className="flex items-start justify-between mb-4">
+                          <h3 className="text-xl font-bold text-gray-900 dark:text-white">
+                            {set.name}
+                          </h3>
+                          <div className="bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 px-5 py-2 rounded-full text-sm font-medium whitespace-nowrap">
+                            {set.words.length}{" "}
+                            {set.words.length === 1 ? "card" : "cards"}
+                          </div>
+                        </div>
+                        {/* Language Flags */}
+                        {(set.fromLanguage || set.toLanguage) && (
+                          <div className="flex items-center gap-2 mb-2">
+                            <span className="text-2xl">
+                              {getLanguageFlag(set.fromLanguage)}
+                            </span>
+                            <svg
+                              className="w-4 h-4 text-gray-400 dark:text-gray-500"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M13 7l5 5m0 0l-5 5m5-5H6"
+                              />
+                            </svg>
+                            <span className="text-2xl">
+                              {getLanguageFlag(set.toLanguage)}
+                            </span>
+                          </div>
+                        )}
+                        <p className="text-sm text-gray-500 dark:text-gray-400">
+                          Created {new Date(set.createdAt).toLocaleDateString()}
+                        </p>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </>
             )}
           </div>
         ) : (
@@ -378,7 +445,7 @@ export default function Dashboard() {
             <div className="mb-6">
               <button
                 onClick={handleBackToSets}
-                className="mb-4 flex items-center text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
+                className="mb-4 flex items-center text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors cursor-pointer active:scale-[0.98]"
               >
                 <svg
                   className="w-5 h-5 mr-2"
@@ -442,22 +509,6 @@ export default function Dashboard() {
           </div>
         )}
       </div>
-
-      {/* Create Flashcard Set Form Modal */}
-      {showCreateForm && (
-        <CreateFlashcardSetForm
-          onClose={() => setShowCreateForm(false)}
-          onSuccess={handleCreateSuccess}
-        />
-      )}
-
-      {/* AI Generate Flashcard Form Modal */}
-      {showAIGenerateForm && (
-        <AIGenerateFlashcardForm
-          onClose={() => setShowAIGenerateForm(false)}
-          onSuccess={handleCreateSuccess}
-        />
-      )}
     </div>
   );
 }

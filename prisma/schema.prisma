@@ -9,15 +9,16 @@ datasource db {
 }
 
 model User {
-  id            Int           @id @default(autoincrement())
-  email         String        @unique
+  id            Int            @id @default(autoincrement())
+  email         String         @unique
   password      String
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
-  nickname      String        @default("User")
-  emailVerified Boolean       @default(true)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  nickname      String         @default("User")
+  emailVerified Boolean        @default(true)
   words         Word[]
   flashcardSets FlashcardSet[]
+  aiGenerations AiGeneration[]
 
   @@map("users")
 }
@@ -35,28 +36,40 @@ model PendingRegistration {
 }
 
 model FlashcardSet {
-  id        Int      @id @default(autoincrement())
-  name      String
-  userId    Int
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  words     Word[]
+  id            Int      @id @default(autoincrement())
+  name          String
+  userId        Int
+  fromLanguage  String?
+  toLanguage    String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  words         Word[]
 
   @@map("flashcard_sets")
 }
 
 model Word {
-  id            Int          @id @default(autoincrement())
-  word          String
-  translation  String
-  difficulty   Int             @default(1)
-  userId       Int
+  id             Int           @id @default(autoincrement())
+  word           String
+  translation    String
+  difficulty     Int           @default(1)
+  userId         Int
   flashcardSetId Int?
-  createdAt    DateTime        @default(now())
-  updatedAt    DateTime        @updatedAt
-  user         User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  flashcardSet FlashcardSet?   @relation(fields: [flashcardSetId], references: [id], onDelete: Cascade)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  user           User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  flashcardSet   FlashcardSet? @relation(fields: [flashcardSetId], references: [id], onDelete: Cascade)
 
   @@map("words")
+}
+
+model AiGeneration {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@map("ai_generations")
 }

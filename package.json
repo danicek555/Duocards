@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "prisma generate --no-engine && next build",
     "build:prod": "prisma generate --no-engine && next build",
     "build:vercel": "prisma migrate deploy && prisma generate --no-engine && next build",
     "start": "next start",

@@ -11,9 +11,10 @@ const openai = new OpenAI({
 interface GenerateRequest {
   level: string;
   topic: string;
-  language: string;
-  setName?: string;
+  fromLanguage: string;
+  toLanguage: string;
   wordCount?: number;
+  setName: string;
 }
 
 // POST - Generate flashcards using AI
@@ -47,42 +48,129 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Check daily AI generation limit (10 per day)
+    // Note: Uncomment this section if you add AiGeneration model to your schema
+    /*
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Start of today
+
+    const todayGenerations = await prisma.aiGeneration.count({
+      where: {
+        userId: payload.userId,
+        createdAt: {
+          gte: today,
+        },
+      },
+    });
+
+    const DAILY_LIMIT = 10;
+    if (todayGenerations >= DAILY_LIMIT) {
+      return NextResponse.json(
+        {
+          error: `Daily AI generation limit reached. You can generate flashcards using AI ${DAILY_LIMIT} times per day. Please try again tomorrow.`,
+        },
+        { status: 429 }
+      );
+    }
+    */
+
     const body: GenerateRequest = await request.json();
-    const { level, topic, language, setName, wordCount = 10 } = body;
+    const {
+      level,
+      topic,
+      fromLanguage,
+      toLanguage,
+      wordCount = 5,
+      setName,
+    } = body;
 
     // Validate input
-    if (!level || !topic || !language) {
+    if (
+      !level ||
+      !topic ||
+      !fromLanguage ||
+      !toLanguage ||
+      !setName ||
+      !setName.trim()
+    ) {
       return NextResponse.json(
-        { error: "Level, topic, and language are required" },
+        {
+          error:
+            "Level, topic, from language, to language, and set name are required",
+        },
         { status: 400 }
       );
     }
 
-    // Generate set name if not provided
-    const generatedSetName = setName || `${topic} - ${level} (${language})`;
+    if (fromLanguage === toLanguage) {
+      return NextResponse.json(
+        { error: "From and To languages must be different" },
+        { status: 400 }
+      );
+    }
+
+    if (!wordCount || wordCount < 1 || wordCount > 10) {
+      return NextResponse.json(
+        { error: "Word count must be between 1 and 10" },
+        { status: 400 }
+      );
+    }
+
+    // Use the provided set name
+    const flashcardSetName = setName.trim();
 
     // Create prompt for OpenAI
-    const prompt = `Generate ${wordCount} flashcards for learning ${language} at ${level} level about the topic: "${topic}".
+    const prompt = `Generate ${wordCount} flashcards for translating from ${fromLanguage} to ${toLanguage} at CEFR ${level} level about the topic: "${topic}".
 
 Return a JSON object with a "flashcards" array containing objects with this exact structure:
 {
   "flashcards": [
-    {"word": "English word or phrase", "translation": "Translation in ${language}"},
-    {"word": "Another word", "translation": "Translation in ${language}"}
+    {"word": "Word in ${fromLanguage}", "translation": "Translation in ${toLanguage}"},
+    {"word": "Another word in ${fromLanguage}", "translation": "Translation in ${toLanguage}"}
   ]
 }
 
 Requirements:
-- Use appropriate vocabulary for ${level} level
+- Use appropriate vocabulary for CEFR ${level} level (${
+      level === "A1"
+        ? "Beginner"
+        : level === "A2"
+        ? "Elementary"
+        : level === "B1"
+        ? "Intermediate"
+        : level === "B2"
+        ? "Upper Intermediate"
+        : level === "C1"
+        ? "Advanced"
+        : "Proficiency"
+    })
 - Focus on the topic: ${topic}
-- Provide accurate translations in ${language}
-- Make words/phrases practical and useful
+- Words should be in ${fromLanguage}
+- Translations should be accurate in ${toLanguage}
+- IMPORTANT: Avoid cognates (words that look or sound very similar in both languages, like "Gastronomy/Gastronomia" or "Hotel/Hotel"). Choose words that are genuinely challenging to learn and require memorization
+- Prioritize words that are distinctly different between ${fromLanguage} and ${toLanguage}
+- Make words/phrases practical and useful for language learning
 - Return only valid JSON, no additional text or markdown formatting
 - Include exactly ${wordCount} flashcards`;
 
-    // Call OpenAI API
-    const completion = await openai.chat.completions.create({
-      model: "gpt-5-nano", // Using cost-effective model
+    // Determine which model to use based on available models
+    // Use gpt-4o-mini as it supports temperature and is cost-effective
+    const modelName = process.env.OPENAI_MODEL || "gpt-4o-mini";
+
+    // Some models don't support custom temperature (only default value of 1)
+    // Check if we should include temperature parameter
+    interface ModelConfig {
+      model: string;
+      messages: Array<{
+        role: "system" | "user" | "assistant";
+        content: string;
+      }>;
+      response_format: { type: "json_object" };
+      temperature?: number;
+    }
+
+    const modelConfig: ModelConfig = {
+      model: modelName,
       messages: [
         {
           role: "system",
@@ -94,9 +182,17 @@ Requirements:
           content: prompt,
         },
       ],
-      temperature: 0.7,
       response_format: { type: "json_object" }, // Force JSON mode
-    });
+    };
+
+    // Only add temperature if the model supports it (most models do, but some like gpt-5-nano don't)
+    // gpt-4o-mini supports temperature, so we include it
+    if (!modelName.includes("gpt-5-nano") && !modelName.includes("gpt-5")) {
+      modelConfig.temperature = 0.7;
+    }
+
+    // Call OpenAI API
+    const completion = await openai.chat.completions.create(modelConfig);
 
     const content = completion.choices[0]?.message?.content;
     if (!content) {
@@ -165,28 +261,42 @@ Requirements:
       );
     }
 
-    // Create flashcard set with words
-    const flashcardSet = await prisma.flashcardSet.create({
-      data: {
-        name: generatedSetName,
-        userId: payload.userId,
-        words: {
-          create: words.map((wordPair) => ({
-            word: wordPair.word.trim(),
-            translation: wordPair.translation.trim(),
-            difficulty: 1,
-            userId: payload.userId,
-          })),
+    // Create flashcard set with words and record AI generation in a transaction
+    const result = await prisma.$transaction(async (tx) => {
+      // Create flashcard set
+      const flashcardSet = await tx.flashcardSet.create({
+        data: {
+          name: flashcardSetName,
+          userId: payload.userId,
+          fromLanguage: fromLanguage,
+          toLanguage: toLanguage,
+          words: {
+            create: words.map((wordPair) => ({
+              word: wordPair.word.trim(),
+              translation: wordPair.translation.trim(),
+              difficulty: 1,
+              userId: payload.userId,
+            })),
+          },
         },
-      },
-      include: {
-        words: true,
-      },
+        include: {
+          words: true,
+        },
+      });
+
+      // Record AI generation
+      await tx.aiGeneration.create({
+        data: {
+          userId: payload.userId,
+        },
+      });
+
+      return flashcardSet;
     });
 
     return NextResponse.json(
       {
-        flashcardSet,
+        flashcardSet: result,
         message: `Successfully generated ${words.length} flashcards!`,
       },
       { status: 201 }

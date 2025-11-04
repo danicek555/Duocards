@@ -69,7 +69,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { name, words } = body;
+    const { name, words, fromLanguage, toLanguage } = body;
 
     if (!name || !name.trim()) {
       return NextResponse.json(
@@ -105,6 +105,8 @@ export async function POST(request: NextRequest) {
       data: {
         name: name.trim(),
         userId: payload.userId,
+        fromLanguage: fromLanguage || null,
+        toLanguage: toLanguage || null,
         words: {
           create: words.map(
             (wordPair: { word: string; translation: string }) => ({
