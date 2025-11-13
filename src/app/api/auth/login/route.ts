@@ -62,8 +62,27 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Debug logging in development
+    if (process.env.NODE_ENV === "development") {
+      console.log("Login attempt:", {
+        email: email.toLowerCase(),
+        userId: user.id,
+        passwordHashPrefix: user.password.substring(0, 20),
+        passwordHashLength: user.password.length,
+        isArgon2Hash: user.password.startsWith("$argon2"),
+      });
+    }
+
     // Compare provided password with stored hash
     const isPasswordValid = await comparePassword(password, user.password);
+
+    // Debug logging in development
+    if (process.env.NODE_ENV === "development") {
+      console.log("Password comparison result:", {
+        isValid: isPasswordValid,
+        passwordHashPrefix: user.password.substring(0, 20),
+      });
+    }
 
     if (!isPasswordValid) {
       return NextResponse.json(

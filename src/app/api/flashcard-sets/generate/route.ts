@@ -15,6 +15,9 @@ interface GenerateRequest {
   toLanguage: string;
   wordCount?: number;
   setName: string;
+  includeImage?: boolean;
+  includeVoice?: boolean;
+  includePronunciation?: boolean;
 }
 
 // POST - Generate flashcards using AI
@@ -82,6 +85,9 @@ export async function POST(request: NextRequest) {
       toLanguage,
       wordCount = 5,
       setName,
+      includeImage = false,
+      includeVoice = false,
+      includePronunciation = false,
     } = body;
 
     // Validate input
@@ -120,13 +126,21 @@ export async function POST(request: NextRequest) {
     const flashcardSetName = setName.trim();
 
     // Create prompt for OpenAI
-    const prompt = `Generate ${wordCount} flashcards for translating from ${fromLanguage} to ${toLanguage} at CEFR ${level} level about the topic: "${topic}".
+    let prompt = `Generate ${wordCount} flashcards for translating from ${fromLanguage} to ${toLanguage} at CEFR ${level} level about the topic: "${topic}".
 
 Return a JSON object with a "flashcards" array containing objects with this exact structure:
 {
   "flashcards": [
-    {"word": "Word in ${fromLanguage}", "translation": "Translation in ${toLanguage}"},
-    {"word": "Another word in ${fromLanguage}", "translation": "Translation in ${toLanguage}"}
+    {"word": "Word in ${fromLanguage}", "translation": "Translation in ${toLanguage}"${
+      includePronunciation
+        ? ', "pronunciation": "Phonetic pronunciation guide"'
+        : ""
+    }},
+    {"word": "Another word in ${fromLanguage}", "translation": "Translation in ${toLanguage}"${
+      includePronunciation
+        ? ', "pronunciation": "Phonetic pronunciation guide"'
+        : ""
+    }}
   ]
 }
 
@@ -149,8 +163,13 @@ Requirements:
 - Translations should be accurate in ${toLanguage}
 - IMPORTANT: Avoid cognates (words that look or sound very similar in both languages, like "Gastronomy/Gastronomia" or "Hotel/Hotel"). Choose words that are genuinely challenging to learn and require memorization
 - Prioritize words that are distinctly different between ${fromLanguage} and ${toLanguage}
-- Make words/phrases practical and useful for language learning
-- Return only valid JSON, no additional text or markdown formatting
+- Make words/phrases practical and useful for language learning`;
+
+    if (includePronunciation) {
+      prompt += `\n- Include pronunciation guide in IPA (International Phonetic Alphabet) format for the ${toLanguage} translation`;
+    }
+
+    prompt += `\n- Return only valid JSON, no additional text or markdown formatting
 - Include exactly ${wordCount} flashcards`;
 
     // Determine which model to use based on available models
@@ -200,7 +219,7 @@ Requirements:
     }
 
     // Parse the JSON response
-    let words: { word: string; translation: string }[];
+    let words: { word: string; translation: string; pronunciation?: string }[];
     try {
       // Try parsing as direct JSON first
       let parsed: unknown = JSON.parse(content);
@@ -237,7 +256,11 @@ Requirements:
         throw new Error("Response is not an array");
       }
 
-      words = parsed as { word: string; translation: string }[];
+      words = parsed as {
+        word: string;
+        translation: string;
+        pronunciation?: string;
+      }[];
 
       // Validate each word pair
       words = words.filter(
@@ -261,6 +284,56 @@ Requirements:
       );
     }
 
+    // Generate images and audio if requested
+    const wordsWithExtras = await Promise.all(
+      words.map(async (wordPair) => {
+        let imageUrl: string | null = null;
+        let audioUrl: string | null = null;
+
+        // Generate image if requested
+        if (includeImage) {
+          try {
+            const imageResponse = await openai.images.generate({
+              model: "dall-e-3",
+              prompt: `A simple, clear illustration representing the word "${wordPair.translation}" in ${toLanguage}. The image should be educational and suitable for language learning flashcards.`,
+              n: 1,
+              size: "1024x1024",
+            });
+            imageUrl = imageResponse.data?.[0]?.url || null;
+          } catch (imageError) {
+            console.error("Error generating image:", imageError);
+            // Continue without image if generation fails
+          }
+        }
+
+        // Generate audio if requested
+        if (includeVoice) {
+          try {
+            const audioResponse = await openai.audio.speech.create({
+              model: "tts-1",
+              voice: "alloy",
+              input: wordPair.translation,
+            });
+            // For now, we'll store a placeholder - in production, you'd upload to S3 or similar
+            // For demo purposes, we could use a service like Google Translate TTS or save locally
+            audioUrl = `data:audio/mpeg;base64,${Buffer.from(
+              await audioResponse.arrayBuffer()
+            ).toString("base64")}`;
+            // Note: In production, upload audio to a storage service and store the URL
+          } catch (audioError) {
+            console.error("Error generating audio:", audioError);
+            // Continue without audio if generation fails
+          }
+        }
+
+        return {
+          ...wordPair,
+          imageUrl,
+          audioUrl,
+        };
+      })
+    );
+
     // Create flashcard set with words and record AI generation in a transaction
     const result = await prisma.$transaction(async (tx) => {
       // Create flashcard set
@@ -270,13 +343,38 @@ Requirements:
           userId: payload.userId,
           fromLanguage: fromLanguage,
           toLanguage: toLanguage,
+          isAIGenerated: true,
           words: {
-            create: words.map((wordPair) => ({
-              word: wordPair.word.trim(),
-              translation: wordPair.translation.trim(),
-              difficulty: 1,
-              userId: payload.userId,
-            })),
+            create: wordsWithExtras.map((wordPair) => {
+              const wordData: {
+                word: string;
+                translation: string;
+                difficulty: number;
+                userId: number;
+                pronunciation?: string;
+                imageUrl?: string;
+                audioUrl?: string;
+              } = {
+                word: wordPair.word.trim(),
+                translation: wordPair.translation.trim(),
+                difficulty: 1,
+                userId: payload.userId,
+              };
+
+              if (includePronunciation && wordPair.pronunciation) {
+                wordData.pronunciation = wordPair.pronunciation.trim();
+              }
+
+              if (wordPair.imageUrl) {
+                wordData.imageUrl = wordPair.imageUrl;
+              }
+
+              if (wordPair.audioUrl) {
+                wordData.audioUrl = wordPair.audioUrl;
+              }
+
+              return wordData;
+            }),
           },
         },
         include: {

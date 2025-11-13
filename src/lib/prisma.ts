@@ -7,7 +7,7 @@
  *
  * Supports both regular PostgreSQL and Prisma Accelerate connection strings
  *
- * For Prisma Accelerate: The DATABASE_URL should use prisma:// or prisma+postgres:// protocol
+ * For Prisma Accelerate: The PRISMA_DATABASE_URL should use prisma:// or prisma+postgres:// protocol
  * The directUrl (DIRECT_DATABASE_URL) is used for migrations and introspection
  */
 
@@ -23,7 +23,8 @@ const globalForPrisma = globalThis as unknown as {
 // Function to create Prisma client with proper configuration
 function createPrismaClient(): PrismaClient {
   // Check if we're using Prisma Accelerate
-  const databaseUrl = process.env.DATABASE_URL || "";
+  // Note: We check PRISMA_DATABASE_URL because that's what the schema uses
+  const databaseUrl = process.env.PRISMA_DATABASE_URL || "";
   const isAccelerate =
     databaseUrl.startsWith("prisma://") ||
     databaseUrl.startsWith("prisma+postgres://");
