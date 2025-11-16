@@ -167,7 +167,9 @@ export default function Dashboard() {
     const fetchImage = async () => {
       if (currentWord.imageId && !imageCache[currentWord.imageId]) {
         try {
-          const response = await fetch(`/api/word-images/${currentWord.imageId}`);
+          const response = await fetch(
+            `/api/word-images/${currentWord.imageId}`
+          );
           if (response.ok) {
             const data = await response.json();
             setImageCache((prev) => ({
@@ -184,7 +186,9 @@ export default function Dashboard() {
     const fetchAudio = async () => {
       if (currentWord.audioId && !audioCache[currentWord.audioId]) {
         try {
-          const response = await fetch(`/api/word-audio/${currentWord.audioId}`);
+          const response = await fetch(
+            `/api/word-audio/${currentWord.audioId}`
+          );
           if (response.ok) {
             const data = await response.json();
             setAudioCache((prev) => ({
