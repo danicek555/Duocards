@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma, prismaDirect } from "@/lib/prisma";
+import { prisma } from "@/lib/prisma";
 import { verifyAuthToken } from "@/lib/auth";
 import type { Prisma } from "@prisma/client";
 import OpenAI from "openai";
@@ -352,21 +352,21 @@ Requirements:
       })
     );
 
-    // Create images and audio using direct client (bypasses Accelerate's 5MB limit)
-    // Do this outside the transaction to avoid size restrictions
+    // Create images and audio records
+    // Note: Creating individual records shouldn't hit the 5MB limit (only fetching many does)
     const wordsWithImageAndAudioIds = await Promise.all(
       wordsWithExtras.map(async (wordPair) => {
         let imageId: number | undefined;
         let audioId: number | undefined;
 
-        // Create image record if exists (using direct client for large data)
+        // Create image record if exists
         if (wordPair.imageUrl) {
           const mimeType = wordPair.imageUrl.startsWith("data:")
             ? wordPair.imageUrl.split(";")[0].split(":")[1] || "image/png"
             : "image/png";
-          // Prisma client types may not recognize wordImage on prismaDirect, but it works at runtime
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const image = await (prismaDirect as any).wordImage.create({
+          // Prisma client types may not recognize wordImage, but it works at runtime
+          const image = await (prisma as any).wordImage.create({
             data: {
               dataUrl: wordPair.imageUrl,
               mimeType: mimeType,
@@ -375,14 +375,14 @@ Requirements:
           imageId = image.id;
         }
 
-        // Create audio record if exists (using direct client for large data)
+        // Create audio record if exists
         if (wordPair.audioUrl) {
           const mimeType = wordPair.audioUrl.startsWith("data:")
             ? wordPair.audioUrl.split(";")[0].split(":")[1] || "audio/mpeg"
             : "audio/mpeg";
-          // Prisma client types may not recognize wordAudio on prismaDirect, but it works at runtime
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const audio = await (prismaDirect as any).wordAudio.create({
+          // Prisma client types may not recognize wordAudio, but it works at runtime
+          const audio = await (prisma as any).wordAudio.create({
             data: {
               dataUrl: wordPair.audioUrl,
               mimeType: mimeType,
@@ -400,8 +400,7 @@ Requirements:
     );
 
     // Create flashcard set with words and record AI generation in a transaction
-    // Use direct client for transaction to avoid Accelerate's 5MB response limit
-    const result = await prismaDirect.$transaction(async (tx) => {
+    const result = await prisma.$transaction(async (tx) => {
       // Create words with references to images and audio
       const wordsToCreate = wordsWithImageAndAudioIds.map((wordPair) => {
         const wordData: {
