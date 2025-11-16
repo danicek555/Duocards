@@ -57,15 +57,39 @@ model Word {
   difficulty     Int           @default(1)
   userId         Int
   flashcardSetId Int?
-  imageUrl       String?
   pronunciation  String?
-  audioUrl       String?
+  imageId        Int?          @unique
+  audioId        Int?          @unique
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
   user           User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   flashcardSet   FlashcardSet? @relation(fields: [flashcardSetId], references: [id], onDelete: Cascade)
+  image          WordImage?    @relation(fields: [imageId], references: [id], onDelete: SetNull)
+  audio          WordAudio?    @relation(fields: [audioId], references: [id], onDelete: SetNull)
 
   @@map("words")
+}
+
+model WordImage {
+  id        Int      @id @default(autoincrement())
+  dataUrl   String   @db.Text
+  mimeType  String   @default("image/png")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  word      Word?
+
+  @@map("word_images")
+}
+
+model WordAudio {
+  id        Int      @id @default(autoincrement())
+  dataUrl   String   @db.Text
+  mimeType  String   @default("audio/mpeg")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  word      Word?
+
+  @@map("word_audio")
 }
 
 model AiGeneration {

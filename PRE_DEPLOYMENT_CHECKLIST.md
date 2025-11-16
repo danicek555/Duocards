@@ -1,4 +1,6 @@
-# Pre-Deployment Checklist
+# Pre-Deployment Checklist 🚢
+
+> **Note:** This is for BEFORE deploying to production. For daily development, see `DEVELOPMENT_WORKFLOW.md`
 
 ## 1. Code Quality & Linting ✅
 

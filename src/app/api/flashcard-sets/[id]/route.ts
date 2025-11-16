@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { prismaDirect } from "@/lib/prisma";
 import { verifyAuthToken } from "@/lib/auth";
 
 // GET - Fetch a specific flashcard set with its words
@@ -24,13 +24,18 @@ export async function GET(
       );
     }
 
-    const flashcardSet = await prisma.flashcardSet.findFirst({
+    // Use direct client to avoid Accelerate's 5MB response limit when including image/audio data
+    const flashcardSet = await prismaDirect.flashcardSet.findFirst({
       where: {
         id: setId,
         userId: payload.userId,
       },
       include: {
         words: {
+          include: {
+            image: true,
+            audio: true,
+          },
           orderBy: {
             createdAt: "asc",
           },

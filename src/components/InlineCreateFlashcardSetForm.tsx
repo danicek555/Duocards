@@ -38,21 +38,34 @@ export default function InlineCreateFlashcardSetForm({
   const [setName, setSetName] = useState("");
   const [fromLanguage, setFromLanguage] = useState("English");
   const [toLanguage, setToLanguage] = useState("Spanish");
-  const [wordPairs, setWordPairs] = useState<WordPair[]>([
-    { word: "", translation: "" },
-    { word: "", translation: "" },
-    { word: "", translation: "" },
-  ]);
+  const [addAmount, setAddAmount] = useState(5);
+  const [wordPairs, setWordPairs] = useState<WordPair[]>(
+    Array.from({ length: 5 }, () => ({ word: "", translation: "" }))
+  );
+  const [deletingIndex, setDeletingIndex] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
   const addWordPair = () => {
-    setWordPairs([...wordPairs, { word: "", translation: "" }]);
+    const newPairs = [
+      ...wordPairs,
+      ...Array.from({ length: addAmount }, () => ({
+        word: "",
+        translation: "",
+      })),
+    ];
+    setWordPairs(newPairs);
   };
 
   const removeWordPair = (index: number) => {
-    if (wordPairs.length > 1) {
-      setWordPairs(wordPairs.filter((_, i) => i !== index));
+    if (wordPairs.length > 1 && deletingIndex === null) {
+      setDeletingIndex(index);
+      // Wait for animation to complete before removing
+      setTimeout(() => {
+        const newPairs = wordPairs.filter((_, i) => i !== index);
+        setWordPairs(newPairs);
+        setDeletingIndex(null);
+      }, 300); // Match animation duration
     }
   };
 
@@ -108,11 +121,9 @@ export default function InlineCreateFlashcardSetForm({
       setSetName("");
       setFromLanguage("English");
       setToLanguage("Spanish");
-      setWordPairs([
-        { word: "", translation: "" },
-        { word: "", translation: "" },
-        { word: "", translation: "" },
-      ]);
+      setWordPairs(
+        Array.from({ length: 5 }, () => ({ word: "", translation: "" }))
+      );
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Failed to create flashcard set"
@@ -187,11 +198,15 @@ export default function InlineCreateFlashcardSetForm({
           <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">
             Words and Translations
           </label>
-          <div className="space-y-1.5 max-h-48 overflow-y-auto">
+          <div className="space-y-1.5">
             {wordPairs.map((pair, index) => (
               <div
                 key={index}
-                className="flex gap-1.5 items-start p-2 bg-gray-50 dark:bg-gray-700/50 rounded-lg"
+                className={`flex gap-1.5 items-start p-2 bg-gray-50 dark:bg-gray-700/50 rounded-lg transition-all duration-300 ${
+                  deletingIndex === index
+                    ? "opacity-0 scale-95 -translate-x-4 pointer-events-none"
+                    : "opacity-100 scale-100 translate-x-0"
+                }`}
               >
                 <div className="flex-1 grid grid-cols-2 gap-1.5">
                   <input
@@ -238,26 +253,49 @@ export default function InlineCreateFlashcardSetForm({
             ))}
           </div>
 
+          {/* Preset Add Amount Buttons */}
+          <div className="mt-1.5">
+            <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+              Add amount:
+            </label>
+            <div className="flex gap-1.5">
+              {[1, 5, 10, 15, 20].map((amount) => (
+                <button
+                  key={amount}
+                  type="button"
+                  onClick={() => setAddAmount(amount)}
+                  className={`flex-1 px-2 py-1.5 text-xs font-medium rounded-lg transition-colors cursor-pointer active:scale-95 ${
+                    addAmount === amount
+                      ? "bg-blue-600 text-white"
+                      : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
+                  }`}
+                >
+                  {amount}
+                </button>
+              ))}
+            </div>
+          </div>
+
           {/* Add Word Pair Button */}
           <button
             type="button"
             onClick={addWordPair}
             className="mt-1.5 w-full px-3 py-1.5 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors flex items-center justify-center gap-1.5 text-xs cursor-pointer active:scale-[0.98]"
           >
-                    <svg
-                      className="w-3.5 h-3.5"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M12 6v6m0 0v6m0-6h6m-6 0H6"
-                      />
-                    </svg>
-                    Add More Words
+            <svg
+              className="w-3.5 h-3.5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+              />
+            </svg>
+            Add {addAmount} More Words
           </button>
         </div>
 

@@ -64,6 +64,40 @@ if (process.env.NODE_ENV !== "production") {
   globalForPrisma.prisma = prisma;
 }
 
+// Direct Prisma client for large data operations (bypasses Accelerate's 5MB limit)
+// Use this for creating/updating WordImage and WordAudio records
+const globalForDirectPrisma = globalThis as unknown as {
+  prismaDirect: PrismaClient | undefined;
+};
+
+function createDirectPrismaClient(): PrismaClient {
+  const directUrl = process.env.DIRECT_DATABASE_URL;
+
+  // If DIRECT_DATABASE_URL is not set, fall back to regular prisma client
+  if (!directUrl) {
+    console.warn(
+      "DIRECT_DATABASE_URL not set, falling back to regular prisma client"
+    );
+    return prisma;
+  }
+
+  return new PrismaClient({
+    datasources: {
+      db: {
+        url: directUrl,
+      },
+    },
+    log: process.env.NODE_ENV === "development" ? ["error", "warn"] : ["error"],
+  });
+}
+
+export const prismaDirect: PrismaClient =
+  globalForDirectPrisma.prismaDirect ?? createDirectPrismaClient();
+
+if (process.env.NODE_ENV !== "production") {
+  globalForDirectPrisma.prismaDirect = prismaDirect;
+}
+
 /**
  * How this works:
  *
@@ -80,4 +114,9 @@ if (process.env.NODE_ENV !== "production") {
  *    - Prisma automatically handles connection pooling
  *    - No need to manually manage connections
  *    - Connections are reused efficiently
+ *
+ * 4. Direct client for large data:
+ *    - prismaDirect uses DIRECT_DATABASE_URL to bypass Accelerate
+ *    - Use for operations with large payloads (>5MB) like images/audio
+ *    - Regular prisma client uses Accelerate for better performance
  */

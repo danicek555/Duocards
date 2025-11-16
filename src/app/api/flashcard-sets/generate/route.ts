@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { prisma, prismaDirect } from "@/lib/prisma";
 import { verifyAuthToken } from "@/lib/auth";
+import type { Prisma } from "@prisma/client";
 import OpenAI from "openai";
 
 // Initialize OpenAI client
@@ -295,11 +296,28 @@ Requirements:
           try {
             const imageResponse = await openai.images.generate({
               model: "dall-e-3",
-              prompt: `A simple, clear illustration representing the word "${wordPair.translation}" in ${toLanguage}. The image should be educational and suitable for language learning flashcards.`,
+              prompt: `A simple, clear illustration representing the word "${wordPair.translation}" in ${toLanguage}. The image should be educational and suitable for language learning flashcards. No text, letters, or words should appear in the image.`,
               n: 1,
               size: "1024x1024",
             });
-            imageUrl = imageResponse.data?.[0]?.url || null;
+            const tempImageUrl = imageResponse.data?.[0]?.url || null;
+
+            // Download and convert image to base64 data URL to avoid expiration
+            if (tempImageUrl) {
+              try {
+                const imageFetch = await fetch(tempImageUrl);
+                const imageBuffer = await imageFetch.arrayBuffer();
+                const imageBase64 = Buffer.from(imageBuffer).toString("base64");
+                const imageMimeType =
+                  imageFetch.headers.get("content-type") || "image/png";
+                // Store as data URL so it never expires
+                imageUrl = `data:${imageMimeType};base64,${imageBase64}`;
+              } catch (downloadError) {
+                console.error("Error downloading image:", downloadError);
+                // Fallback to temporary URL if download fails
+                imageUrl = tempImageUrl;
+              }
+            }
           } catch (imageError) {
             console.error("Error generating image:", imageError);
             // Continue without image if generation fails
@@ -334,8 +352,88 @@ Requirements:
       })
     );
 
+    // Create images and audio using direct client (bypasses Accelerate's 5MB limit)
+    // Do this outside the transaction to avoid size restrictions
+    const wordsWithImageAndAudioIds = await Promise.all(
+      wordsWithExtras.map(async (wordPair) => {
+        let imageId: number | undefined;
+        let audioId: number | undefined;
+
+        // Create image record if exists (using direct client for large data)
+        if (wordPair.imageUrl) {
+          const mimeType = wordPair.imageUrl.startsWith("data:")
+            ? wordPair.imageUrl.split(";")[0].split(":")[1] || "image/png"
+            : "image/png";
+          // Prisma client types may not recognize wordImage on prismaDirect, but it works at runtime
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const image = await (prismaDirect as any).wordImage.create({
+            data: {
+              dataUrl: wordPair.imageUrl,
+              mimeType: mimeType,
+            },
+          });
+          imageId = image.id;
+        }
+
+        // Create audio record if exists (using direct client for large data)
+        if (wordPair.audioUrl) {
+          const mimeType = wordPair.audioUrl.startsWith("data:")
+            ? wordPair.audioUrl.split(";")[0].split(":")[1] || "audio/mpeg"
+            : "audio/mpeg";
+          // Prisma client types may not recognize wordAudio on prismaDirect, but it works at runtime
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const audio = await (prismaDirect as any).wordAudio.create({
+            data: {
+              dataUrl: wordPair.audioUrl,
+              mimeType: mimeType,
+            },
+          });
+          audioId = audio.id;
+        }
+
+        return {
+          ...wordPair,
+          imageId,
+          audioId,
+        };
+      })
+    );
+
     // Create flashcard set with words and record AI generation in a transaction
-    const result = await prisma.$transaction(async (tx) => {
+    // Use direct client for transaction to avoid Accelerate's 5MB response limit
+    const result = await prismaDirect.$transaction(async (tx) => {
+      // Create words with references to images and audio
+      const wordsToCreate = wordsWithImageAndAudioIds.map((wordPair) => {
+        const wordData: {
+          word: string;
+          translation: string;
+          difficulty: number;
+          userId: number;
+          pronunciation?: string;
+          imageId?: number;
+          audioId?: number;
+        } = {
+          word: wordPair.word.trim(),
+          translation: wordPair.translation.trim(),
+          difficulty: 1,
+          userId: payload.userId,
+        };
+
+        if (includePronunciation && wordPair.pronunciation) {
+          wordData.pronunciation = wordPair.pronunciation.trim();
+        }
+
+        if (wordPair.imageId) {
+          wordData.imageId = wordPair.imageId;
+        }
+
+        if (wordPair.audioId) {
+          wordData.audioId = wordPair.audioId;
+        }
+
+        return wordData;
+      });
+
       // Create flashcard set
       const flashcardSet = await tx.flashcardSet.create({
         data: {
@@ -345,40 +443,16 @@ Requirements:
           toLanguage: toLanguage,
           isAIGenerated: true,
           words: {
-            create: wordsWithExtras.map((wordPair) => {
-              const wordData: {
-                word: string;
-                translation: string;
-                difficulty: number;
-                userId: number;
-                pronunciation?: string;
-                imageUrl?: string;
-                audioUrl?: string;
-              } = {
-                word: wordPair.word.trim(),
-                translation: wordPair.translation.trim(),
-                difficulty: 1,
-                userId: payload.userId,
-              };
-
-              if (includePronunciation && wordPair.pronunciation) {
-                wordData.pronunciation = wordPair.pronunciation.trim();
-              }
-
-              if (wordPair.imageUrl) {
-                wordData.imageUrl = wordPair.imageUrl;
-              }
-
-              if (wordPair.audioUrl) {
-                wordData.audioUrl = wordPair.audioUrl;
-              }
-
-              return wordData;
-            }),
+            create: wordsToCreate,
           },
         },
         include: {
-          words: true,
+          words: {
+            include: {
+              image: true,
+              audio: true,
+            } as Prisma.WordInclude,
+          },
         },
       });
 

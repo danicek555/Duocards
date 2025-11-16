@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { prisma, prismaDirect } from "@/lib/prisma";
 import { verifyAuthToken } from "@/lib/auth";
+import type { Prisma } from "@prisma/client";
 
 // GET - Fetch user's flashcard sets
 export async function GET(request: NextRequest) {
@@ -22,12 +23,17 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "User not found" }, { status: 401 });
     }
 
-    const flashcardSets = await prisma.flashcardSet.findMany({
+    // Use direct client to avoid Accelerate's 5MB response limit when including image/audio data
+    const flashcardSets = await prismaDirect.flashcardSet.findMany({
       where: {
         userId: payload.userId,
       },
       include: {
         words: {
+          include: {
+            image: true,
+            audio: true,
+          } as Prisma.WordInclude,
           orderBy: {
             createdAt: "asc",
           },

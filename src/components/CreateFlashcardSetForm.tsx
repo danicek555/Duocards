@@ -17,21 +17,34 @@ export default function CreateFlashcardSetForm({
   onSuccess,
 }: CreateFlashcardSetFormProps) {
   const [setName, setSetName] = useState("");
-  const [wordPairs, setWordPairs] = useState<WordPair[]>([
-    { word: "", translation: "" },
-    { word: "", translation: "" },
-    { word: "", translation: "" },
-  ]);
+  const [addAmount, setAddAmount] = useState(5);
+  const [wordPairs, setWordPairs] = useState<WordPair[]>(
+    Array.from({ length: 5 }, () => ({ word: "", translation: "" }))
+  );
+  const [deletingIndex, setDeletingIndex] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
   const addWordPair = () => {
-    setWordPairs([...wordPairs, { word: "", translation: "" }]);
+    const newPairs = [
+      ...wordPairs,
+      ...Array.from({ length: addAmount }, () => ({
+        word: "",
+        translation: "",
+      })),
+    ];
+    setWordPairs(newPairs);
   };
 
   const removeWordPair = (index: number) => {
-    if (wordPairs.length > 1) {
-      setWordPairs(wordPairs.filter((_, i) => i !== index));
+    if (wordPairs.length > 1 && deletingIndex === null) {
+      setDeletingIndex(index);
+      // Wait for animation to complete before removing
+      setTimeout(() => {
+        const newPairs = wordPairs.filter((_, i) => i !== index);
+        setWordPairs(newPairs);
+        setDeletingIndex(null);
+      }, 300); // Match animation duration
     }
   };
 
@@ -125,7 +138,11 @@ export default function CreateFlashcardSetForm({
               {wordPairs.map((pair, index) => (
                 <div
                   key={index}
-                  className="flex gap-3 items-start p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg"
+                  className={`flex gap-3 items-start p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg transition-all duration-300 ${
+                    deletingIndex === index
+                      ? "opacity-0 scale-95 -translate-x-4 pointer-events-none"
+                      : "opacity-100 scale-100 translate-x-0"
+                  }`}
                 >
                   <div className="flex-1 grid grid-cols-2 gap-3">
                     <input
@@ -172,6 +189,29 @@ export default function CreateFlashcardSetForm({
               ))}
             </div>
 
+            {/* Preset Add Amount Buttons */}
+            <div className="mt-3">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Add amount:
+              </label>
+              <div className="flex gap-2">
+                {[5, 10, 15, 20].map((amount) => (
+                  <button
+                    key={amount}
+                    type="button"
+                    onClick={() => setAddAmount(amount)}
+                    className={`flex-1 px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+                      addAmount === amount
+                        ? "bg-blue-600 text-white"
+                        : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
+                    }`}
+                  >
+                    {amount}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             {/* Add Word Pair Button */}
             <button
               type="button"
@@ -191,7 +231,7 @@ export default function CreateFlashcardSetForm({
                   d="M12 6v6m0 0v6m0-6h6m-6 0H6"
                 />
               </svg>
-              Add More Words
+              Add {addAmount} More Words
             </button>
           </div>
 

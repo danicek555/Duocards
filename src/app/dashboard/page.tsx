@@ -14,6 +14,22 @@ interface User {
   createdAt: string;
 }
 
+interface WordImage {
+  id: number;
+  dataUrl: string;
+  mimeType: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface WordAudio {
+  id: number;
+  dataUrl: string;
+  mimeType: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 interface Word {
   id: number;
   word: string;
@@ -22,8 +38,10 @@ interface Word {
   userId: number;
   flashcardSetId: number | null;
   pronunciation: string | null;
-  imageUrl: string | null;
-  audioUrl: string | null;
+  imageId: number | null;
+  audioId: number | null;
+  image: WordImage | null;
+  audio: WordAudio | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -502,8 +520,8 @@ export default function Dashboard() {
                   translation={currentWord.translation}
                   difficulty={currentWord.difficulty}
                   pronunciation={currentWord.pronunciation}
-                  imageUrl={currentWord.imageUrl}
-                  audioUrl={currentWord.audioUrl}
+                  imageUrl={currentWord.image?.dataUrl || null}
+                  audioUrl={currentWord.audio?.dataUrl || null}
                   onNext={handleNext}
                   onPrevious={handlePrevious}
                   hasNext={currentIndex < selectedSet.words.length - 1}
