@@ -364,8 +364,8 @@ Requirements:
           const mimeType = wordPair.imageUrl.startsWith("data:")
             ? wordPair.imageUrl.split(";")[0].split(":")[1] || "image/png"
             : "image/png";
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           // Prisma client types may not recognize wordImage, but it works at runtime
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const image = await (prisma as any).wordImage.create({
             data: {
               dataUrl: wordPair.imageUrl,
@@ -380,8 +380,8 @@ Requirements:
           const mimeType = wordPair.audioUrl.startsWith("data:")
             ? wordPair.audioUrl.split(";")[0].split(":")[1] || "audio/mpeg"
             : "audio/mpeg";
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           // Prisma client types may not recognize wordAudio, but it works at runtime
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const audio = await (prisma as any).wordAudio.create({
             data: {
               dataUrl: wordPair.audioUrl,
