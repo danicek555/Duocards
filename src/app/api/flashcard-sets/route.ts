@@ -31,17 +31,8 @@ export async function GET(request: NextRequest) {
       },
       include: {
         words: {
-          select: {
-            id: true,
-            word: true,
-            translation: true,
-            difficulty: true,
-            pronunciation: true,
-            imageId: true,
-            audioId: true,
-            createdAt: true,
-            updatedAt: true,
-          },
+          // Don't include image/audio relations to avoid large payloads
+          // imageId and audioId are still available on the word object
           orderBy: {
             createdAt: "asc",
           },
