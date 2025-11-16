@@ -75,3 +75,4 @@ ALTER TABLE "words" ADD CONSTRAINT "words_audioId_fkey" FOREIGN KEY ("audioId") 
 -- ALTER TABLE "words" DROP COLUMN IF EXISTS "imageUrl";
 -- ALTER TABLE "words" DROP COLUMN IF EXISTS "audioUrl";
 
+

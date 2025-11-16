@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 
 interface WordPair {
   word: string;
@@ -45,6 +45,9 @@ export default function InlineCreateFlashcardSetForm({
   const [deletingIndex, setDeletingIndex] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [aiHelpEnabled, setAiHelpEnabled] = useState(false);
+  const [translatingIndex, setTranslatingIndex] = useState<number | null>(null);
+  const debounceTimers = useRef<Map<number, NodeJS.Timeout>>(new Map());
 
   const addWordPair = () => {
     const newPairs = [
@@ -69,6 +72,43 @@ export default function InlineCreateFlashcardSetForm({
     }
   };
 
+  const translateWord = async (word: string, index: number) => {
+    if (!word.trim() || !aiHelpEnabled) return;
+
+    setTranslatingIndex(index);
+
+    try {
+      const response = await fetch("/api/translate-word", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          word: word.trim(),
+          fromLanguage,
+          toLanguage,
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.translation) {
+          // Only update if translation field is still empty (user might have typed)
+          setWordPairs((prev) => {
+            const updated = [...prev];
+            if (!updated[index].translation.trim()) {
+              updated[index].translation = data.translation;
+            }
+            return updated;
+          });
+        }
+      }
+    } catch (err) {
+      // Silently fail - don't show error for auto-translation
+      console.error("Translation error:", err);
+    } finally {
+      setTranslatingIndex(null);
+    }
+  };
+
   const updateWordPair = (
     index: number,
     field: "word" | "translation",
@@ -77,7 +117,42 @@ export default function InlineCreateFlashcardSetForm({
     const updated = [...wordPairs];
     updated[index][field] = value;
     setWordPairs(updated);
+
+    // If updating word field and AI Help is enabled, debounce translation
+    if (field === "word" && aiHelpEnabled && value.trim()) {
+      // Don't translate if translation field already has content
+      if (updated[index].translation.trim()) return;
+
+      // Clear existing timer for this index
+      const existingTimer = debounceTimers.current.get(index);
+      if (existingTimer) {
+        clearTimeout(existingTimer);
+      }
+
+      // Set new timer
+      const timer = setTimeout(() => {
+        // Check again before translating (user might have typed translation)
+        setWordPairs((prev) => {
+          if (!prev[index].translation.trim()) {
+            translateWord(value, index);
+          }
+          return prev;
+        });
+        debounceTimers.current.delete(index);
+      }, 500); // Wait 0.2 seconds after user stops typing
+
+      debounceTimers.current.set(index, timer);
+    }
   };
+
+  // Cleanup timers on unmount
+  useEffect(() => {
+    const timers = debounceTimers.current;
+    return () => {
+      timers.forEach((timer) => clearTimeout(timer));
+      timers.clear();
+    };
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -193,6 +268,43 @@ export default function InlineCreateFlashcardSetForm({
           </div>
         </div>
 
+        {/* AI Help Toggle */}
+        <div className="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-700/30 rounded-lg">
+          <div className="flex items-center gap-2">
+            <svg
+              className="w-4 h-4 text-gray-500 dark:text-gray-400"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"
+              />
+            </svg>
+            <span className="text-xs text-gray-600 dark:text-gray-400">
+              AI Help
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setAiHelpEnabled(!aiHelpEnabled)}
+            className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
+              aiHelpEnabled
+                ? "bg-blue-600 dark:bg-blue-500"
+                : "bg-gray-300 dark:bg-gray-600"
+            }`}
+          >
+            <span
+              className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                aiHelpEnabled ? "translate-x-5" : "translate-x-0.5"
+              }`}
+            />
+          </button>
+        </div>
+
         {/* Word Pairs */}
         <div>
           <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -209,24 +321,52 @@ export default function InlineCreateFlashcardSetForm({
                 }`}
               >
                 <div className="flex-1 grid grid-cols-2 gap-1.5">
-                  <input
-                    type="text"
-                    value={pair.word}
-                    onChange={(e) =>
-                      updateWordPair(index, "word", e.target.value)
-                    }
-                    placeholder="Word"
-                    className="px-2 py-1.5 text-xs border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                  <input
-                    type="text"
-                    value={pair.translation}
-                    onChange={(e) =>
-                      updateWordPair(index, "translation", e.target.value)
-                    }
-                    placeholder="Translation"
-                    className="px-2 py-1.5 text-xs border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={pair.word}
+                      onChange={(e) =>
+                        updateWordPair(index, "word", e.target.value)
+                      }
+                      placeholder="Word"
+                      className="px-2 py-1.5 text-xs border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent w-full"
+                    />
+                  </div>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={pair.translation}
+                      onChange={(e) =>
+                        updateWordPair(index, "translation", e.target.value)
+                      }
+                      placeholder="Translation"
+                      className="px-2 py-1.5 text-xs border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent w-full"
+                    />
+                    {translatingIndex === index && (
+                      <div className="absolute right-2 top-1/2 -translate-y-1/2">
+                        <svg
+                          className="animate-spin h-3 w-3 text-blue-500"
+                          xmlns="http://www.w3.org/2000/svg"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                        >
+                          <circle
+                            className="opacity-25"
+                            cx="12"
+                            cy="12"
+                            r="10"
+                            stroke="currentColor"
+                            strokeWidth="4"
+                          ></circle>
+                          <path
+                            className="opacity-75"
+                            fill="currentColor"
+                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                          ></path>
+                        </svg>
+                      </div>
+                    )}
+                  </div>
                 </div>
                 {wordPairs.length > 1 && (
                   <button
