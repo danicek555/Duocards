@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { verifyAuthToken } from "@/lib/auth";
-import type { Prisma } from "@prisma/client";
 
 // GET - Fetch a specific flashcard set with its words
 export async function GET(
@@ -25,8 +24,8 @@ export async function GET(
       );
     }
 
-    // Fetch flashcard set with words and images/audio
-    // Note: If this exceeds 5MB, consider implementing lazy loading for images/audio
+    // Fetch flashcard set with words, but exclude image/audio data to avoid 5MB limit
+    // Images/audio will be fetched separately via /api/words/[id]/image and /api/words/[id]/audio
     const flashcardSet = await prisma.flashcardSet.findFirst({
       where: {
         id: setId,
@@ -34,10 +33,7 @@ export async function GET(
       },
       include: {
         words: {
-          include: {
-            image: true,
-            audio: true,
-          } as Prisma.WordInclude,
+          // Don't include image/audio relations - fetch them separately when needed
           orderBy: {
             createdAt: "asc",
           },

@@ -69,6 +69,9 @@ export default function Dashboard() {
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [showAIGenerateForm, setShowAIGenerateForm] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>("sets");
+  // Cache for fetched images and audio
+  const [imageCache, setImageCache] = useState<Record<number, string>>({});
+  const [audioCache, setAudioCache] = useState<Record<number, string>>({});
   const router = useRouter();
 
   const handleCreateSuccess = () => {
@@ -156,6 +159,49 @@ export default function Dashboard() {
     0
   );
   const currentWord = selectedSet?.words[currentIndex];
+
+  // Fetch image/audio for current word if not already cached
+  useEffect(() => {
+    if (!currentWord) return;
+
+    const fetchImage = async () => {
+      if (currentWord.imageId && !imageCache[currentWord.imageId]) {
+        try {
+          const response = await fetch(`/api/word-images/${currentWord.imageId}`);
+          if (response.ok) {
+            const data = await response.json();
+            setImageCache((prev) => ({
+              ...prev,
+              [currentWord.imageId!]: data.image.dataUrl,
+            }));
+          }
+        } catch (error) {
+          console.error("Error fetching image:", error);
+        }
+      }
+    };
+
+    const fetchAudio = async () => {
+      if (currentWord.audioId && !audioCache[currentWord.audioId]) {
+        try {
+          const response = await fetch(`/api/word-audio/${currentWord.audioId}`);
+          if (response.ok) {
+            const data = await response.json();
+            setAudioCache((prev) => ({
+              ...prev,
+              [currentWord.audioId!]: data.audio.dataUrl,
+            }));
+          }
+        } catch (error) {
+          console.error("Error fetching audio:", error);
+        }
+      }
+    };
+
+    fetchImage();
+    fetchAudio();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentWord?.id, currentWord?.imageId, currentWord?.audioId]);
 
   if (loading) {
     return (
@@ -538,8 +584,16 @@ export default function Dashboard() {
                   translation={currentWord.translation}
                   difficulty={currentWord.difficulty}
                   pronunciation={currentWord.pronunciation}
-                  imageUrl={currentWord.image?.dataUrl || null}
-                  audioUrl={currentWord.audio?.dataUrl || null}
+                  imageUrl={
+                    currentWord.imageId
+                      ? imageCache[currentWord.imageId] || null
+                      : null
+                  }
+                  audioUrl={
+                    currentWord.audioId
+                      ? audioCache[currentWord.audioId] || null
+                      : null
+                  }
                   onNext={handleNext}
                   onPrevious={handlePrevious}
                   hasNext={currentIndex < selectedSet.words.length - 1}

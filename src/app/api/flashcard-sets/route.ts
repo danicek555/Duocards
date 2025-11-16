@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma, prismaDirect } from "@/lib/prisma";
+import { prisma } from "@/lib/prisma";
 import { verifyAuthToken } from "@/lib/auth";
-import type { Prisma } from "@prisma/client";
 
 // GET - Fetch user's flashcard sets
 export async function GET(request: NextRequest) {
