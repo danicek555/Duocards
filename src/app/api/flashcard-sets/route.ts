@@ -23,17 +23,25 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "User not found" }, { status: 401 });
     }
 
-    // Use direct client to avoid Accelerate's 5MB response limit when including image/audio data
-    const flashcardSets = await prismaDirect.flashcardSet.findMany({
+    // Don't include image/audio data in list view to avoid response size limits
+    // Image/audio data will be fetched separately when viewing individual flashcard sets
+    const flashcardSets = await prisma.flashcardSet.findMany({
       where: {
         userId: payload.userId,
       },
       include: {
         words: {
-          include: {
-            image: true,
-            audio: true,
-          } as Prisma.WordInclude,
+          select: {
+            id: true,
+            word: true,
+            translation: true,
+            difficulty: true,
+            pronunciation: true,
+            imageId: true,
+            audioId: true,
+            createdAt: true,
+            updatedAt: true,
+          },
           orderBy: {
             createdAt: "asc",
           },

@@ -109,10 +109,28 @@ export default function Dashboard() {
     router.push("/");
   };
 
-  const handleSetClick = (set: FlashcardSet) => {
-    setSelectedSet(set);
-    setCurrentIndex(0);
-    setViewMode("cards");
+  const handleSetClick = async (set: FlashcardSet) => {
+    // Fetch full flashcard set data including images/audio when viewing
+    try {
+      const response = await fetch(`/api/flashcard-sets/${set.id}`);
+      if (response.ok) {
+        const data = await response.json();
+        setSelectedSet(data.flashcardSet);
+        setCurrentIndex(0);
+        setViewMode("cards");
+      } else {
+        // Fallback to the set data we already have (without images/audio)
+        setSelectedSet(set);
+        setCurrentIndex(0);
+        setViewMode("cards");
+      }
+    } catch (error) {
+      console.error("Error fetching flashcard set details:", error);
+      // Fallback to the set data we already have (without images/audio)
+      setSelectedSet(set);
+      setCurrentIndex(0);
+      setViewMode("cards");
+    }
   };
 
   const handleBackToSets = () => {
