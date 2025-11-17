@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { verifyAuthToken } from "@/lib/auth";
-import type { Prisma } from "@prisma/client";
 import OpenAI from "openai";
 
 // Initialize OpenAI client
@@ -123,11 +122,27 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Use the provided set name
-    const flashcardSetName = setName.trim();
+    // Validate topic and setName length (max 20 characters)
+    if (topic.trim().length > 20) {
+      return NextResponse.json(
+        { error: "Topic must be maximum 20 characters" },
+        { status: 400 }
+      );
+    }
+
+    if (setName.trim().length > 20) {
+      return NextResponse.json(
+        { error: "Set name must be maximum 20 characters" },
+        { status: 400 }
+      );
+    }
+
+    // Use the provided set name (truncate to 20 if needed)
+    const flashcardSetName = setName.trim().slice(0, 20);
+    const topicTrimmed = topic.trim().slice(0, 20);
 
     // Create prompt for OpenAI
-    let prompt = `Generate ${wordCount} flashcards for translating from ${fromLanguage} to ${toLanguage} at CEFR ${level} level about the topic: "${topic}".
+    let prompt = `Generate ${wordCount} flashcards for translating from ${fromLanguage} to ${toLanguage} at CEFR ${level} level about the topic: "${topicTrimmed}" (max 20 characters).
 
 Return a JSON object with a "flashcards" array containing objects with this exact structure:
 {
@@ -159,7 +174,7 @@ Requirements:
         ? "Advanced"
         : "Proficiency"
     })
-- Focus on the topic: ${topic}
+- Focus on the topic: ${topicTrimmed} (max 20 characters)
 - Words should be in ${fromLanguage}
 - Translations should be accurate in ${toLanguage}
 - IMPORTANT: Avoid cognates (words that look or sound very similar in both languages, like "Gastronomy/Gastronomia" or "Hotel/Hotel"). Choose words that are genuinely challenging to learn and require memorization
@@ -296,7 +311,7 @@ Requirements:
           try {
             const imageResponse = await openai.images.generate({
               model: "dall-e-3",
-              prompt: `A simple, clear illustration representing the word "${wordPair.translation}" in ${toLanguage}. The image should be educational and suitable for language learning flashcards. No text, letters, or words should appear in the image.`,
+              prompt: `A simple, clear illustration representing the word "${wordPair.translation}" in ${toLanguage}. The image should be educational and suitable for language learning flashcards. CRITICAL: The image must contain absolutely NO text, NO letters, NO words, NO characters, NO symbols that could be read as text, NO written language, NO numbers, and NO typography whatsoever. The image must be purely visual - only illustrations, drawings, or photographs without any written elements.`,
               n: 1,
               size: "1024x1024",
             });
@@ -434,6 +449,7 @@ Requirements:
       });
 
       // Create flashcard set
+      // Exclude image and audio data from response to avoid exceeding 5MB limit
       const flashcardSet = await tx.flashcardSet.create({
         data: {
           name: flashcardSetName,
@@ -445,12 +461,26 @@ Requirements:
             create: wordsToCreate,
           },
         },
-        include: {
+        select: {
+          id: true,
+          name: true,
+          userId: true,
+          fromLanguage: true,
+          toLanguage: true,
+          isAIGenerated: true,
+          createdAt: true,
+          updatedAt: true,
           words: {
-            include: {
-              image: true,
-              audio: true,
-            } as Prisma.WordInclude,
+            select: {
+              id: true,
+              word: true,
+              translation: true,
+              pronunciation: true,
+              difficulty: true,
+              imageId: true,
+              audioId: true,
+              // Exclude image and audio data URLs to avoid exceeding response size limit
+            },
           },
         },
       });

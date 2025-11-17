@@ -92,7 +92,7 @@ export default function AIGenerateFlashcardForm({
   const updateSetName = () => {
     if (!setName) {
       const autoName = `${topic ? topic + " - " : ""}${level} (${language})`;
-      setSetName(autoName);
+      setSetName(autoName.slice(0, 20));
     }
   };
 
@@ -158,6 +158,7 @@ export default function AIGenerateFlashcardForm({
                 updateSetName();
               }}
               placeholder="e.g., Food & Cooking, Travel"
+              maxLength={20}
               className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               required
             />
@@ -235,6 +236,7 @@ export default function AIGenerateFlashcardForm({
               value={setName}
               onChange={(e) => setSetName(e.target.value)}
               placeholder="Auto-generated if empty"
+              maxLength={20}
               className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
           </div>

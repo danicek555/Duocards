@@ -315,6 +315,7 @@ export default function InlineCreateFlashcardSetForm({
             value={setName}
             onChange={(e) => setSetName(e.target.value)}
             placeholder="e.g., Spanish Basics"
+            maxLength={20}
             className="w-full px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             required
           />
@@ -679,36 +680,47 @@ export default function InlineCreateFlashcardSetForm({
                         </label>
                         {pair.imageUrl && (
                           <div className="mt-1 relative">
-                            <img
-                              src={pair.imageUrl}
-                              alt="Word image"
-                              className="w-full h-16 object-cover rounded-lg"
-                            />
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setWordPairs((prev) => {
-                                  const updated = [...prev];
-                                  updated[index].imageUrl = undefined;
-                                  return updated;
-                                });
-                              }}
-                              className="absolute top-0.5 right-0.5 p-0.5 bg-red-500 text-white rounded-full hover:bg-red-600"
-                            >
-                              <svg
-                                className="w-2.5 h-2.5"
-                                fill="none"
-                                stroke="currentColor"
-                                viewBox="0 0 24 24"
-                              >
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  strokeWidth={2}
-                                  d="M6 18L18 6M6 6l12 12"
+                            <div className="w-full max-w-xl mx-auto">
+                              <div className="relative w-full h-[380px] rounded-2xl overflow-hidden border-2 border-gray-300 dark:border-gray-600 shadow-lg">
+                                <img
+                                  src={pair.imageUrl}
+                                  alt="Word image preview"
+                                  className="w-full h-full object-cover"
                                 />
-                              </svg>
-                            </button>
+                                <div className="absolute inset-0 bg-black/40 dark:bg-black/60"></div>
+                                <div className="absolute inset-0 flex items-center justify-center">
+                                  <p className="text-white text-xs font-medium drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)] px-2 text-center">
+                                    Preview: This is how it will appear on
+                                    flashcards
+                                  </p>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setWordPairs((prev) => {
+                                      const updated = [...prev];
+                                      updated[index].imageUrl = undefined;
+                                      return updated;
+                                    });
+                                  }}
+                                  className="absolute top-1.5 right-1.5 p-1 bg-red-500 text-white rounded-full hover:bg-red-600 shadow-lg z-10"
+                                >
+                                  <svg
+                                    className="w-3 h-3"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                  >
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth={2}
+                                      d="M6 18L18 6M6 6l12 12"
+                                    />
+                                  </svg>
+                                </button>
+                              </div>
+                            </div>
                           </div>
                         )}
                       </div>

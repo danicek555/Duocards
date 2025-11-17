@@ -151,6 +151,7 @@ export default function InlineAIGenerateForm({
             value={setName}
             onChange={(e) => setSetName(e.target.value)}
             placeholder="e.g., Food & Cooking A1"
+            maxLength={20}
             className="w-full px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent hover:border-purple-300 dark:hover:border-purple-500 transition-colors"
             required
           />
@@ -166,6 +167,7 @@ export default function InlineAIGenerateForm({
             value={topic}
             onChange={(e) => setTopic(e.target.value)}
             placeholder="e.g., Food & Cooking, Travel"
+            maxLength={20}
             className="w-full px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent hover:border-purple-300 dark:hover:border-purple-500 transition-colors"
             required
           />
