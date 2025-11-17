@@ -5,6 +5,9 @@ import { useState, useEffect, useRef } from "react";
 interface WordPair {
   word: string;
   translation: string;
+  pronunciation?: string;
+  imageUrl?: string;
+  audioUrl?: string;
 }
 
 const LANGUAGES = [
@@ -47,6 +50,11 @@ export default function CreateFlashcardSetForm({
   const [error, setError] = useState("");
   const [aiHelpEnabled, setAiHelpEnabled] = useState(false);
   const [translatingIndex, setTranslatingIndex] = useState<number | null>(null);
+  const [generatingPronunciationIndex, setGeneratingPronunciationIndex] =
+    useState<number | null>(null);
+  const [expandedIndices, setExpandedIndices] = useState<Set<number>>(
+    new Set()
+  );
   const debounceTimers = useRef<Map<number, NodeJS.Timeout>>(new Map());
 
   const addWordPair = () => {
@@ -58,6 +66,40 @@ export default function CreateFlashcardSetForm({
       })),
     ];
     setWordPairs(newPairs);
+  };
+
+  const handleImageUpload = (index: number, file: File) => {
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const dataUrl = reader.result as string;
+      setWordPairs((prev) => {
+        const updated = [...prev];
+        updated[index].imageUrl = dataUrl;
+        return updated;
+      });
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleAudioUpload = (index: number, file: File) => {
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const dataUrl = reader.result as string;
+      setWordPairs((prev) => {
+        const updated = [...prev];
+        updated[index].audioUrl = dataUrl;
+        return updated;
+      });
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const updatePronunciation = (index: number, value: string) => {
+    setWordPairs((prev) => {
+      const updated = [...prev];
+      updated[index].pronunciation = value;
+      return updated;
+    });
   };
 
   const removeWordPair = (index: number) => {
@@ -72,7 +114,11 @@ export default function CreateFlashcardSetForm({
     }
   };
 
-  const translateWord = async (word: string, index: number) => {
+  const translateWord = async (
+    word: string,
+    index: number,
+    overwrite: boolean = false
+  ) => {
     if (!word.trim() || !aiHelpEnabled) return;
 
     setTranslatingIndex(index);
@@ -91,10 +137,11 @@ export default function CreateFlashcardSetForm({
       if (response.ok) {
         const data = await response.json();
         if (data.translation) {
-          // Only update if translation field is still empty (user might have typed)
           setWordPairs((prev) => {
             const updated = [...prev];
-            if (!updated[index].translation.trim()) {
+            // If overwrite is true (manual regenerate), always update
+            // Otherwise, only update if translation field is empty
+            if (overwrite || !updated[index].translation.trim()) {
               updated[index].translation = data.translation;
             }
             return updated;
@@ -106,6 +153,47 @@ export default function CreateFlashcardSetForm({
       console.error("Translation error:", err);
     } finally {
       setTranslatingIndex(null);
+    }
+  };
+
+  const handleRegenerateTranslation = async (index: number) => {
+    const word = wordPairs[index].word;
+    if (word.trim()) {
+      await translateWord(word, index, true);
+    }
+  };
+
+  const generatePronunciation = async (index: number) => {
+    const translation = wordPairs[index].translation;
+    if (!translation.trim() || !aiHelpEnabled) return;
+
+    setGeneratingPronunciationIndex(index);
+
+    try {
+      const response = await fetch("/api/generate-pronunciation", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          word: translation.trim(),
+          language: toLanguage,
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.pronunciation) {
+          setWordPairs((prev) => {
+            const updated = [...prev];
+            updated[index].pronunciation = data.pronunciation;
+            return updated;
+          });
+        }
+      }
+    } catch (err) {
+      // Silently fail - don't show error for auto-generation
+      console.error("Pronunciation generation error:", err);
+    } finally {
+      setGeneratingPronunciationIndex(null);
     }
   };
 
@@ -134,12 +222,12 @@ export default function CreateFlashcardSetForm({
         // Check again before translating (user might have typed translation)
         setWordPairs((prev) => {
           if (!prev[index].translation.trim()) {
-            translateWord(value, index);
+            translateWord(value, index, false);
           }
           return prev;
         });
         debounceTimers.current.delete(index);
-      }, 500); // Wait 0.2 seconds after user stops typing
+      }, 500); // Wait 0.5 seconds after user stops typing
 
       debounceTimers.current.set(index, timer);
     }
@@ -298,89 +386,379 @@ export default function CreateFlashcardSetForm({
             </button>
           </div>
 
+          {/* Expand All Button */}
+          <button
+            type="button"
+            onClick={() => {
+              if (expandedIndices.size === wordPairs.length) {
+                // Collapse all
+                setExpandedIndices(new Set());
+              } else {
+                // Expand all
+                setExpandedIndices(new Set(wordPairs.map((_, i) => i)));
+              }
+            }}
+            className="w-full px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors flex items-center justify-center gap-2"
+          >
+            <svg
+              className={`w-4 h-4 transition-transform ${
+                expandedIndices.size === wordPairs.length ? "rotate-180" : ""
+              }`}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M19 9l-7 7-7-7"
+              />
+            </svg>
+            <span>
+              {expandedIndices.size === wordPairs.length
+                ? "Collapse All"
+                : "Expand All"}
+            </span>
+          </button>
+
           {/* Word Pairs */}
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
               Words and Translations
             </label>
-            <div className="space-y-3">
+            <div className="space-y-4">
               {wordPairs.map((pair, index) => (
                 <div
                   key={index}
-                  className={`flex gap-3 items-start p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg transition-all duration-300 ${
+                  className={`flex flex-col gap-3 items-start p-5 bg-white dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 rounded-xl shadow-sm transition-all duration-300 ${
                     deletingIndex === index
                       ? "opacity-0 scale-95 -translate-x-4 pointer-events-none"
                       : "opacity-100 scale-100 translate-x-0"
                   }`}
                 >
-                  <div className="flex-1 grid grid-cols-2 gap-3">
-                    <div className="relative">
-                      <input
-                        type="text"
-                        value={pair.word}
-                        onChange={(e) =>
-                          updateWordPair(index, "word", e.target.value)
-                        }
-                        placeholder="Word"
-                        className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent w-full"
-                      />
+                  <div className="flex gap-3 items-start w-full">
+                    <div className="flex-1 grid grid-cols-2 gap-4">
+                      <div className="relative">
+                        <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1.5">
+                          Word
+                        </label>
+                        <input
+                          type="text"
+                          value={pair.word}
+                          onChange={(e) =>
+                            updateWordPair(index, "word", e.target.value)
+                          }
+                          placeholder="Enter word"
+                          maxLength={50}
+                          className="px-4 py-2.5 border-2 border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 w-full transition-colors"
+                        />
+                      </div>
+                      <div className="relative">
+                        <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1.5">
+                          Translation
+                        </label>
+                        <input
+                          type="text"
+                          value={pair.translation}
+                          onChange={(e) =>
+                            updateWordPair(index, "translation", e.target.value)
+                          }
+                          placeholder="Enter translation"
+                          maxLength={50}
+                          className="px-4 py-2.5 border-2 border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 w-full transition-colors"
+                        />
+                        {translatingIndex === index && (
+                          <div className="absolute right-3 top-[calc(50%+0.75rem)] -translate-y-1/2">
+                            <svg
+                              className="animate-spin h-4 w-4 text-blue-500"
+                              xmlns="http://www.w3.org/2000/svg"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                            >
+                              <circle
+                                className="opacity-25"
+                                cx="12"
+                                cy="12"
+                                r="10"
+                                stroke="currentColor"
+                                strokeWidth="4"
+                              ></circle>
+                              <path
+                                className="opacity-75"
+                                fill="currentColor"
+                                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                              ></path>
+                            </svg>
+                          </div>
+                        )}
+                      </div>
                     </div>
-                    <div className="relative">
-                      <input
-                        type="text"
-                        value={pair.translation}
-                        onChange={(e) =>
-                          updateWordPair(index, "translation", e.target.value)
-                        }
-                        placeholder="Translation"
-                        className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent w-full"
-                      />
-                      {translatingIndex === index && (
-                        <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                    <div className="flex gap-2 items-center">
+                      {aiHelpEnabled && pair.word.trim() && (
+                        <button
+                          type="button"
+                          onClick={() => handleRegenerateTranslation(index)}
+                          disabled={translatingIndex === index}
+                          className="p-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          title="Regenerate translation"
+                        >
                           <svg
-                            className="animate-spin h-4 w-4 text-blue-500"
-                            xmlns="http://www.w3.org/2000/svg"
+                            className="w-5 h-5"
                             fill="none"
+                            stroke="currentColor"
                             viewBox="0 0 24 24"
                           >
-                            <circle
-                              className="opacity-25"
-                              cx="12"
-                              cy="12"
-                              r="10"
-                              stroke="currentColor"
-                              strokeWidth="4"
-                            ></circle>
                             <path
-                              className="opacity-75"
-                              fill="currentColor"
-                              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                            ></path>
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                            />
                           </svg>
-                        </div>
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setExpandedIndices((prev) => {
+                            const newSet = new Set(prev);
+                            if (newSet.has(index)) {
+                              newSet.delete(index);
+                            } else {
+                              newSet.add(index);
+                            }
+                            return newSet;
+                          });
+                        }}
+                        className="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                        title="More options"
+                      >
+                        <svg
+                          className={`w-5 h-5 transition-transform ${
+                            expandedIndices.has(index) ? "rotate-180" : ""
+                          }`}
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M19 9l-7 7-7-7"
+                          />
+                        </svg>
+                      </button>
+                      {wordPairs.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => removeWordPair(index)}
+                          className="px-3 py-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                        >
+                          <svg
+                            className="w-5 h-5"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                            />
+                          </svg>
+                        </button>
                       )}
                     </div>
                   </div>
-                  {wordPairs.length > 1 && (
-                    <button
-                      type="button"
-                      onClick={() => removeWordPair(index)}
-                      className="px-3 py-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
-                    >
-                      <svg
-                        className="w-5 h-5"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                        />
-                      </svg>
-                    </button>
+                  {expandedIndices.has(index) && (
+                    <div className="w-full mt-4 pt-4 border-t-2 border-gray-200 dark:border-gray-700 space-y-4">
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                          Pronunciation
+                        </label>
+                        <div className="flex gap-2 items-center">
+                          {aiHelpEnabled && pair.translation.trim() && (
+                            <button
+                              type="button"
+                              onClick={() => generatePronunciation(index)}
+                              disabled={generatingPronunciationIndex === index}
+                              className="p-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
+                              title="Generate pronunciation"
+                            >
+                              {generatingPronunciationIndex === index ? (
+                                <svg
+                                  className="animate-spin h-4 w-4"
+                                  xmlns="http://www.w3.org/2000/svg"
+                                  fill="none"
+                                  viewBox="0 0 24 24"
+                                >
+                                  <circle
+                                    className="opacity-25"
+                                    cx="12"
+                                    cy="12"
+                                    r="10"
+                                    stroke="currentColor"
+                                    strokeWidth="4"
+                                  ></circle>
+                                  <path
+                                    className="opacity-75"
+                                    fill="currentColor"
+                                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                                  ></path>
+                                </svg>
+                              ) : (
+                                <svg
+                                  className="w-4 h-4"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  viewBox="0 0 24 24"
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"
+                                  />
+                                </svg>
+                              )}
+                            </button>
+                          )}
+                          <input
+                            type="text"
+                            value={pair.pronunciation || ""}
+                            onChange={(e) =>
+                              updatePronunciation(index, e.target.value)
+                            }
+                            placeholder="e.g., /həˈloʊ/"
+                            maxLength={50}
+                            className="flex-1 px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          />
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                            Image
+                          </label>
+                          <label className="flex items-center justify-center px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600 cursor-pointer transition-colors">
+                            <svg
+                              className="w-4 h-4 mr-2"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                              />
+                            </svg>
+                            <span className="text-sm">
+                              {pair.imageUrl ? "Change" : "Upload"}
+                            </span>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) handleImageUpload(index, file);
+                              }}
+                              className="hidden"
+                            />
+                          </label>
+                          {pair.imageUrl && (
+                            <div className="mt-2 relative">
+                              <img
+                                src={pair.imageUrl}
+                                alt="Word image"
+                                className="w-full h-24 object-cover rounded-lg"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setWordPairs((prev) => {
+                                    const updated = [...prev];
+                                    updated[index].imageUrl = undefined;
+                                    return updated;
+                                  });
+                                }}
+                                className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded-full hover:bg-red-600"
+                              >
+                                <svg
+                                  className="w-3 h-3"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  viewBox="0 0 24 24"
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M6 18L18 6M6 6l12 12"
+                                  />
+                                </svg>
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                            Voice
+                          </label>
+                          <label className="flex items-center justify-center px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600 cursor-pointer transition-colors">
+                            <svg
+                              className="w-4 h-4 mr-2"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"
+                              />
+                            </svg>
+                            <span className="text-sm">
+                              {pair.audioUrl ? "Change" : "Upload"}
+                            </span>
+                            <input
+                              type="file"
+                              accept="audio/*"
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) handleAudioUpload(index, file);
+                              }}
+                              className="hidden"
+                            />
+                          </label>
+                          {pair.audioUrl && (
+                            <div className="mt-2">
+                              <audio controls className="w-full h-8">
+                                <source src={pair.audioUrl} />
+                              </audio>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setWordPairs((prev) => {
+                                    const updated = [...prev];
+                                    updated[index].audioUrl = undefined;
+                                    return updated;
+                                  });
+                                }}
+                                className="mt-1 text-xs text-red-600 hover:text-red-700"
+                              >
+                                Remove audio
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
                   )}
                 </div>
               ))}

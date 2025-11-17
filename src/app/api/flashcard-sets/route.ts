@@ -104,6 +104,62 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Process words with images and audio
+    const wordsWithExtras = await Promise.all(
+      words.map(
+        async (wordPair: {
+          word: string;
+          translation: string;
+          pronunciation?: string;
+          imageUrl?: string;
+          audioUrl?: string;
+        }) => {
+          let imageId: number | undefined;
+          let audioId: number | undefined;
+
+          // Create image record if exists
+          if (wordPair.imageUrl) {
+            const mimeType = wordPair.imageUrl.startsWith("data:")
+              ? wordPair.imageUrl.split(";")[0].split(":")[1] || "image/png"
+              : "image/png";
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const image = await (prisma as any).wordImage.create({
+              data: {
+                dataUrl: wordPair.imageUrl,
+                mimeType: mimeType,
+              },
+            });
+            imageId = image.id;
+          }
+
+          // Create audio record if exists
+          if (wordPair.audioUrl) {
+            const mimeType = wordPair.audioUrl.startsWith("data:")
+              ? wordPair.audioUrl.split(";")[0].split(":")[1] || "audio/mpeg"
+              : "audio/mpeg";
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const audio = await (prisma as any).wordAudio.create({
+              data: {
+                dataUrl: wordPair.audioUrl,
+                mimeType: mimeType,
+              },
+            });
+            audioId = audio.id;
+          }
+
+          return {
+            word: wordPair.word.trim(),
+            translation: wordPair.translation.trim(),
+            pronunciation: wordPair.pronunciation?.trim() || null,
+            difficulty: 1,
+            userId: payload.userId,
+            imageId,
+            audioId,
+          };
+        }
+      )
+    );
+
     // Create flashcard set with words in a transaction
     const flashcardSet = await prisma.flashcardSet.create({
       data: {
@@ -112,18 +168,16 @@ export async function POST(request: NextRequest) {
         fromLanguage: fromLanguage || null,
         toLanguage: toLanguage || null,
         words: {
-          create: words.map(
-            (wordPair: { word: string; translation: string }) => ({
-              word: wordPair.word.trim(),
-              translation: wordPair.translation.trim(),
-              difficulty: 1,
-              userId: payload.userId,
-            })
-          ),
+          create: wordsWithExtras,
         },
       },
       include: {
-        words: true,
+        words: {
+          include: {
+            image: true,
+            audio: true,
+          },
+        },
       },
     });
 
