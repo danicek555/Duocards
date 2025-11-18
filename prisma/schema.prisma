@@ -16,6 +16,7 @@ model User {
   updatedAt     DateTime       @updatedAt
   nickname      String         @default("User")
   emailVerified Boolean        @default(true)
+  coins         Int            @default(100)
   words         Word[]
   flashcardSets FlashcardSet[]
   aiGenerations AiGeneration[]

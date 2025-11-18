@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyAuthToken } from "@/lib/auth";
 import OpenAI from "openai";
+import { checkCoins, deductCoins, COIN_COSTS } from "@/lib/coins";
 
 // Initialize OpenAI client
 const openai = new OpenAI({
@@ -55,6 +56,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Check if user has enough coins
+    const coinCheck = await checkCoins(
+      payload.userId,
+      COIN_COSTS.PRONUNCIATION_GENERATION
+    );
+    if (!coinCheck.hasEnough) {
+      return NextResponse.json(
+        {
+          error: `Insufficient coins. This operation costs ${COIN_COSTS.PRONUNCIATION_GENERATION} coin, but you only have ${coinCheck.currentCoins} coins. Please purchase more coins.`,
+        },
+        { status: 402 } // 402 Payment Required
+      );
+    }
+
     // Use a lightweight model for pronunciation generation
     const modelName = "gpt-4o-mini";
 
@@ -87,7 +102,7 @@ Do not include any explanations, context, or additional text - just the pronunci
 
     // Clean up the pronunciation (ensure it has slashes if missing)
     let cleanPronunciation = pronunciation.trim();
-    
+
     // Remove any extra text and ensure proper format
     if (!cleanPronunciation.startsWith("/")) {
       cleanPronunciation = "/" + cleanPronunciation;
@@ -102,8 +117,14 @@ Do not include any explanations, context, or additional text - just the pronunci
       cleanPronunciation = lines[0].trim();
     }
 
+    // Deduct coins after successful pronunciation generation
+    const remainingCoins = await deductCoins(
+      payload.userId,
+      COIN_COSTS.PRONUNCIATION_GENERATION
+    );
+
     return NextResponse.json(
-      { pronunciation: cleanPronunciation },
+      { pronunciation: cleanPronunciation, remainingCoins },
       { status: 200 }
     );
   } catch (error) {
@@ -119,4 +140,3 @@ Do not include any explanations, context, or additional text - just the pronunci
     );
   }
 }
-

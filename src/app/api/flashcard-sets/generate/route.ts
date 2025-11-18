@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { verifyAuthToken } from "@/lib/auth";
 import OpenAI from "openai";
+import {
+  checkCoins,
+  deductCoins,
+  COIN_COSTS,
+} from "@/lib/coins";
 
 // Initialize OpenAI client
 const openai = new OpenAI({
@@ -140,6 +145,30 @@ export async function POST(request: NextRequest) {
     // Use the provided set name (truncate to 20 if needed)
     const flashcardSetName = setName.trim().slice(0, 20);
     const topicTrimmed = topic.trim().slice(0, 20);
+
+    // Calculate coin cost for this generation
+    let totalCost = COIN_COSTS.FLASHCARD_GENERATION; // Base cost for text generation
+    
+    if (includeImage) {
+      totalCost += wordCount * COIN_COSTS.IMAGE_GENERATION; // Expensive - per image
+    }
+    
+    if (includeVoice) {
+      totalCost += wordCount * COIN_COSTS.AUDIO_GENERATION; // Per audio
+    }
+    
+    // Pronunciation is included in text generation, no extra cost
+
+    // Check if user has enough coins
+    const coinCheck = await checkCoins(payload.userId, totalCost);
+    if (!coinCheck.hasEnough) {
+      return NextResponse.json(
+        {
+          error: `Insufficient coins. This operation costs ${totalCost} coins, but you only have ${coinCheck.currentCoins} coins. Please purchase more coins or reduce the number of words/images.`,
+        },
+        { status: 402 } // 402 Payment Required
+      );
+    }
 
     // Create prompt for OpenAI
     let prompt = `Generate ${wordCount} flashcards for translating from ${fromLanguage} to ${toLanguage} at CEFR ${level} level about the topic: "${topicTrimmed}" (max 20 characters).
@@ -481,6 +510,16 @@ Requirements:
               audioId: true,
               // Exclude image and audio data URLs to avoid exceeding response size limit
             },
+          },
+        },
+      });
+
+      // Deduct coins after successful generation
+      await tx.user.update({
+        where: { id: payload.userId },
+        data: {
+          coins: {
+            decrement: totalCost,
           },
         },
       });

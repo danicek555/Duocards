@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyAuthToken } from "@/lib/auth";
 import OpenAI from "openai";
+import { checkCoins, deductCoins, COIN_COSTS } from "@/lib/coins";
 
 // Initialize OpenAI client
 const openai = new OpenAI({
@@ -56,6 +57,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Check if user has enough coins
+    const coinCheck = await checkCoins(
+      payload.userId,
+      COIN_COSTS.WORD_TRANSLATION
+    );
+    if (!coinCheck.hasEnough) {
+      return NextResponse.json(
+        {
+          error: `Insufficient coins. This operation costs ${COIN_COSTS.WORD_TRANSLATION} coin, but you only have ${coinCheck.currentCoins} coins. Please purchase more coins.`,
+        },
+        { status: 402 } // 402 Payment Required
+      );
+    }
+
     // Use a lightweight model for single word translation
     const modelName = "gpt-4o-mini";
 
@@ -95,8 +110,14 @@ Do not include any explanations, context, or additional text - just the translat
       cleanTranslation = lines[0].trim();
     }
 
+    // Deduct coins after successful translation
+    const remainingCoins = await deductCoins(
+      payload.userId,
+      COIN_COSTS.WORD_TRANSLATION
+    );
+
     return NextResponse.json(
-      { translation: cleanTranslation },
+      { translation: cleanTranslation, remainingCoins },
       { status: 200 }
     );
   } catch (error) {
