@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Flashcard from "@/components/Flashcard";
 import InlineCreateFlashcardSetForm from "@/components/InlineCreateFlashcardSetForm";
 import InlineAIGenerateForm from "@/components/InlineAIGenerateForm";
+import CoinCostsModal from "@/components/CoinCostsModal";
 import { getLanguageFlag } from "@/lib/flags";
 
 interface User {
@@ -69,6 +70,8 @@ export default function Dashboard() {
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [showAIGenerateForm, setShowAIGenerateForm] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>("sets");
+  const [coins, setCoins] = useState<number | null>(null);
+  const [showCostsModal, setShowCostsModal] = useState(false);
   // Cache for fetched images and audio
   const [imageCache, setImageCache] = useState<Record<number, string>>({});
   const [audioCache, setAudioCache] = useState<Record<number, string>>({});
@@ -78,6 +81,19 @@ export default function Dashboard() {
     setShowCreateForm(false);
     setShowAIGenerateForm(false);
     fetchFlashcardSets();
+    fetchCoins(); // Refresh coins after AI generation
+  };
+
+  const fetchCoins = async () => {
+    try {
+      const response = await fetch("/api/user/coins");
+      if (response.ok) {
+        const data = await response.json();
+        setCoins(data.coins);
+      }
+    } catch (error) {
+      console.error("Error fetching coins:", error);
+    }
   };
 
   useEffect(() => {
@@ -91,6 +107,7 @@ export default function Dashboard() {
       return;
     }
     fetchFlashcardSets();
+    fetchCoins();
   }, [router]);
 
   const fetchFlashcardSets = async () => {
@@ -254,6 +271,20 @@ export default function Dashboard() {
               {totalWords}
             </span>
           </div>
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-medium text-gray-600 dark:text-gray-400">
+              Coins
+            </span>
+            <span className="text-xl font-semibold text-purple-600 dark:text-purple-400">
+              {coins !== null ? coins : "..."}
+            </span>
+          </div>
+          <button
+            onClick={() => setShowCostsModal(true)}
+            className="w-full mt-1 text-xs text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-400 transition-colors text-left"
+          >
+            See more →
+          </button>
           {viewMode === "cards" && selectedSet && (
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium text-gray-600 dark:text-gray-400">
@@ -364,6 +395,7 @@ export default function Dashboard() {
                   <InlineCreateFlashcardSetForm
                     onSuccess={handleCreateSuccess}
                     onCancel={() => setShowCreateForm(false)}
+                    onCoinsUpdate={fetchCoins}
                   />
                 </div>
               ) : showAIGenerateForm ? (
@@ -630,6 +662,12 @@ export default function Dashboard() {
           </div>
         )}
       </div>
+
+      {/* Coin Costs Modal */}
+      <CoinCostsModal
+        isOpen={showCostsModal}
+        onClose={() => setShowCostsModal(false)}
+      />
     </div>
   );
 }

@@ -1,0 +1,311 @@
+"use client";
+
+import { useEffect } from "react";
+import { COIN_COSTS } from "@/lib/coins";
+
+interface CoinCostsModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+}
+
+export default function CoinCostsModal({
+  isOpen,
+  onClose,
+}: CoinCostsModalProps) {
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        onClose();
+      }
+    };
+
+    if (isOpen) {
+      document.addEventListener("keydown", handleEscape);
+      // Don't set overflow hidden to avoid black background
+    }
+
+    return () => {
+      document.removeEventListener("keydown", handleEscape);
+    };
+  }, [isOpen, onClose]);
+
+  if (!isOpen) return null;
+
+  const costs = [
+    {
+      name: "Flashcard Generation",
+      description: "Per word",
+      cost: 1,
+      costPerItem: true,
+      itemName: "word",
+      icon: (
+        <svg
+          className="w-6 h-6"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
+          />
+        </svg>
+      ),
+    },
+    {
+      name: "Audio Generation",
+      description: "Per audio (Text-to-Speech)",
+      cost: COIN_COSTS.AUDIO_GENERATION,
+      costPerItem: true,
+      itemName: "audio",
+      icon: (
+        <svg
+          className="w-6 h-6"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"
+          />
+        </svg>
+      ),
+    },
+    {
+      name: "Pronunciation",
+      description: "Per word pronunciation guide",
+      cost: COIN_COSTS.PRONUNCIATION_GENERATION,
+      costPerItem: true,
+      itemName: "word",
+      icon: (
+        <svg
+          className="w-6 h-6"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"
+          />
+        </svg>
+      ),
+    },
+    {
+      name: "Word Translation",
+      description: "Per word translation",
+      cost: COIN_COSTS.WORD_TRANSLATION,
+      costPerItem: true,
+      itemName: "word",
+      icon: (
+        <svg
+          className="w-6 h-6"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129"
+          />
+        </svg>
+      ),
+    },
+    {
+      name: "Image Generation",
+      description: "Per image (DALL-E 3) - Expensive",
+      cost: COIN_COSTS.IMAGE_GENERATION,
+      costPerItem: true,
+      itemName: "image",
+      icon: (
+        <svg
+          className="w-6 h-6"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+          />
+        </svg>
+      ),
+      highlight: true,
+    },
+  ];
+
+  return (
+    <div className="fixed inset-0 z-50 overflow-y-auto">
+      {/* Backdrop - very subtle dark overlay */}
+      <div
+        className="fixed inset-0 transition-opacity"
+        style={{ backgroundColor: "rgba(0, 0, 0, 0.7)" }}
+        onClick={onClose}
+      />
+
+      {/* Modal */}
+      <div className="flex min-h-full items-center justify-center p-4">
+        <div className="relative transform overflow-hidden rounded-2xl bg-white dark:bg-gray-800 shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-2xl border-2 border-purple-200 dark:border-purple-800">
+          {/* Header */}
+          <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-900/20 dark:to-blue-900/20">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center">
+                <div className="p-2 rounded-full bg-purple-100 dark:bg-purple-900 mr-3">
+                  <svg
+                    className="w-6 h-6 text-purple-600 dark:text-purple-400"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                    />
+                  </svg>
+                </div>
+                <h3 className="text-xl font-bold text-gray-900 dark:text-white">
+                  AI Generation Costs
+                </h3>
+              </div>
+              <button
+                onClick={onClose}
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+              >
+                <svg
+                  className="w-6 h-6"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M6 18L18 6M6 6l12 12"
+                  />
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          {/* Content */}
+          <div className="px-6 py-6 max-h-[60vh] overflow-y-auto">
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
+              Costs are based on real API usage. Image generation is expensive
+              because it uses DALL-E 3.
+            </p>
+
+            <div className="space-y-3">
+              {costs.map((item, index) => (
+                <div
+                  key={index}
+                  className={`flex items-start p-4 rounded-lg border-2 transition-colors ${
+                    item.highlight
+                      ? "bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800"
+                      : "bg-gray-50 dark:bg-gray-700/30 border-gray-200 dark:border-gray-700"
+                  }`}
+                >
+                  <div
+                    className={`p-2 rounded-lg mr-4 ${
+                      item.highlight
+                        ? "bg-yellow-100 dark:bg-yellow-900 text-yellow-600 dark:text-yellow-400"
+                        : "bg-purple-100 dark:bg-purple-900 text-purple-600 dark:text-purple-400"
+                    }`}
+                  >
+                    {item.icon}
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between mb-1">
+                      <h4 className="font-semibold text-gray-900 dark:text-white">
+                        {item.name}
+                      </h4>
+                      <div className="flex items-center">
+                        <span className="text-2xl font-bold text-purple-600 dark:text-purple-400 mr-1">
+                          {item.cost}
+                        </span>
+                        <span className="text-sm text-gray-500 dark:text-gray-400">
+                          coins
+                        </span>
+                      </div>
+                    </div>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                      {item.description}
+                    </p>
+                    {item.costPerItem && item.itemName && (
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                        Examples: 5 {item.itemName}s = {5 * item.cost} coins, 10{" "}
+                        {item.itemName}s = {10 * item.cost} coins
+                      </p>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Examples */}
+            <div className="mt-6 space-y-3">
+              <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                <h4 className="font-semibold text-gray-900 dark:text-white mb-2">
+                  Examples:
+                </h4>
+                <div className="space-y-2 text-sm text-gray-700 dark:text-gray-300">
+                  <p>
+                    • 5 flashcards ={" "}
+                    <span className="font-bold text-blue-600 dark:text-blue-400">
+                      5 coins
+                    </span>{" "}
+                    (5 × 1 coin)
+                  </p>
+                  <p>
+                    • 10 flashcards ={" "}
+                    <span className="font-bold text-blue-600 dark:text-blue-400">
+                      10 coins
+                    </span>{" "}
+                    (10 × 1 coin)
+                  </p>
+                  <p>
+                    • 5 flashcards with images ={" "}
+                    <span className="font-bold text-blue-600 dark:text-blue-400">
+                      405 coins
+                    </span>{" "}
+                    (5 × 1 + 5 × 80)
+                  </p>
+                  <p>
+                    • 10 flashcards with images ={" "}
+                    <span className="font-bold text-blue-600 dark:text-blue-400">
+                      810 coins
+                    </span>{" "}
+                    (10 × 1 + 10 × 80)
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Footer */}
+          <div className="px-6 py-4 bg-gray-50 dark:bg-gray-700/50 flex justify-end border-t border-gray-200 dark:border-gray-700">
+            <button
+              onClick={onClose}
+              className="px-6 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors font-medium"
+            >
+              Got it
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

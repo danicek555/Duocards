@@ -13,6 +13,7 @@ interface WordPair {
 interface InlineCreateFlashcardSetFormProps {
   onSuccess: () => void;
   onCancel: () => void;
+  onCoinsUpdate?: () => void;
 }
 
 const LANGUAGES = [
@@ -37,6 +38,7 @@ const LANGUAGES = [
 export default function InlineCreateFlashcardSetForm({
   onSuccess,
   onCancel,
+  onCoinsUpdate,
 }: InlineCreateFlashcardSetFormProps) {
   const [setName, setSetName] = useState("");
   const [fromLanguage, setFromLanguage] = useState("English");
@@ -55,7 +57,9 @@ export default function InlineCreateFlashcardSetForm({
   const [expandedIndices, setExpandedIndices] = useState<Set<number>>(
     new Set()
   );
+  const [autoTranslateEnabled, setAutoTranslateEnabled] = useState(true);
   const debounceTimers = useRef<Map<number, NodeJS.Timeout>>(new Map());
+  const translatingRef = useRef<Set<number>>(new Set());
 
   const addWordPair = () => {
     const newPairs = [
@@ -121,6 +125,10 @@ export default function InlineCreateFlashcardSetForm({
   ) => {
     if (!word.trim() || !aiHelpEnabled) return;
 
+    // Prevent duplicate calls - if already translating this index, skip
+    if (translatingRef.current.has(index)) return;
+
+    translatingRef.current.add(index);
     setTranslatingIndex(index);
 
     try {
@@ -146,12 +154,17 @@ export default function InlineCreateFlashcardSetForm({
             }
             return updated;
           });
+          // Refresh coins after successful translation
+          if (onCoinsUpdate) {
+            onCoinsUpdate();
+          }
         }
       }
     } catch (err) {
       // Silently fail - don't show error for auto-translation
       console.error("Translation error:", err);
     } finally {
+      translatingRef.current.delete(index);
       setTranslatingIndex(null);
     }
   };
@@ -187,6 +200,10 @@ export default function InlineCreateFlashcardSetForm({
             updated[index].pronunciation = data.pronunciation;
             return updated;
           });
+          // Refresh coins after successful pronunciation generation
+          if (onCoinsUpdate) {
+            onCoinsUpdate();
+          }
         }
       }
     } catch (err) {
@@ -207,9 +224,22 @@ export default function InlineCreateFlashcardSetForm({
     setWordPairs(updated);
 
     // If updating word field and AI Help is enabled, debounce translation
-    if (field === "word" && aiHelpEnabled && value.trim()) {
+    if (
+      field === "word" &&
+      aiHelpEnabled &&
+      autoTranslateEnabled &&
+      value.trim()
+    ) {
       // Don't translate if translation field already has content
-      if (updated[index].translation.trim()) return;
+      if (updated[index].translation.trim()) {
+        // Clear existing timer if translation already exists
+        const existingTimer = debounceTimers.current.get(index);
+        if (existingTimer) {
+          clearTimeout(existingTimer);
+          debounceTimers.current.delete(index);
+        }
+        return;
+      }
 
       // Clear existing timer for this index
       const existingTimer = debounceTimers.current.get(index);
@@ -221,8 +251,12 @@ export default function InlineCreateFlashcardSetForm({
       const timer = setTimeout(() => {
         // Check again before translating (user might have typed translation)
         setWordPairs((prev) => {
-          if (!prev[index].translation.trim()) {
-            translateWord(value, index, false);
+          // Only translate if translation is still empty and not already translating
+          if (
+            !prev[index].translation.trim() &&
+            !translatingRef.current.has(index)
+          ) {
+            translateWord(prev[index].word, index, false);
           }
           return prev;
         });
@@ -230,6 +264,25 @@ export default function InlineCreateFlashcardSetForm({
       }, 500); // Wait 0.5 seconds after user stops typing
 
       debounceTimers.current.set(index, timer);
+    } else if (field === "word" && !autoTranslateEnabled) {
+      // Cancel any pending translation for this word if auto-translate is disabled
+      const existingTimer = debounceTimers.current.get(index);
+      if (existingTimer) {
+        clearTimeout(existingTimer);
+        debounceTimers.current.delete(index);
+      }
+    }
+  };
+
+  // Toggle auto-translate and cancel all pending translations when disabling
+  const toggleAutoTranslate = () => {
+    const newState = !autoTranslateEnabled;
+    setAutoTranslateEnabled(newState);
+
+    // If disabling, cancel all pending translations
+    if (!newState) {
+      debounceTimers.current.forEach((timer) => clearTimeout(timer));
+      debounceTimers.current.clear();
     }
   };
 
@@ -358,40 +411,116 @@ export default function InlineCreateFlashcardSetForm({
         </div>
 
         {/* AI Help Toggle */}
-        <div className="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-700/30 rounded-lg">
-          <div className="flex items-center gap-2">
-            <svg
-              className="w-4 h-4 text-gray-500 dark:text-gray-400"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"
-              />
-            </svg>
-            <span className="text-xs text-gray-600 dark:text-gray-400">
-              AI Help
-            </span>
-          </div>
-          <button
-            type="button"
-            onClick={() => setAiHelpEnabled(!aiHelpEnabled)}
-            className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
-              aiHelpEnabled
-                ? "bg-blue-600 dark:bg-blue-500"
-                : "bg-gray-300 dark:bg-gray-600"
-            }`}
-          >
-            <span
-              className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                aiHelpEnabled ? "translate-x-5" : "translate-x-0.5"
+        <div className="space-y-2">
+          <div className="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-700/30 rounded-lg">
+            <div className="flex items-center gap-2">
+              <svg
+                className="w-4 h-4 text-gray-500 dark:text-gray-400"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"
+                />
+              </svg>
+              <span className="text-xs text-gray-600 dark:text-gray-400">
+                AI Help
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setAiHelpEnabled(!aiHelpEnabled)}
+              className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
+                aiHelpEnabled
+                  ? "bg-blue-600 dark:bg-blue-500"
+                  : "bg-gray-300 dark:bg-gray-600"
               }`}
-            />
-          </button>
+            >
+              <span
+                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                  aiHelpEnabled ? "translate-x-5" : "translate-x-0.5"
+                }`}
+              />
+            </button>
+          </div>
+          {/* AI Action Buttons */}
+          {aiHelpEnabled && (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-700/30 rounded-lg">
+                <div className="flex items-center gap-2">
+                  <svg
+                    className="w-4 h-4 text-gray-500 dark:text-gray-400"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129"
+                    />
+                  </svg>
+                  <span className="text-xs text-gray-600 dark:text-gray-400">
+                    Auto Translate
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={toggleAutoTranslate}
+                  className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
+                    autoTranslateEnabled
+                      ? "bg-green-600 dark:bg-green-500"
+                      : "bg-gray-300 dark:bg-gray-600"
+                  }`}
+                >
+                  <span
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                      autoTranslateEnabled ? "translate-x-5" : "translate-x-0.5"
+                    }`}
+                  />
+                </button>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  // Translate all empty translations instantly
+                  wordPairs.forEach((pair, idx) => {
+                    // Only translate if word exists, translation is empty, and not already translating
+                    if (
+                      pair.word.trim() &&
+                      !pair.translation.trim() &&
+                      !translatingRef.current.has(idx)
+                    ) {
+                      translateWord(pair.word, idx, false);
+                    }
+                  });
+                }}
+                disabled={translatingIndex !== null}
+                className="w-full px-2 py-1.5 text-xs text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded-lg transition-colors flex items-center justify-center gap-1.5 border border-purple-200 dark:border-purple-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Instantly translate all empty translations"
+              >
+                <svg
+                  className="w-3.5 h-3.5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129"
+                  />
+                </svg>
+                <span>Translate All</span>
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Expand All Button */}
@@ -582,9 +711,9 @@ export default function InlineCreateFlashcardSetForm({
                   </div>
                 </div>
                 {expandedIndices.has(index) && (
-                  <div className="w-full mt-3 pt-3 border-t-2 border-gray-200 dark:border-gray-700 space-y-3">
+                  <div className="w-full mt-3 pt-3 border-t border-gray-200 dark:border-gray-700 space-y-3 opacity-80">
                     <div>
-                      <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
                         Pronunciation
                       </label>
                       <div className="flex gap-1.5 items-center">
@@ -648,7 +777,7 @@ export default function InlineCreateFlashcardSetForm({
                     </div>
                     <div className="grid grid-cols-2 gap-2">
                       <div>
-                        <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
                           Image
                         </label>
                         <label className="flex items-center justify-center px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600 cursor-pointer transition-colors text-xs">
@@ -725,7 +854,7 @@ export default function InlineCreateFlashcardSetForm({
                         )}
                       </div>
                       <div>
-                        <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
                           Voice
                         </label>
                         <label className="flex items-center justify-center px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600 cursor-pointer transition-colors text-xs">

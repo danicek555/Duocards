@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
+import { COIN_COSTS } from "@/lib/coins";
 
 interface AIGenerateFlashcardFormProps {
   onClose: () => void;
@@ -40,8 +41,29 @@ export default function AIGenerateFlashcardForm({
   const [language, setLanguage] = useState("Spanish");
   const [setName, setSetName] = useState("");
   const [wordCount, setWordCount] = useState(10);
+  const [includeImage, setIncludeImage] = useState(false);
+  const [includeVoice, setIncludeVoice] = useState(false);
+  const [includePronunciation, setIncludePronunciation] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  // Calculate total cost
+  const totalCost = useMemo(() => {
+    // 1 coin per word for flashcard generation
+    let cost = wordCount * COIN_COSTS.WORD_TRANSLATION; // 1 coin per word
+
+    if (includeImage) {
+      cost += wordCount * COIN_COSTS.IMAGE_GENERATION; // 80 coins per image
+    }
+
+    if (includeVoice) {
+      cost += wordCount * COIN_COSTS.AUDIO_GENERATION; // 5 coins per audio
+    }
+
+    // Pronunciation is included in text generation, no extra cost
+
+    return cost;
+  }, [wordCount, includeImage, includeVoice]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -66,9 +88,13 @@ export default function AIGenerateFlashcardForm({
         body: JSON.stringify({
           level,
           topic: topic.trim(),
-          language,
+          fromLanguage: "English",
+          toLanguage: language,
           setName: setName.trim() || undefined,
           wordCount,
+          includeImage,
+          includeVoice,
+          includePronunciation,
         }),
       });
 
@@ -239,6 +265,125 @@ export default function AIGenerateFlashcardForm({
               maxLength={20}
               className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
+          </div>
+
+          {/* Additional Features */}
+          <div className="space-y-2">
+            <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Additional Features
+            </label>
+
+            {/* Include Images */}
+            <label className="flex items-center gap-2 p-2 bg-gray-50 dark:bg-gray-700/30 rounded-lg cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-colors">
+              <input
+                type="checkbox"
+                checked={includeImage}
+                onChange={(e) => setIncludeImage(e.target.checked)}
+                className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+              />
+              <div className="flex-1">
+                <span className="text-xs font-medium text-gray-700 dark:text-gray-300">
+                  Include Images
+                </span>
+                <span className="text-xs text-gray-500 dark:text-gray-400 ml-2">
+                  ({COIN_COSTS.IMAGE_GENERATION} coins per image)
+                </span>
+              </div>
+            </label>
+
+            {/* Include Voice */}
+            <label className="flex items-center gap-2 p-2 bg-gray-50 dark:bg-gray-700/30 rounded-lg cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-colors">
+              <input
+                type="checkbox"
+                checked={includeVoice}
+                onChange={(e) => setIncludeVoice(e.target.checked)}
+                className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+              />
+              <div className="flex-1">
+                <span className="text-xs font-medium text-gray-700 dark:text-gray-300">
+                  Include Voice/Audio
+                </span>
+                <span className="text-xs text-gray-500 dark:text-gray-400 ml-2">
+                  ({COIN_COSTS.AUDIO_GENERATION} coins per audio)
+                </span>
+              </div>
+            </label>
+
+            {/* Include Pronunciation */}
+            <label className="flex items-center gap-2 p-2 bg-gray-50 dark:bg-gray-700/30 rounded-lg cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-colors">
+              <input
+                type="checkbox"
+                checked={includePronunciation}
+                onChange={(e) => setIncludePronunciation(e.target.checked)}
+                className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+              />
+              <div className="flex-1">
+                <span className="text-xs font-medium text-gray-700 dark:text-gray-300">
+                  Include Pronunciation
+                </span>
+                <span className="text-xs text-gray-500 dark:text-gray-400 ml-2">
+                  (included in base cost)
+                </span>
+              </div>
+            </label>
+          </div>
+
+          {/* Cost Calculation */}
+          <div className="p-3 bg-purple-50 dark:bg-purple-900/20 border-2 border-purple-300 dark:border-purple-700 rounded-lg mt-3">
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <svg
+                  className="w-5 h-5 text-purple-600 dark:text-purple-400"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
+                </svg>
+                <span className="text-sm font-semibold text-purple-700 dark:text-purple-300">
+                  Total Cost
+                </span>
+              </div>
+              <div className="text-right">
+                <div className="text-xl font-bold text-purple-600 dark:text-purple-400">
+                  {totalCost} coin{totalCost !== 1 ? "s" : ""}
+                </div>
+              </div>
+            </div>
+            <div className="text-xs text-purple-600 dark:text-purple-400 bg-white dark:bg-gray-800/50 rounded px-2 py-1.5 border border-purple-200 dark:border-purple-700">
+              <div className="font-medium mb-1">Breakdown:</div>
+              <div className="space-y-0.5">
+                <div>
+                  {wordCount} word{wordCount !== 1 ? "s" : ""} × 1 coin ={" "}
+                  {wordCount * COIN_COSTS.WORD_TRANSLATION} coin
+                  {wordCount * COIN_COSTS.WORD_TRANSLATION !== 1 ? "s" : ""}
+                </div>
+                {includeImage && (
+                  <div>
+                    + {wordCount} image{wordCount !== 1 ? "s" : ""} ×{" "}
+                    {COIN_COSTS.IMAGE_GENERATION} coins ={" "}
+                    {wordCount * COIN_COSTS.IMAGE_GENERATION} coins
+                  </div>
+                )}
+                {includeVoice && (
+                  <div>
+                    + {wordCount} audio{wordCount !== 1 ? "s" : ""} ×{" "}
+                    {COIN_COSTS.AUDIO_GENERATION} coins ={" "}
+                    {wordCount * COIN_COSTS.AUDIO_GENERATION} coins
+                  </div>
+                )}
+                {!includeImage && !includeVoice && (
+                  <div className="text-purple-500 dark:text-purple-500 italic">
+                    No additional features selected
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
 
           {/* Error Message */}

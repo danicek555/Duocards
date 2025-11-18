@@ -143,7 +143,8 @@ export async function POST(request: NextRequest) {
     const topicTrimmed = topic.trim().slice(0, 20);
 
     // Calculate coin cost for this generation
-    let totalCost = COIN_COSTS.FLASHCARD_GENERATION; // Base cost for text generation
+    // 1 coin per word for flashcard generation
+    let totalCost = wordCount * 1; // 1 coin per word
 
     if (includeImage) {
       totalCost += wordCount * COIN_COSTS.IMAGE_GENERATION; // Expensive - per image
