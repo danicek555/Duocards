@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { COIN_COSTS } from "@/lib/coins";
 
 interface InlineAIGenerateFormProps {
   onSuccess: () => void;
@@ -50,7 +51,23 @@ export default function InlineAIGenerateForm({
   const [includePronunciation, setIncludePronunciation] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  // Calculate total cost
+  const totalCost = useMemo(() => {
+    // 1 coin per word for flashcard generation
+    let cost = wordCount * COIN_COSTS.WORD_TRANSLATION; // 1 coin per word
 
+    if (includeImage) {
+      cost += wordCount * COIN_COSTS.IMAGE_GENERATION; // 80 coins per image
+    }
+
+    if (includeVoice) {
+      cost += wordCount * COIN_COSTS.AUDIO_GENERATION; // 5 coins per audio
+    }
+
+    // Pronunciation is included in text generation, no extra cost
+
+    return cost;
+  }, [wordCount, includeImage, includeVoice]);
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
@@ -346,6 +363,71 @@ export default function InlineAIGenerateForm({
               </svg>
               Pronunciation
             </button>
+          </div>
+        </div>
+        {/* Cost Calculation */}
+        <div className="p-4 bg-gradient-to-r from-purple-100 to-purple-50 dark:from-purple-900/40 dark:to-purple-800/30 border-2 border-purple-400 dark:border-purple-600 rounded-lg mt-3 shadow-lg">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <svg
+                className="w-6 h-6 text-purple-600 dark:text-purple-400"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
+              </svg>
+              <span className="text-base font-bold text-purple-800 dark:text-purple-200">
+                Total Cost
+              </span>
+            </div>
+            <div className="text-right">
+              <div className="text-2xl font-extrabold text-purple-700 dark:text-purple-300">
+                {totalCost} coin{totalCost !== 1 ? "s" : ""}
+              </div>
+            </div>
+          </div>
+          <div className="text-sm text-purple-700 dark:text-purple-300 bg-white/80 dark:bg-gray-800/80 rounded-lg px-3 py-2 border border-purple-300 dark:border-purple-700">
+            <div className="font-semibold mb-1.5 text-purple-800 dark:text-purple-200">
+              Cost Breakdown:
+            </div>
+            <div className="space-y-1">
+              <div className="font-medium">
+                {wordCount} word{wordCount !== 1 ? "s" : ""} × 1 coin ={" "}
+                <span className="text-purple-600 dark:text-purple-400 font-bold">
+                  {wordCount * COIN_COSTS.WORD_TRANSLATION} coin
+                  {wordCount * COIN_COSTS.WORD_TRANSLATION !== 1 ? "s" : ""}
+                </span>
+              </div>
+              {includeImage && (
+                <div className="font-medium">
+                  + {wordCount} image{wordCount !== 1 ? "s" : ""} ×{" "}
+                  {COIN_COSTS.IMAGE_GENERATION} coins ={" "}
+                  <span className="text-purple-600 dark:text-purple-400 font-bold">
+                    {wordCount * COIN_COSTS.IMAGE_GENERATION} coins
+                  </span>
+                </div>
+              )}
+              {includeVoice && (
+                <div className="font-medium">
+                  + {wordCount} audio{wordCount !== 1 ? "s" : ""} ×{" "}
+                  {COIN_COSTS.AUDIO_GENERATION} coins ={" "}
+                  <span className="text-purple-600 dark:text-purple-400 font-bold">
+                    {wordCount * COIN_COSTS.AUDIO_GENERATION} coins
+                  </span>
+                </div>
+              )}
+              {!includeImage && !includeVoice && (
+                <div className="text-purple-600 dark:text-purple-400 italic text-xs">
+                  No additional features selected
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
