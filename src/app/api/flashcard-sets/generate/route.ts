@@ -2,11 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { verifyAuthToken } from "@/lib/auth";
 import OpenAI from "openai";
-import {
-  checkCoins,
-  deductCoins,
-  COIN_COSTS,
-} from "@/lib/coins";
+import { checkCoins, deductCoins, COIN_COSTS } from "@/lib/coins";
 
 // Initialize OpenAI client
 const openai = new OpenAI({
@@ -148,15 +144,15 @@ export async function POST(request: NextRequest) {
 
     // Calculate coin cost for this generation
     let totalCost = COIN_COSTS.FLASHCARD_GENERATION; // Base cost for text generation
-    
+
     if (includeImage) {
       totalCost += wordCount * COIN_COSTS.IMAGE_GENERATION; // Expensive - per image
     }
-    
+
     if (includeVoice) {
       totalCost += wordCount * COIN_COSTS.AUDIO_GENERATION; // Per audio
     }
-    
+
     // Pronunciation is included in text generation, no extra cost
 
     // Check if user has enough coins
