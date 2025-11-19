@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { COIN_COSTS } from "@/lib/coins";
+import { LANGUAGES } from "@/lib/languages";
 
 interface InlineAIGenerateFormProps {
   onSuccess: () => void;
@@ -15,25 +16,6 @@ const LEVELS = [
   { value: "B2", label: "B2 (Upper Intermediate)" },
   { value: "C1", label: "C1 (Advanced)" },
   { value: "C2", label: "C2 (Proficiency)" },
-];
-
-const LANGUAGES = [
-  { value: "English", label: "English" },
-  { value: "Spanish", label: "Spanish" },
-  { value: "French", label: "French" },
-  { value: "German", label: "German" },
-  { value: "Italian", label: "Italian" },
-  { value: "Portuguese", label: "Portuguese" },
-  { value: "Japanese", label: "Japanese" },
-  { value: "Chinese", label: "Chinese (Mandarin)" },
-  { value: "Korean", label: "Korean" },
-  { value: "Russian", label: "Russian" },
-  { value: "Arabic", label: "Arabic" },
-  { value: "Dutch", label: "Dutch" },
-  { value: "Swedish", label: "Swedish" },
-  { value: "Norwegian", label: "Norwegian" },
-  { value: "Polish", label: "Polish" },
-  { value: "Turkish", label: "Turkish" },
 ];
 
 export default function InlineAIGenerateForm({
@@ -415,15 +397,6 @@ export default function InlineAIGenerateForm({
                   </span>
                 </div>
               )}
-              {includeVoice && (
-                <div className="font-medium">
-                  + {wordCount} audio{wordCount !== 1 ? "s" : ""} ×{" "}
-                  {COIN_COSTS.AUDIO_GENERATION} coins ={" "}
-                  <span className="text-purple-600 dark:text-purple-400 font-bold">
-                    {wordCount * COIN_COSTS.AUDIO_GENERATION} coins
-                  </span>
-                </div>
-              )}
               {includePronunciation && (
                 <div className="font-medium">
                   + {wordCount} pronunciation{wordCount !== 1 ? "s" : ""} ×{" "}
@@ -432,6 +405,15 @@ export default function InlineAIGenerateForm({
                   <span className="text-purple-600 dark:text-purple-400 font-bold">
                     {wordCount * COIN_COSTS.PRONUNCIATION_GENERATION} coin
                     {wordCount * COIN_COSTS.PRONUNCIATION_GENERATION !== 1 ? "s" : ""}
+                  </span>
+                </div>
+              )}
+              {includeVoice && (
+                <div className="font-medium">
+                  + {wordCount} audio{wordCount !== 1 ? "s" : ""} ×{" "}
+                  {COIN_COSTS.AUDIO_GENERATION} coins ={" "}
+                  <span className="text-purple-600 dark:text-purple-400 font-bold">
+                    {wordCount * COIN_COSTS.AUDIO_GENERATION} coins
                   </span>
                 </div>
               )}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { LANGUAGES } from "@/lib/languages";
 
 interface WordPair {
   word: string;
@@ -15,25 +16,6 @@ interface InlineCreateFlashcardSetFormProps {
   onCancel: () => void;
   onCoinsUpdate?: () => void;
 }
-
-const LANGUAGES = [
-  { value: "English", label: "English" },
-  { value: "Spanish", label: "Spanish" },
-  { value: "French", label: "French" },
-  { value: "German", label: "German" },
-  { value: "Italian", label: "Italian" },
-  { value: "Portuguese", label: "Portuguese" },
-  { value: "Japanese", label: "Japanese" },
-  { value: "Chinese", label: "Chinese (Mandarin)" },
-  { value: "Korean", label: "Korean" },
-  { value: "Russian", label: "Russian" },
-  { value: "Arabic", label: "Arabic" },
-  { value: "Dutch", label: "Dutch" },
-  { value: "Swedish", label: "Swedish" },
-  { value: "Norwegian", label: "Norwegian" },
-  { value: "Polish", label: "Polish" },
-  { value: "Turkish", label: "Turkish" },
-];
 
 export default function InlineCreateFlashcardSetForm({
   onSuccess,

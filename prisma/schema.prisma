@@ -9,17 +9,18 @@ datasource db {
 }
 
 model User {
-  id            Int            @id @default(autoincrement())
-  email         String         @unique
-  password      String
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
-  nickname      String         @default("User")
-  emailVerified Boolean        @default(true)
-  coins         Int            @default(100)
-  words         Word[]
-  flashcardSets FlashcardSet[]
-  aiGenerations AiGeneration[]
+  id              Int            @id @default(autoincrement())
+  email           String         @unique
+  password        String
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  nickname        String         @default("User")
+  emailVerified   Boolean        @default(true)
+  coins           Int            @default(100)
+  lastDailyReward DateTime?
+  words           Word[]
+  flashcardSets   FlashcardSet[]
+  aiGenerations   AiGeneration[]
 
   @@map("users")
 }

@@ -6,6 +6,7 @@ import Flashcard from "@/components/Flashcard";
 import InlineCreateFlashcardSetForm from "@/components/InlineCreateFlashcardSetForm";
 import InlineAIGenerateForm from "@/components/InlineAIGenerateForm";
 import CoinCostsModal from "@/components/CoinCostsModal";
+import DailyRewardButton from "@/components/DailyRewardButton";
 import { getLanguageFlag } from "@/lib/flags";
 
 interface User {
@@ -285,6 +286,12 @@ export default function Dashboard() {
           >
             See more →
           </button>
+
+          {/* Daily Reward Button */}
+          <div className="mt-4">
+            <DailyRewardButton onCoinsUpdate={fetchCoins} />
+          </div>
+
           {viewMode === "cards" && selectedSet && (
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium text-gray-600 dark:text-gray-400">

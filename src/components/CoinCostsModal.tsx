@@ -55,28 +55,6 @@ export default function CoinCostsModal({
       ),
     },
     {
-      name: "Audio Generation",
-      description: "Per audio (Text-to-Speech)",
-      cost: COIN_COSTS.AUDIO_GENERATION,
-      costPerItem: true,
-      itemName: "audio",
-      icon: (
-        <svg
-          className="w-6 h-6"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"
-          />
-        </svg>
-      ),
-    },
-    {
       name: "Pronunciation",
       description: "Per word pronunciation guide",
       cost: COIN_COSTS.PRONUNCIATION_GENERATION,
@@ -116,6 +94,28 @@ export default function CoinCostsModal({
             strokeLinejoin="round"
             strokeWidth={2}
             d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129"
+          />
+        </svg>
+      ),
+    },
+    {
+      name: "Audio Generation",
+      description: "Per audio (Text-to-Speech)",
+      cost: COIN_COSTS.AUDIO_GENERATION,
+      costPerItem: true,
+      itemName: "audio",
+      icon: (
+        <svg
+          className="w-6 h-6"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"
           />
         </svg>
       ),

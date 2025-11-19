@@ -20,6 +20,19 @@ export const LANGUAGE_FLAGS: Record<string, string> = {
   Norwegian: "🇳🇴",
   Polish: "🇵🇱",
   Turkish: "🇹🇷",
+  Hindi: "🇮🇳",
+  Vietnamese: "🇻🇳",
+  Thai: "🇹🇭",
+  Indonesian: "🇮🇩",
+  Greek: "🇬🇷",
+  Hebrew: "🇮🇱",
+  Czech: "🇨🇿",
+  Romanian: "🇷🇴",
+  Finnish: "🇫🇮",
+  Danish: "🇩🇰",
+  Hungarian: "🇭🇺",
+  Ukrainian: "🇺🇦",
+  Catalan: "🇪🇸",
 };
 
 /**
