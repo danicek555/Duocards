@@ -64,10 +64,12 @@ export default function InlineAIGenerateForm({
       cost += wordCount * COIN_COSTS.AUDIO_GENERATION; // 5 coins per audio
     }
 
-    // Pronunciation is included in text generation, no extra cost
+    if (includePronunciation) {
+      cost += wordCount * COIN_COSTS.PRONUNCIATION_GENERATION; // 1 coin per pronunciation
+    }
 
     return cost;
-  }, [wordCount, includeImage, includeVoice]);
+  }, [wordCount, includeImage, includeVoice, includePronunciation]);
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
@@ -422,7 +424,18 @@ export default function InlineAIGenerateForm({
                   </span>
                 </div>
               )}
-              {!includeImage && !includeVoice && (
+              {includePronunciation && (
+                <div className="font-medium">
+                  + {wordCount} pronunciation{wordCount !== 1 ? "s" : ""} ×{" "}
+                  {COIN_COSTS.PRONUNCIATION_GENERATION} coin
+                  {COIN_COSTS.PRONUNCIATION_GENERATION !== 1 ? "s" : ""} ={" "}
+                  <span className="text-purple-600 dark:text-purple-400 font-bold">
+                    {wordCount * COIN_COSTS.PRONUNCIATION_GENERATION} coin
+                    {wordCount * COIN_COSTS.PRONUNCIATION_GENERATION !== 1 ? "s" : ""}
+                  </span>
+                </div>
+              )}
+              {!includeImage && !includeVoice && !includePronunciation && (
                 <div className="text-purple-600 dark:text-purple-400 italic text-xs">
                   No additional features selected
                 </div>

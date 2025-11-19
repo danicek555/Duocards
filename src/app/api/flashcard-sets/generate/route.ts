@@ -154,7 +154,9 @@ export async function POST(request: NextRequest) {
       totalCost += wordCount * COIN_COSTS.AUDIO_GENERATION; // Per audio
     }
 
-    // Pronunciation is included in text generation, no extra cost
+    if (includePronunciation) {
+      totalCost += wordCount * COIN_COSTS.PRONUNCIATION_GENERATION; // 1 coin per pronunciation
+    }
 
     // Check if user has enough coins
     const coinCheck = await checkCoins(payload.userId, totalCost);

@@ -77,3 +77,4 @@ ALTER TABLE "words" ADD CONSTRAINT "words_audioId_fkey" FOREIGN KEY ("audioId") 
 
 
 
+
