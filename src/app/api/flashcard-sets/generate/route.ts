@@ -370,19 +370,39 @@ Requirements:
         // Generate audio if requested
         if (includeVoice) {
           try {
-            const audioResponse = await openai.audio.speech.create({
-              model: "tts-1",
-              voice: "alloy",
-              input: wordPair.translation,
-            });
-            // For now, we'll store a placeholder - in production, you'd upload to S3 or similar
-            // For demo purposes, we could use a service like Google Translate TTS or save locally
-            audioUrl = `data:audio/mpeg;base64,${Buffer.from(
-              await audioResponse.arrayBuffer()
-            ).toString("base64")}`;
-            // Note: In production, upload audio to a storage service and store the URL
+            const translationText = wordPair.translation?.trim();
+            if (!translationText) {
+              console.warn(
+                `Skipping audio: empty translation for "${wordPair.word}"`
+              );
+            } else {
+              const audioResponse = await openai.audio.speech.create({
+                model: "gpt-4o-mini-tts", // Higher quality model for better audio
+                voice: "alloy",
+                input: translationText,
+              });
+
+              const audioBuffer = await audioResponse.arrayBuffer();
+
+              if (!audioBuffer || audioBuffer.byteLength === 0) {
+                console.error(`Empty audio buffer for "${wordPair.word}"`);
+              } else {
+                const base64Audio = Buffer.from(audioBuffer).toString("base64");
+
+                if (base64Audio.length < 1000) {
+                  console.error(
+                    `Audio too short for "${wordPair.word}" (${base64Audio.length} chars)`
+                  );
+                } else {
+                  audioUrl = `data:audio/mpeg;base64,${base64Audio}`;
+                }
+              }
+            }
           } catch (audioError) {
-            console.error("Error generating audio:", audioError);
+            console.error(
+              `Audio generation failed for "${wordPair.word}":`,
+              audioError instanceof Error ? audioError.message : audioError
+            );
             // Continue without audio if generation fails
           }
         }
