@@ -404,7 +404,9 @@ export default function InlineAIGenerateForm({
                   {COIN_COSTS.PRONUNCIATION_GENERATION !== 1 ? "s" : ""} ={" "}
                   <span className="text-purple-600 dark:text-purple-400 font-bold">
                     {wordCount * COIN_COSTS.PRONUNCIATION_GENERATION} coin
-                    {wordCount * COIN_COSTS.PRONUNCIATION_GENERATION !== 1 ? "s" : ""}
+                    {wordCount * COIN_COSTS.PRONUNCIATION_GENERATION !== 1
+                      ? "s"
+                      : ""}
                   </span>
                 </div>
               )}
