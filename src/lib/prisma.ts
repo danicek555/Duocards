@@ -74,13 +74,13 @@ function createDirectPrismaClient(): PrismaClient {
   const directUrl = process.env.DIRECT_DATABASE_URL;
 
   // If DIRECT_DATABASE_URL is not set, fall back to regular prisma client
+  // This happens when using Cloud SQL directly (not Prisma Accelerate)
   if (!directUrl) {
-    console.warn(
-      "DIRECT_DATABASE_URL not set, falling back to regular prisma client"
-    );
+    // In production with Cloud SQL, both URLs are the same, so use regular client
     return prisma;
   }
 
+  // For Prisma Accelerate, use direct URL for large data operations
   return new PrismaClient({
     datasources: {
       db: {

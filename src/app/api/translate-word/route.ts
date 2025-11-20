@@ -1,12 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyAuthToken } from "@/lib/auth";
-import OpenAI from "openai";
 import { checkCoins, deductCoins, COIN_COSTS } from "@/lib/coins";
 
-// Initialize OpenAI client
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+// Initialize OpenAI client lazily to avoid build-time errors
+async function getOpenAIClient() {
+  if (!process.env.OPENAI_API_KEY) {
+    throw new Error("OPENAI_API_KEY is not configured");
+  }
+  // Lazy import OpenAI only when needed
+  const { default: OpenAI } = await import("openai");
+  return new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY,
+  });
+}
 
 interface TranslateRequest {
   word: string;
@@ -78,6 +84,7 @@ export async function POST(request: NextRequest) {
 Return only the translation, nothing else. If the word is a phrase or multiple words, translate it as a whole.
 Do not include any explanations, context, or additional text - just the translation.`;
 
+    const openai = await getOpenAIClient();
     const completion = await openai.chat.completions.create({
       model: modelName,
       messages: [

@@ -14,8 +14,10 @@ export function validateEnvironment(): EnvironmentValidation {
   const warnings: string[] = [];
 
   // Required environment variables
+  // Note: We use PRISMA_DATABASE_URL (not DATABASE_URL) to match Prisma schema
   const requiredVars = {
-    DATABASE_URL: process.env.DATABASE_URL,
+    PRISMA_DATABASE_URL:
+      process.env.PRISMA_DATABASE_URL || process.env.DATABASE_URL,
     RESEND_API_KEY: process.env.RESEND_API_KEY,
     FROM_EMAIL: process.env.FROM_EMAIL,
   };
@@ -42,12 +44,15 @@ export function validateEnvironment(): EnvironmentValidation {
   }
 
   // Validate database URL format
+  const dbUrl = process.env.PRISMA_DATABASE_URL || process.env.DATABASE_URL;
   if (
-    process.env.DATABASE_URL &&
-    !process.env.DATABASE_URL.startsWith("postgres")
+    dbUrl &&
+    !dbUrl.startsWith("postgres") &&
+    !dbUrl.startsWith("prisma://") &&
+    !dbUrl.startsWith("prisma+postgres://")
   ) {
     warnings.push(
-      "DATABASE_URL does not appear to be a PostgreSQL connection string"
+      "PRISMA_DATABASE_URL does not appear to be a valid PostgreSQL or Prisma Accelerate connection string"
     );
   }
 

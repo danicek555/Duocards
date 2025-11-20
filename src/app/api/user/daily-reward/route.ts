@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { verifyAuthToken } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
-const DAILY_REWARD_COINS = 50;
+const DAILY_REWARD_COINS = 100;
 
 // GET - Check if user can claim daily reward and get time until next reward
 export async function GET(request: NextRequest) {

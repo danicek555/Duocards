@@ -3,9 +3,10 @@ generator client {
 }
 
 datasource db {
-  provider  = "postgresql"
-  url       = env("PRISMA_DATABASE_URL")
-  directUrl = env("DIRECT_DATABASE_URL")
+  provider = "postgresql"
+  url      = env("PRISMA_DATABASE_URL")
+  // Note: directUrl is only needed for Prisma Accelerate
+  // For Cloud SQL, we don't use directUrl - both URLs point to the same database
 }
 
 model User {
@@ -18,9 +19,9 @@ model User {
   emailVerified   Boolean        @default(true)
   coins           Int            @default(100)
   lastDailyReward DateTime?
-  words           Word[]
-  flashcardSets   FlashcardSet[]
   aiGenerations   AiGeneration[]
+  flashcardSets   FlashcardSet[]
+  words           Word[]
 
   @@map("users")
 }
@@ -64,17 +65,17 @@ model Word {
   audioId        Int?          @unique
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
-  user           User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  audio          WordAudio?    @relation(fields: [audioId], references: [id])
   flashcardSet   FlashcardSet? @relation(fields: [flashcardSetId], references: [id], onDelete: Cascade)
-  image          WordImage?    @relation(fields: [imageId], references: [id], onDelete: SetNull)
-  audio          WordAudio?    @relation(fields: [audioId], references: [id], onDelete: SetNull)
+  image          WordImage?    @relation(fields: [imageId], references: [id])
+  user           User          @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("words")
 }
 
 model WordImage {
   id        Int      @id @default(autoincrement())
-  dataUrl   String   @db.Text
+  dataUrl   String
   mimeType  String   @default("image/png")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -85,7 +86,7 @@ model WordImage {
 
 model WordAudio {
   id        Int      @id @default(autoincrement())
-  dataUrl   String   @db.Text
+  dataUrl   String
   mimeType  String   @default("audio/mpeg")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

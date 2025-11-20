@@ -1,0 +1,49 @@
+version: '3.8'
+
+# Production Docker Compose with Cloud SQL Proxy
+# Usage: docker-compose -f docker-compose.prod-cloudsql.yml up
+
+services:
+  cloud-sql-proxy:
+    image: gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.8.0
+    container_name: duocards-cloud-sql-proxy
+    restart: unless-stopped
+    command:
+      - "--address=0.0.0.0"
+      - "--port=5432"
+      - "duocards-478723:us-central1:duocards"
+    volumes:
+      # Mount gcloud credentials (if running locally)
+      - ~/.config/gcloud:/root/.config/gcloud:ro
+    networks:
+      - duocards-network
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: duocards-app-prod
+    restart: unless-stopped
+    ports:
+      - "${APP_PORT:-3000}:3000"
+    environment:
+      - NODE_ENV=production
+      # Cloud SQL via proxy (running in cloud-sql-proxy container)
+      - PRISMA_DATABASE_URL=postgresql://postgres:${CLOUD_SQL_PASSWORD}@cloud-sql-proxy:5432/duocards-database1?schema=public
+      - DIRECT_DATABASE_URL=postgresql://postgres:${CLOUD_SQL_PASSWORD}@cloud-sql-proxy:5432/duocards-database1?schema=public
+      # Add your other environment variables here
+      # - OPENAI_API_KEY=${OPENAI_API_KEY}
+      # - RESEND_API_KEY=${RESEND_API_KEY}
+      # - SENTRY_DSN=${SENTRY_DSN}
+      # - AUTH_SECRET=${AUTH_SECRET}
+      # - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL}
+    depends_on:
+      - cloud-sql-proxy
+    networks:
+      - duocards-network
+    command: sh -c "prisma migrate deploy && node server.js"
+
+networks:
+  duocards-network:
+    driver: bridge
+

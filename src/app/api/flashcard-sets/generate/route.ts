@@ -1,13 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { verifyAuthToken } from "@/lib/auth";
-import OpenAI from "openai";
 import { checkCoins, deductCoins, COIN_COSTS } from "@/lib/coins";
 
-// Initialize OpenAI client
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+// Initialize OpenAI client lazily to avoid build-time errors
+async function getOpenAIClient() {
+  if (!process.env.OPENAI_API_KEY) {
+    throw new Error("OPENAI_API_KEY is not configured");
+  }
+  // Lazy import OpenAI only when needed
+  const { default: OpenAI } = await import("openai");
+  return new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY,
+  });
+}
 
 interface GenerateRequest {
   level: string;
@@ -51,6 +57,9 @@ export async function POST(request: NextRequest) {
         { status: 500 }
       );
     }
+
+    // Initialize OpenAI client (after API key check)
+    const openai = await getOpenAIClient();
 
     // Check daily AI generation limit (10 per day)
     // Note: Uncomment this section if you add AiGeneration model to your schema
