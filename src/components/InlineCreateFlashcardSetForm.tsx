@@ -45,6 +45,7 @@ export default function InlineCreateFlashcardSetForm({
   const [autoTranslateEnabled, setAutoTranslateEnabled] = useState(false);
   const [translateToOneWord, setTranslateToOneWord] = useState(true);
   const [translateToPhrase, setTranslateToPhrase] = useState(false);
+  const [existingUniqueTagsCount, setExistingUniqueTagsCount] = useState(0);
   const debounceTimers = useRef<Map<number, NodeJS.Timeout>>(new Map());
   const translatingRef = useRef<Set<number>>(new Set());
 
@@ -302,6 +303,36 @@ export default function InlineCreateFlashcardSetForm({
     };
   }, []);
 
+  // Fetch existing unique tags count
+  useEffect(() => {
+    const fetchUniqueTagsCount = async () => {
+      try {
+        const response = await fetch("/api/flashcard-sets");
+        if (response.ok) {
+          const data = await response.json();
+          const flashcardSets = data.flashcardSets || [];
+          
+          // Collect all unique tags from existing sets
+          const existingUniqueTags = new Set<string>();
+          flashcardSets.forEach((set: { tags?: string[] }) => {
+            const setTags = set.tags || [];
+            setTags.forEach((tag: string) => {
+              if (tag.trim()) {
+                existingUniqueTags.add(tag.trim());
+              }
+            });
+          });
+          
+          setExistingUniqueTagsCount(existingUniqueTags.size);
+        }
+      } catch (error) {
+        console.error("Error fetching unique tags count:", error);
+      }
+    };
+
+    fetchUniqueTagsCount();
+  }, []);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
@@ -393,6 +424,9 @@ export default function InlineCreateFlashcardSetForm({
           <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5">
             Tags (optional) - Max 5 tags per set ({tags.length}/5)
           </label>
+          <div className="text-xs text-gray-500 dark:text-gray-400 mb-1.5">
+            Maximum 20 different tags allowed across all sets. You currently have {existingUniqueTagsCount} unique tags.
+          </div>
           <div className="flex flex-wrap gap-2 mb-2">
             {tags.map((tag, index) => (
               <span

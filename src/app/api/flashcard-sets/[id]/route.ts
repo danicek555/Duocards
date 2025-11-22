@@ -193,18 +193,34 @@ export async function PATCH(
       );
     }
 
-    // Check total tags limit (20 tags across all sets, excluding current set)
+    // Check unique tags limit (20 different tags across all sets, excluding current set)
     const allExistingSets = await prisma.flashcardSet.findMany({
       where: { userId: payload.userId },
     });
-    const totalTagsCount = allExistingSets
+    // Collect all unique tags from existing sets (excluding current set)
+    const existingUniqueTags = new Set<string>();
+    allExistingSets
       .filter((set) => set.id !== setId)
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      .reduce((sum, set) => sum + ((set as any).tags?.length || 0), 0);
-    if (totalTagsCount + tagsArray.length > 20) {
+      .forEach((set) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const setTags = (set as any).tags || [];
+        setTags.forEach((tag: string) => {
+          if (tag.trim()) {
+            existingUniqueTags.add(tag.trim());
+          }
+        });
+      });
+    
+    // Count how many new unique tags are being added
+    const newUniqueTags = tagsArray.filter(
+      (tag: string) => !existingUniqueTags.has(tag.trim())
+    );
+    const uniqueTagsCount = existingUniqueTags.size + newUniqueTags.length;
+    
+    if (uniqueTagsCount > 20) {
       return NextResponse.json(
         {
-          error: `Maximum 20 tags allowed total. You currently have ${totalTagsCount} tags across other sets.`,
+          error: `Maximum 20 different tags allowed across all sets. You currently have ${existingUniqueTags.size} unique tags across other sets.`,
         },
         { status: 400 }
       );

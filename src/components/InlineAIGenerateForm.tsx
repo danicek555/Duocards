@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { COIN_COSTS } from "@/lib/coin-costs";
 import { LANGUAGES } from "@/lib/languages";
 
@@ -28,6 +28,9 @@ export default function InlineAIGenerateForm({
   const [toLanguage, setToLanguage] = useState("Spanish");
   const [wordCount, setWordCount] = useState(5);
   const [setName, setSetName] = useState("");
+  const [tags, setTags] = useState<string[]>([]);
+  const [tagInput, setTagInput] = useState("");
+  const [existingUniqueTagsCount, setExistingUniqueTagsCount] = useState(0);
   const [includeImage, setIncludeImage] = useState(false);
   const [includeVoice, setIncludeVoice] = useState(false);
   const [includePronunciation, setIncludePronunciation] = useState(false);
@@ -52,6 +55,37 @@ export default function InlineAIGenerateForm({
 
     return cost;
   }, [wordCount, includeImage, includeVoice, includePronunciation]);
+
+  // Fetch existing unique tags count
+  useEffect(() => {
+    const fetchUniqueTagsCount = async () => {
+      try {
+        const response = await fetch("/api/flashcard-sets");
+        if (response.ok) {
+          const data = await response.json();
+          const flashcardSets = data.flashcardSets || [];
+          
+          // Collect all unique tags from existing sets
+          const existingUniqueTags = new Set<string>();
+          flashcardSets.forEach((set: { tags?: string[] }) => {
+            const setTags = set.tags || [];
+            setTags.forEach((tag: string) => {
+              if (tag.trim()) {
+                existingUniqueTags.add(tag.trim());
+              }
+            });
+          });
+          
+          setExistingUniqueTagsCount(existingUniqueTags.size);
+        }
+      } catch (error) {
+        console.error("Error fetching unique tags count:", error);
+      }
+    };
+
+    fetchUniqueTagsCount();
+  }, []);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
@@ -76,6 +110,11 @@ export default function InlineAIGenerateForm({
       return;
     }
 
+    if (tags.length > 5) {
+      setError("Maximum 5 tags allowed per set");
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -89,6 +128,7 @@ export default function InlineAIGenerateForm({
           toLanguage,
           wordCount,
           setName: setName.trim(),
+          tags,
           includeImage,
           includeVoice,
           includePronunciation,
@@ -104,6 +144,8 @@ export default function InlineAIGenerateForm({
       // Reset form
       setTopic("");
       setSetName("");
+      setTags([]);
+      setTagInput("");
       setWordCount(5);
       setLevel("A1");
       setFromLanguage("English");
@@ -228,6 +270,72 @@ export default function InlineAIGenerateForm({
                 </option>
               ))}
             </select>
+          </div>
+        </div>
+
+        {/* Tags */}
+        <div>
+          <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+            Tags (optional) - Max 5 tags per set ({tags.length}/5)
+          </label>
+          <div className="text-xs text-gray-500 dark:text-gray-400 mb-1.5">
+            Maximum 20 different tags allowed across all sets. You currently have {existingUniqueTagsCount} unique tags.
+          </div>
+          <div className="flex flex-wrap gap-2 mb-2">
+            {tags.map((tag, index) => (
+              <span
+                key={index}
+                className="px-2 py-1 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 rounded text-xs flex items-center gap-1"
+              >
+                {tag}
+                <button
+                  type="button"
+                  onClick={() => setTags(tags.filter((_, i) => i !== index))}
+                  className="text-purple-600 dark:text-purple-400 hover:text-purple-800 dark:hover:text-purple-200"
+                >
+                  ×
+                </button>
+              </span>
+            ))}
+          </div>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={tagInput}
+              onChange={(e) => setTagInput(e.target.value)}
+              onKeyPress={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  const trimmed = tagInput.trim();
+                  if (trimmed && !tags.includes(trimmed) && tags.length < 5) {
+                    setTags([...tags, trimmed]);
+                    setTagInput("");
+                  }
+                }
+              }}
+              placeholder={
+                tags.length >= 5
+                  ? "Maximum 5 tags per set"
+                  : "Add a tag and press Enter"
+              }
+              maxLength={20}
+              disabled={tags.length >= 5}
+              className="flex-1 px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
+            />
+            <button
+              type="button"
+              onClick={() => {
+                const trimmed = tagInput.trim();
+                if (trimmed && !tags.includes(trimmed) && tags.length < 5) {
+                  setTags([...tags, trimmed]);
+                  setTagInput("");
+                }
+              }}
+              disabled={tags.length >= 5}
+              className="px-3 py-1.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-xs disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Add
+            </button>
           </div>
         </div>
 

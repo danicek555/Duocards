@@ -23,6 +23,7 @@ interface GenerateRequest {
   toLanguage: string;
   wordCount?: number;
   setName: string;
+  tags?: string[];
   includeImage?: boolean;
   includeVoice?: boolean;
   includePronunciation?: boolean;
@@ -108,6 +109,7 @@ export async function POST(request: NextRequest) {
       toLanguage,
       wordCount = 5,
       setName,
+      tags = [],
       includeImage = false,
       includeVoice = false,
       includePronunciation = false,
@@ -484,6 +486,52 @@ Requirements:
       })
     );
 
+    // Validate tags
+    const tagsArray = Array.isArray(tags)
+      ? tags.filter((tag: string) => tag.trim())
+      : [];
+    if (tagsArray.length > 5) {
+      return NextResponse.json(
+        { error: "Maximum 5 tags allowed per flashcard set" },
+        { status: 400 }
+      );
+    }
+
+    // Check unique tags limit (20 different tags across all sets)
+    const allExistingSets = await prisma.flashcardSet.findMany({
+      where: { userId: payload.userId },
+    });
+    // Collect all unique tags from existing sets
+    const existingUniqueTags = new Set<string>();
+    allExistingSets.forEach((set) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const setTags = (set as any).tags || [];
+      setTags.forEach((tag: string) => {
+        if (tag.trim()) {
+          existingUniqueTags.add(tag.trim());
+        }
+      });
+    });
+    
+    // Combine user tags with "AI Generated" tag
+    const aiGeneratedTag = "AI Generated";
+    const allTagsToAdd = new Set([...tagsArray, aiGeneratedTag]);
+    
+    // Count how many new unique tags are being added
+    const newUniqueTags = Array.from(allTagsToAdd).filter(
+      (tag: string) => !existingUniqueTags.has(tag.trim())
+    );
+    const uniqueTagsCount = existingUniqueTags.size + newUniqueTags.length;
+    
+    if (uniqueTagsCount > 20) {
+      return NextResponse.json(
+        {
+          error: `Maximum 20 different tags allowed across all sets. You currently have ${existingUniqueTags.size} unique tags across all sets.`,
+        },
+        { status: 400 }
+      );
+    }
+
     // Create flashcard set with words and record AI generation in a transaction
     const result = await prisma.$transaction(async (tx) => {
       // Create words with references to images and audio
@@ -527,7 +575,7 @@ Requirements:
           fromLanguage: fromLanguage,
           toLanguage: toLanguage,
           isAIGenerated: true,
-          tags: ["AI Generated"], // Automatically add AI Generated tag
+          tags: Array.from(allTagsToAdd), // Combine user tags with AI Generated tag
           words: {
             create: wordsToCreate,
           },

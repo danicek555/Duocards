@@ -643,10 +643,6 @@ export default function Home() {
                       checked={rememberMe}
                       onChange={(e) => {
                         setRememberMe(e.target.checked);
-                        showNotification(
-                          "Remember me coming soon! This feature is under development.",
-                          "info"
-                        );
                       }}
                       className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                     />

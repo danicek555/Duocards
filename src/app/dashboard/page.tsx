@@ -81,6 +81,9 @@ export default function Dashboard() {
   const [audioCache, setAudioCache] = useState<Record<number, string>>({});
   const [openSettingsId, setOpenSettingsId] = useState<number | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
+  const [settingsMenuPosition, setSettingsMenuPosition] = useState<
+    Record<number, "left" | "right">
+  >({});
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [editingSetId, setEditingSetId] = useState<number | null>(null);
   const [editingSetData, setEditingSetData] = useState<FlashcardSet | null>(
@@ -125,6 +128,47 @@ export default function Dashboard() {
     fetchFlashcardSets();
     fetchCoins();
   }, [router]);
+
+  // Helper function to calculate menu position
+  const calculateMenuPosition = (
+    setId: number,
+    buttonElement: HTMLElement
+  ): "left" | "right" => {
+    const rect = buttonElement.getBoundingClientRect();
+    const menuWidth = 150; // Approximate menu width
+    const spaceOnRight = window.innerWidth - rect.right;
+    const spaceOnLeft = rect.left;
+
+    // If there's not enough space on the right but more space on the left, show on left
+    if (spaceOnRight < menuWidth && spaceOnLeft > spaceOnRight) {
+      return "left";
+    }
+    return "right";
+  };
+
+  // Recalculate position on window resize when menu is open
+  useEffect(() => {
+    const handleResize = () => {
+      if (openSettingsId !== null) {
+        const container = document.querySelector(
+          `.settings-menu-container[data-set-id="${openSettingsId}"]`
+        ) as HTMLElement;
+
+        if (container) {
+          const position = calculateMenuPosition(openSettingsId, container);
+          setSettingsMenuPosition((prev) => ({
+            ...prev,
+            [openSettingsId]: position,
+          }));
+        }
+      }
+    };
+
+    window.addEventListener("resize", handleResize);
+    return () => {
+      window.removeEventListener("resize", handleResize);
+    };
+  }, [openSettingsId]);
 
   // Close settings menu when clicking outside
   useEffect(() => {
@@ -907,14 +951,38 @@ export default function Dashboard() {
                           </p>
                         </button>
                         {/* Settings button in bottom right corner */}
-                        <div className="absolute bottom-4 right-4 settings-menu-container">
+                        <div
+                          className="absolute bottom-4 right-4 settings-menu-container"
+                          data-set-id={set.id}
+                        >
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
-                              setOpenSettingsId(
-                                openSettingsId === set.id ? null : set.id
-                              );
-                              setDeleteConfirmId(null);
+                              const button = e.currentTarget;
+
+                              if (openSettingsId === set.id) {
+                                // Close menu
+                                setOpenSettingsId(null);
+                                setDeleteConfirmId(null);
+                              } else {
+                                // Calculate position synchronously before opening menu
+                                const position = calculateMenuPosition(
+                                  set.id,
+                                  button
+                                );
+
+                                // Set position first
+                                setSettingsMenuPosition((prev) => ({
+                                  ...prev,
+                                  [set.id]: position,
+                                }));
+
+                                // Use setTimeout to ensure position state is set before menu renders
+                                setTimeout(() => {
+                                  setOpenSettingsId(set.id);
+                                  setDeleteConfirmId(null);
+                                }, 0);
+                              }
                             }}
                             className="w-6 h-6 flex items-center justify-center rounded-full bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors z-10"
                             title="Settings"
@@ -934,26 +1002,83 @@ export default function Dashboard() {
                             </svg>
                           </button>
                           {/* Settings menu */}
-                          {openSettingsId === set.id && (
-                            <div className="absolute top-[-90px] left-full ml-[-10px] bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 py-2 min-w-[120px] z-20">
-                              {deleteConfirmId === set.id ? (
-                                <div className="px-3 py-2">
-                                  <p className="text-xs text-gray-600 dark:text-gray-400 mb-2">
-                                    Delete this set?
-                                  </p>
-                                  <div className="flex gap-2">
+                          {openSettingsId === set.id &&
+                            settingsMenuPosition[set.id] && (
+                              <div
+                                className={`absolute top-[-90px] bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 py-2 min-w-[120px] z-20 ${
+                                  settingsMenuPosition[set.id] === "left"
+                                    ? "right-full mr-[-10px]"
+                                    : "left-full ml-[-10px]"
+                                }`}
+                              >
+                                {deleteConfirmId === set.id ? (
+                                  <div className="px-3 py-2">
+                                    <p className="text-xs text-gray-600 dark:text-gray-400 mb-2">
+                                      Delete this set?
+                                    </p>
+                                    <div className="flex gap-2">
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleDeleteSet(set.id);
+                                        }}
+                                        disabled={deletingId === set.id}
+                                        className="px-2 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50 flex items-center gap-1"
+                                      >
+                                        {deletingId === set.id ? (
+                                          <>
+                                            <svg
+                                              className="animate-spin h-3 w-3"
+                                              xmlns="http://www.w3.org/2000/svg"
+                                              fill="none"
+                                              viewBox="0 0 24 24"
+                                            >
+                                              <circle
+                                                className="opacity-25"
+                                                cx="12"
+                                                cy="12"
+                                                r="10"
+                                                stroke="currentColor"
+                                                strokeWidth="4"
+                                              ></circle>
+                                              <path
+                                                className="opacity-75"
+                                                fill="currentColor"
+                                                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                                              ></path>
+                                            </svg>
+                                            Deleting...
+                                          </>
+                                        ) : (
+                                          "Yes"
+                                        )}
+                                      </button>
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setDeleteConfirmId(null);
+                                          setOpenSettingsId(null);
+                                        }}
+                                        className="px-2 py-1 text-xs bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-300 dark:hover:bg-gray-600"
+                                      >
+                                        No
+                                      </button>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <>
                                     <button
                                       onClick={(e) => {
                                         e.stopPropagation();
-                                        handleDeleteSet(set.id);
+                                        handleEditSet(set.id);
                                       }}
-                                      disabled={deletingId === set.id}
-                                      className="px-2 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50 flex items-center gap-1"
+                                      disabled={loadingEditId === set.id}
+                                      className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                                     >
-                                      {deletingId === set.id ? (
+                                      {loadingEditId === set.id ? (
                                         <>
                                           <svg
-                                            className="animate-spin h-3 w-3"
+                                            className="animate-spin h-4 w-4"
                                             xmlns="http://www.w3.org/2000/svg"
                                             fill="none"
                                             viewBox="0 0 24 24"
@@ -972,103 +1097,53 @@ export default function Dashboard() {
                                               d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                                             ></path>
                                           </svg>
-                                          Deleting...
+                                          Loading...
                                         </>
                                       ) : (
-                                        "Yes"
+                                        <>
+                                          <svg
+                                            className="w-4 h-4"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            viewBox="0 0 24 24"
+                                          >
+                                            <path
+                                              strokeLinecap="round"
+                                              strokeLinejoin="round"
+                                              strokeWidth={2}
+                                              d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                                            />
+                                          </svg>
+                                          Change
+                                        </>
                                       )}
                                     </button>
                                     <button
                                       onClick={(e) => {
                                         e.stopPropagation();
-                                        setDeleteConfirmId(null);
-                                        setOpenSettingsId(null);
+                                        setDeleteConfirmId(set.id);
                                       }}
-                                      className="px-2 py-1 text-xs bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-300 dark:hover:bg-gray-600"
+                                      className="w-full px-4 py-2 text-left text-sm text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"
                                     >
-                                      No
+                                      <svg
+                                        className="w-4 h-4"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        viewBox="0 0 24 24"
+                                      >
+                                        <path
+                                          strokeLinecap="round"
+                                          strokeLinejoin="round"
+                                          strokeWidth={2}
+                                          d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                                        />
+                                      </svg>
+                                      Delete
                                     </button>
-                                  </div>
-                                </div>
-                              ) : (
-                                <>
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleEditSet(set.id);
-                                    }}
-                                    disabled={loadingEditId === set.id}
-                                    className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                                  >
-                                    {loadingEditId === set.id ? (
-                                      <>
-                                        <svg
-                                          className="animate-spin h-4 w-4"
-                                          xmlns="http://www.w3.org/2000/svg"
-                                          fill="none"
-                                          viewBox="0 0 24 24"
-                                        >
-                                          <circle
-                                            className="opacity-25"
-                                            cx="12"
-                                            cy="12"
-                                            r="10"
-                                            stroke="currentColor"
-                                            strokeWidth="4"
-                                          ></circle>
-                                          <path
-                                            className="opacity-75"
-                                            fill="currentColor"
-                                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                                          ></path>
-                                        </svg>
-                                        Loading...
-                                      </>
-                                    ) : (
-                                      <>
-                                        <svg
-                                          className="w-4 h-4"
-                                          fill="none"
-                                          stroke="currentColor"
-                                          viewBox="0 0 24 24"
-                                        >
-                                          <path
-                                            strokeLinecap="round"
-                                            strokeLinejoin="round"
-                                            strokeWidth={2}
-                                            d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                                          />
-                                        </svg>
-                                        Change
-                                      </>
-                                    )}
-                                  </button>
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setDeleteConfirmId(set.id);
-                                    }}
-                                    className="w-full px-4 py-2 text-left text-sm text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"
-                                  >
-                                    <svg
-                                      className="w-4 h-4"
-                                      fill="none"
-                                      stroke="currentColor"
-                                      viewBox="0 0 24 24"
-                                    >
-                                      <path
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                        strokeWidth={2}
-                                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                                      />
-                                    </svg>
-                                    Delete
-                                  </button>
-                                </>
-                              )}
-                            </div>
-                          )}
+                                  </>
+                                )}
+                              </div>
+                            )}
                         </div>
                       </div>
                     ))}

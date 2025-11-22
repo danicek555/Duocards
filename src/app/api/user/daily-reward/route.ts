@@ -135,22 +135,48 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// Helper function to check if it's a new day
+// Helper function to check if it's a new day (using UTC to avoid timezone issues)
 function isNewDay(lastClaim: Date, now: Date): boolean {
   const lastClaimDate = new Date(lastClaim);
   const nowDate = new Date(now);
 
-  // Reset time to midnight for comparison
-  lastClaimDate.setHours(0, 0, 0, 0);
-  nowDate.setHours(0, 0, 0, 0);
+  // Reset time to midnight UTC for comparison (consistent across all servers)
+  const lastClaimUTC = new Date(
+    Date.UTC(
+      lastClaimDate.getUTCFullYear(),
+      lastClaimDate.getUTCMonth(),
+      lastClaimDate.getUTCDate(),
+      0,
+      0,
+      0,
+      0
+    )
+  );
 
-  return nowDate > lastClaimDate;
+  const nowUTC = new Date(
+    Date.UTC(
+      nowDate.getUTCFullYear(),
+      nowDate.getUTCMonth(),
+      nowDate.getUTCDate(),
+      0,
+      0,
+      0,
+      0
+    )
+  );
+
+  return nowUTC > lastClaimUTC;
 }
 
-// Helper function to get next reward time (midnight of next day)
+// Helper function to get next reward time (midnight UTC of next day)
 function getNextRewardTime(lastClaim: Date): Date {
-  const nextDay = new Date(lastClaim);
-  nextDay.setDate(nextDay.getDate() + 1);
-  nextDay.setHours(0, 0, 0, 0);
+  const lastClaimDate = new Date(lastClaim);
+  // Get UTC date components
+  const year = lastClaimDate.getUTCFullYear();
+  const month = lastClaimDate.getUTCMonth();
+  const date = lastClaimDate.getUTCDate();
+
+  // Create next day at midnight UTC
+  const nextDay = new Date(Date.UTC(year, month, date + 1, 0, 0, 0, 0));
   return nextDay;
 }
