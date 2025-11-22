@@ -15,20 +15,52 @@ interface CreateFlashcardSetFormProps {
   onClose: () => void;
   onSuccess: () => void;
   onCoinsUpdate?: () => void;
+  editSetId?: number;
+  initialData?: {
+    name: string;
+    fromLanguage: string | null;
+    toLanguage: string | null;
+    tags?: string[];
+    words: Array<{
+      word: string;
+      translation: string;
+      pronunciation?: string | null;
+      imageId?: number | null;
+      audioId?: number | null;
+    }>;
+  };
 }
 
 export default function CreateFlashcardSetForm({
   onClose,
   onSuccess,
   onCoinsUpdate,
+  editSetId,
+  initialData,
 }: CreateFlashcardSetFormProps) {
-  const [setName, setSetName] = useState("");
-  const [fromLanguage, setFromLanguage] = useState("English");
-  const [toLanguage, setToLanguage] = useState("Spanish");
-  const [addAmount, setAddAmount] = useState(5);
-  const [wordPairs, setWordPairs] = useState<WordPair[]>(
-    Array.from({ length: 5 }, () => ({ word: "", translation: "" }))
+  const isEditMode = !!editSetId;
+  const [setName, setSetName] = useState(initialData?.name || "");
+  const [fromLanguage, setFromLanguage] = useState(
+    initialData?.fromLanguage || "English"
   );
+  const [toLanguage, setToLanguage] = useState(
+    initialData?.toLanguage || "Spanish"
+  );
+  const [tags, setTags] = useState<string[]>(initialData?.tags || []);
+  const [tagInput, setTagInput] = useState("");
+  const [addAmount, setAddAmount] = useState(5);
+  const [wordPairs, setWordPairs] = useState<WordPair[]>(() => {
+    if (initialData?.words && initialData.words.length > 0) {
+      return initialData.words.map((word) => ({
+        word: word.word,
+        translation: word.translation,
+        pronunciation: word.pronunciation || undefined,
+        imageUrl: word.imageId ? undefined : undefined, // Will be fetched if needed
+        audioUrl: word.audioId ? undefined : undefined, // Will be fetched if needed
+      }));
+    }
+    return Array.from({ length: 5 }, () => ({ word: "", translation: "" }));
+  });
   const [deletingIndex, setDeletingIndex] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -39,14 +71,34 @@ export default function CreateFlashcardSetForm({
   const [expandedIndices, setExpandedIndices] = useState<Set<number>>(
     new Set()
   );
-  const [autoTranslateEnabled, setAutoTranslateEnabled] = useState(true);
+  const [autoTranslateEnabled, setAutoTranslateEnabled] = useState(false);
+  const [translateToOneWord, setTranslateToOneWord] = useState(true);
+  const [translateToPhrase, setTranslateToPhrase] = useState(false);
   const debounceTimers = useRef<Map<number, NodeJS.Timeout>>(new Map());
   const translatingRef = useRef<Set<number>>(new Set());
 
   const addWordPair = () => {
+    const MAX_WORDS = 100;
+    const currentValidCount = wordPairs.filter(
+      (pair) => pair.word.trim() && pair.translation.trim()
+    ).length;
+
+    if (currentValidCount >= MAX_WORDS) {
+      setError(`Maximum ${MAX_WORDS} words allowed per flashcard set`);
+      return;
+    }
+
+    const remainingSlots = MAX_WORDS - wordPairs.length;
+    const amountToAdd = Math.min(addAmount, remainingSlots);
+
+    if (amountToAdd <= 0) {
+      setError(`Maximum ${MAX_WORDS} words allowed per flashcard set`);
+      return;
+    }
+
     const newPairs = [
       ...wordPairs,
-      ...Array.from({ length: addAmount }, () => ({
+      ...Array.from({ length: amountToAdd }, () => ({
         word: "",
         translation: "",
       })),
@@ -121,6 +173,8 @@ export default function CreateFlashcardSetForm({
           word: word.trim(),
           fromLanguage,
           toLanguage,
+          translateToOneWord,
+          translateToPhrase,
         }),
       });
 
@@ -277,6 +331,65 @@ export default function CreateFlashcardSetForm({
     };
   }, []);
 
+  // Prevent body scrolling when modal is open
+  useEffect(() => {
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = "unset";
+    };
+  }, []);
+
+  // Fetch image and audio data for existing words in edit mode
+  useEffect(() => {
+    if (!isEditMode || !initialData?.words) return;
+
+    const fetchMedia = async () => {
+      const updatedPairs = await Promise.all(
+        initialData.words.map(async (word) => {
+          let imageUrl: string | undefined;
+          let audioUrl: string | undefined;
+
+          if (word.imageId) {
+            try {
+              const response = await fetch(`/api/word-images/${word.imageId}`);
+              if (response.ok) {
+                const data = await response.json();
+                imageUrl = data.image.dataUrl;
+              }
+            } catch (error) {
+              console.error("Error fetching image:", error);
+            }
+          }
+
+          if (word.audioId) {
+            try {
+              const response = await fetch(`/api/word-audio/${word.audioId}`);
+              if (response.ok) {
+                const data = await response.json();
+                audioUrl = data.audio.dataUrl;
+              }
+            } catch (error) {
+              console.error("Error fetching audio:", error);
+            }
+          }
+
+          return {
+            word: word.word,
+            translation: word.translation,
+            pronunciation: word.pronunciation || undefined,
+            imageUrl,
+            audioUrl,
+          };
+        })
+      );
+
+      setWordPairs(updatedPairs);
+    };
+
+    fetchMedia();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isEditMode]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
@@ -295,21 +408,38 @@ export default function CreateFlashcardSetForm({
       return;
     }
 
+    const MAX_WORDS = 100;
+    if (validPairs.length > MAX_WORDS) {
+      setError(`Maximum ${MAX_WORDS} words allowed per flashcard set`);
+      return;
+    }
+
     setLoading(true);
 
     try {
-      const response = await fetch("/api/flashcard-sets", {
-        method: "POST",
+      const url = isEditMode
+        ? `/api/flashcard-sets/${editSetId}`
+        : "/api/flashcard-sets";
+      const method = isEditMode ? "PATCH" : "POST";
+
+      const response = await fetch(url, {
+        method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: setName.trim(),
+          fromLanguage,
+          toLanguage,
+          tags,
           words: validPairs,
         }),
       });
 
       if (!response.ok) {
         const data = await response.json();
-        throw new Error(data.error || "Failed to create flashcard set");
+        throw new Error(
+          data.error ||
+            `Failed to ${isEditMode ? "update" : "create"} flashcard set`
+        );
       }
 
       onSuccess();
@@ -324,18 +454,21 @@ export default function CreateFlashcardSetForm({
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-        <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
-            Create New Flashcard Set
+    <div
+      className="fixed inset-0 flex items-center justify-center z-50 p-4 overflow-hidden"
+      style={{ backgroundColor: "rgba(0, 0, 0, 0.7)" }}
+    >
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-2xl max-w-4xl w-full max-h-[95vh] overflow-y-auto border border-purple-200 dark:border-purple-800">
+        <div className="p-4 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-900/20 dark:to-blue-900/20">
+          <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+            {isEditMode ? "Edit Flashcard Set" : "Create New Flashcard Set"}
           </h2>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-6">
+        <form onSubmit={handleSubmit} className="p-4 space-y-4">
           {/* Set Name */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5">
               Flashcard Set Name
             </label>
             <input
@@ -344,21 +477,21 @@ export default function CreateFlashcardSetForm({
               onChange={(e) => setSetName(e.target.value)}
               placeholder="e.g., Spanish Basics"
               maxLength={20}
-              className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               required
             />
           </div>
 
           {/* From and To Languages */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5">
                 From Language
               </label>
               <select
                 value={fromLanguage}
                 onChange={(e) => setFromLanguage(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent cursor-pointer"
+                className="w-full px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent cursor-pointer"
               >
                 {LANGUAGES.map((lang) => (
                   <option key={lang.value} value={lang.value}>
@@ -368,13 +501,13 @@ export default function CreateFlashcardSetForm({
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5">
                 To Language
               </label>
               <select
                 value={toLanguage}
                 onChange={(e) => setToLanguage(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent cursor-pointer"
+                className="w-full px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent cursor-pointer"
               >
                 {LANGUAGES.map((lang) => (
                   <option key={lang.value} value={lang.value}>
@@ -385,12 +518,75 @@ export default function CreateFlashcardSetForm({
             </div>
           </div>
 
+          {/* Tags */}
+          <div>
+            <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+              Tags (optional) - Max 5 tags per set ({tags.length}/5)
+            </label>
+            <div className="flex flex-wrap gap-2 mb-2">
+              {tags.map((tag, index) => (
+                <span
+                  key={index}
+                  className="px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded text-xs flex items-center gap-1"
+                >
+                  {tag}
+                  <button
+                    type="button"
+                    onClick={() => setTags(tags.filter((_, i) => i !== index))}
+                    className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-200"
+                  >
+                    ×
+                  </button>
+                </span>
+              ))}
+            </div>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={tagInput}
+                onChange={(e) => setTagInput(e.target.value)}
+                onKeyPress={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    const trimmed = tagInput.trim();
+                    if (trimmed && !tags.includes(trimmed) && tags.length < 5) {
+                      setTags([...tags, trimmed]);
+                      setTagInput("");
+                    }
+                  }
+                }}
+                placeholder={
+                  tags.length >= 5
+                    ? "Maximum 5 tags per set"
+                    : "Add a tag and press Enter"
+                }
+                maxLength={20}
+                disabled={tags.length >= 5}
+                className="flex-1 px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  const trimmed = tagInput.trim();
+                  if (trimmed && !tags.includes(trimmed) && tags.length < 5) {
+                    setTags([...tags, trimmed]);
+                    setTagInput("");
+                  }
+                }}
+                disabled={tags.length >= 5}
+                className="px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-xs disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Add
+              </button>
+            </div>
+          </div>
+
           {/* AI Help Toggle */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700/30 rounded-lg">
+          <div className="space-y-2">
+            <div className="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-700/30 rounded-lg">
               <div className="flex items-center gap-2">
                 <svg
-                  className="w-5 h-5 text-gray-500 dark:text-gray-400"
+                  className="w-4 h-4 text-gray-500 dark:text-gray-400"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -402,33 +598,33 @@ export default function CreateFlashcardSetForm({
                     d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"
                   />
                 </svg>
-                <span className="text-sm text-gray-600 dark:text-gray-400">
+                <span className="text-xs text-gray-600 dark:text-gray-400">
                   AI Help
                 </span>
               </div>
               <button
                 type="button"
                 onClick={() => setAiHelpEnabled(!aiHelpEnabled)}
-                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
+                className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 ${
                   aiHelpEnabled
                     ? "bg-blue-600 dark:bg-blue-500"
                     : "bg-gray-300 dark:bg-gray-600"
                 }`}
               >
                 <span
-                  className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${
-                    aiHelpEnabled ? "translate-x-6" : "translate-x-0.5"
+                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                    aiHelpEnabled ? "translate-x-5" : "translate-x-0.5"
                   }`}
                 />
               </button>
             </div>
             {/* AI Action Buttons */}
             {aiHelpEnabled && (
-              <div className="space-y-3">
-                <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700/30 rounded-lg">
+              <div className="space-y-2">
+                <div className="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-700/30 rounded-lg">
                   <div className="flex items-center gap-2">
                     <svg
-                      className="w-5 h-5 text-gray-500 dark:text-gray-400"
+                      className="w-4 h-4 text-gray-500 dark:text-gray-400"
                       fill="none"
                       stroke="currentColor"
                       viewBox="0 0 24 24"
@@ -440,24 +636,94 @@ export default function CreateFlashcardSetForm({
                         d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129"
                       />
                     </svg>
-                    <span className="text-sm text-gray-600 dark:text-gray-400">
+                    <span className="text-xs text-gray-600 dark:text-gray-400">
                       Auto Translate
                     </span>
                   </div>
                   <button
                     type="button"
                     onClick={toggleAutoTranslate}
-                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
+                    className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 ${
                       autoTranslateEnabled
                         ? "bg-green-600 dark:bg-green-500"
                         : "bg-gray-300 dark:bg-gray-600"
                     }`}
                   >
                     <span
-                      className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${
+                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
                         autoTranslateEnabled
-                          ? "translate-x-6"
+                          ? "translate-x-5"
                           : "translate-x-0.5"
+                      }`}
+                    />
+                  </button>
+                </div>
+                <div className="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-700/30 rounded-lg">
+                  <div className="flex items-center gap-2">
+                    <svg
+                      className="w-4 h-4 text-gray-500 dark:text-gray-400"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"
+                      />
+                    </svg>
+                    <span className="text-xs text-gray-600 dark:text-gray-400">
+                      Translate to one word
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setTranslateToOneWord(!translateToOneWord)}
+                    className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-1 ${
+                      translateToOneWord
+                        ? "bg-green-600 dark:bg-green-500"
+                        : "bg-gray-300 dark:bg-gray-600"
+                    }`}
+                  >
+                    <span
+                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                        translateToOneWord ? "translate-x-5" : "translate-x-0.5"
+                      }`}
+                    />
+                  </button>
+                </div>
+                <div className="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-700/30 rounded-lg">
+                  <div className="flex items-center gap-2">
+                    <svg
+                      className="w-4 h-4 text-gray-500 dark:text-gray-400"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"
+                      />
+                    </svg>
+                    <span className="text-xs text-gray-600 dark:text-gray-400">
+                      Translate to whole phrase
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setTranslateToPhrase(!translateToPhrase)}
+                    className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-1 ${
+                      translateToPhrase
+                        ? "bg-green-600 dark:bg-green-500"
+                        : "bg-gray-300 dark:bg-gray-600"
+                    }`}
+                  >
+                    <span
+                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                        translateToPhrase ? "translate-x-5" : "translate-x-0.5"
                       }`}
                     />
                   </button>
@@ -478,11 +744,11 @@ export default function CreateFlashcardSetForm({
                     });
                   }}
                   disabled={translatingIndex !== null}
-                  className="w-full px-3 py-2 text-sm text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded-lg transition-colors flex items-center justify-center gap-2 border border-purple-200 dark:border-purple-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full px-2 py-1.5 text-xs text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded-lg transition-colors flex items-center justify-center gap-2 border border-purple-200 dark:border-purple-800 disabled:opacity-50 disabled:cursor-not-allowed"
                   title="Instantly translate all empty translations"
                 >
                   <svg
-                    className="w-4 h-4"
+                    className="w-3.5 h-3.5"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -512,10 +778,10 @@ export default function CreateFlashcardSetForm({
                 setExpandedIndices(new Set(wordPairs.map((_, i) => i)));
               }
             }}
-            className="w-full px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors flex items-center justify-center gap-2"
+            className="w-full px-2 py-1.5 text-xs text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors flex items-center justify-center gap-2"
           >
             <svg
-              className={`w-4 h-4 transition-transform ${
+              className={`w-3.5 h-3.5 transition-transform ${
                 expandedIndices.size === wordPairs.length ? "rotate-180" : ""
               }`}
               fill="none"
@@ -538,23 +804,33 @@ export default function CreateFlashcardSetForm({
 
           {/* Word Pairs */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
-              Words and Translations
-            </label>
-            <div className="space-y-4">
+            <div className="flex items-center justify-between mb-2">
+              <label className="block text-xs font-medium text-gray-700 dark:text-gray-300">
+                Words and Translations
+              </label>
+              <span className="text-xs text-gray-500 dark:text-gray-400">
+                {
+                  wordPairs.filter(
+                    (pair) => pair.word.trim() && pair.translation.trim()
+                  ).length
+                }{" "}
+                / 100 words
+              </span>
+            </div>
+            <div className="space-y-3">
               {wordPairs.map((pair, index) => (
                 <div
                   key={index}
-                  className={`flex flex-col gap-3 items-start p-5 bg-white dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 rounded-xl shadow-sm transition-all duration-300 ${
+                  className={`flex flex-col gap-2 items-start p-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm transition-all duration-300 ${
                     deletingIndex === index
                       ? "opacity-0 scale-95 -translate-x-4 pointer-events-none"
                       : "opacity-100 scale-100 translate-x-0"
                   }`}
                 >
-                  <div className="flex gap-3 items-start w-full">
-                    <div className="flex-1 grid grid-cols-2 gap-4">
+                  <div className="flex gap-2 items-start w-full">
+                    <div className="flex-1 grid grid-cols-2 gap-3">
                       <div className="relative">
-                        <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1.5">
+                        <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">
                           Word
                         </label>
                         <input
@@ -565,11 +841,11 @@ export default function CreateFlashcardSetForm({
                           }
                           placeholder="Enter word"
                           maxLength={50}
-                          className="px-4 py-2.5 border-2 border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 w-full transition-colors"
+                          className="px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 w-full transition-colors"
                         />
                       </div>
                       <div className="relative">
-                        <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1.5">
+                        <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">
                           Translation
                         </label>
                         <input
@@ -580,12 +856,12 @@ export default function CreateFlashcardSetForm({
                           }
                           placeholder="Enter translation"
                           maxLength={50}
-                          className="px-4 py-2.5 border-2 border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 w-full transition-colors"
+                          className="px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 w-full transition-colors"
                         />
                         {translatingIndex === index && (
-                          <div className="absolute right-3 top-[calc(50%+0.75rem)] -translate-y-1/2">
+                          <div className="absolute right-2 top-[calc(50%+0.5rem)] -translate-y-1/2">
                             <svg
-                              className="animate-spin h-4 w-4 text-blue-500"
+                              className="animate-spin h-3.5 w-3.5 text-blue-500"
                               xmlns="http://www.w3.org/2000/svg"
                               fill="none"
                               viewBox="0 0 24 24"
@@ -608,17 +884,17 @@ export default function CreateFlashcardSetForm({
                         )}
                       </div>
                     </div>
-                    <div className="flex gap-2 items-center">
+                    <div className="flex gap-1.5 items-center">
                       {aiHelpEnabled && pair.word.trim() && (
                         <button
                           type="button"
                           onClick={() => handleRegenerateTranslation(index)}
                           disabled={translatingIndex === index}
-                          className="p-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="p-1.5 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                           title="Regenerate translation"
                         >
                           <svg
-                            className="w-5 h-5"
+                            className="w-4 h-4"
                             fill="none"
                             stroke="currentColor"
                             viewBox="0 0 24 24"
@@ -645,11 +921,11 @@ export default function CreateFlashcardSetForm({
                             return newSet;
                           });
                         }}
-                        className="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                        className="p-1.5 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
                         title="More options"
                       >
                         <svg
-                          className={`w-5 h-5 transition-transform ${
+                          className={`w-4 h-4 transition-transform ${
                             expandedIndices.has(index) ? "rotate-180" : ""
                           }`}
                           fill="none"
@@ -668,10 +944,10 @@ export default function CreateFlashcardSetForm({
                         <button
                           type="button"
                           onClick={() => removeWordPair(index)}
-                          className="px-3 py-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                          className="px-2 py-1.5 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
                         >
                           <svg
-                            className="w-5 h-5"
+                            className="w-4 h-4"
                             fill="none"
                             stroke="currentColor"
                             viewBox="0 0 24 24"
@@ -688,9 +964,9 @@ export default function CreateFlashcardSetForm({
                     </div>
                   </div>
                   {expandedIndices.has(index) && (
-                    <div className="w-full mt-4 pt-4 border-t border-gray-200 dark:border-gray-700 space-y-4 opacity-80">
+                    <div className="w-full mt-2 pt-2 border-t border-gray-200 dark:border-gray-700 space-y-3 opacity-80">
                       <div>
-                        <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">
+                        <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
                           Pronunciation
                         </label>
                         <div className="flex gap-2 items-center">
@@ -699,12 +975,12 @@ export default function CreateFlashcardSetForm({
                               type="button"
                               onClick={() => generatePronunciation(index)}
                               disabled={generatingPronunciationIndex === index}
-                              className="p-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
+                              className="p-1.5 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
                               title="Generate pronunciation"
                             >
                               {generatingPronunciationIndex === index ? (
                                 <svg
-                                  className="animate-spin h-4 w-4"
+                                  className="animate-spin h-3.5 w-3.5"
                                   xmlns="http://www.w3.org/2000/svg"
                                   fill="none"
                                   viewBox="0 0 24 24"
@@ -725,7 +1001,7 @@ export default function CreateFlashcardSetForm({
                                 </svg>
                               ) : (
                                 <svg
-                                  className="w-4 h-4"
+                                  className="w-3.5 h-3.5"
                                   fill="none"
                                   stroke="currentColor"
                                   viewBox="0 0 24 24"
@@ -748,18 +1024,18 @@ export default function CreateFlashcardSetForm({
                             }
                             placeholder="e.g., /həˈloʊ/"
                             maxLength={50}
-                            className="flex-1 px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            className="flex-1 px-2 py-1.5 text-xs border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                           />
                         </div>
                       </div>
-                      <div className="grid grid-cols-2 gap-3">
+                      <div className="grid grid-cols-2 gap-2">
                         <div>
-                          <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">
+                          <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
                             Image
                           </label>
-                          <label className="flex items-center justify-center px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600 cursor-pointer transition-colors">
+                          <label className="flex items-center justify-center px-2 py-1.5 text-xs border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600 cursor-pointer transition-colors">
                             <svg
-                              className="w-4 h-4 mr-2"
+                              className="w-3.5 h-3.5 mr-1.5"
                               fill="none"
                               stroke="currentColor"
                               viewBox="0 0 24 24"
@@ -771,7 +1047,7 @@ export default function CreateFlashcardSetForm({
                                 d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
                               />
                             </svg>
-                            <span className="text-sm">
+                            <span className="text-xs">
                               {pair.imageUrl ? "Change" : "Upload"}
                             </span>
                             <input
@@ -785,9 +1061,9 @@ export default function CreateFlashcardSetForm({
                             />
                           </label>
                           {pair.imageUrl && (
-                            <div className="mt-2 relative">
+                            <div className="mt-1.5 relative">
                               <div className="w-full max-w-xl mx-auto">
-                                <div className="relative w-full h-[380px] rounded-2xl overflow-hidden border-2 border-gray-300 dark:border-gray-600 shadow-lg">
+                                <div className="relative w-full h-[250px] rounded-lg overflow-hidden border border-gray-300 dark:border-gray-600 shadow-lg">
                                   <img
                                     src={pair.imageUrl}
                                     alt="Word image preview"
@@ -795,7 +1071,7 @@ export default function CreateFlashcardSetForm({
                                   />
                                   <div className="absolute inset-0 bg-black/40 dark:bg-black/60"></div>
                                   <div className="absolute inset-0 flex items-center justify-center">
-                                    <p className="text-white text-sm font-medium drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]">
+                                    <p className="text-white text-xs font-medium drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]">
                                       Preview: This is how it will appear on
                                       flashcards
                                     </p>
@@ -809,10 +1085,10 @@ export default function CreateFlashcardSetForm({
                                         return updated;
                                       });
                                     }}
-                                    className="absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-full hover:bg-red-600 shadow-lg z-10"
+                                    className="absolute top-1.5 right-1.5 p-1 bg-red-500 text-white rounded-full hover:bg-red-600 shadow-lg z-10"
                                   >
                                     <svg
-                                      className="w-4 h-4"
+                                      className="w-3 h-3"
                                       fill="none"
                                       stroke="currentColor"
                                       viewBox="0 0 24 24"
@@ -831,12 +1107,12 @@ export default function CreateFlashcardSetForm({
                           )}
                         </div>
                         <div>
-                          <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">
+                          <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
                             Voice
                           </label>
-                          <label className="flex items-center justify-center px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600 cursor-pointer transition-colors">
+                          <label className="flex items-center justify-center px-2 py-1.5 text-xs border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600 cursor-pointer transition-colors">
                             <svg
-                              className="w-4 h-4 mr-2"
+                              className="w-3.5 h-3.5 mr-1.5"
                               fill="none"
                               stroke="currentColor"
                               viewBox="0 0 24 24"
@@ -848,7 +1124,7 @@ export default function CreateFlashcardSetForm({
                                 d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"
                               />
                             </svg>
-                            <span className="text-sm">
+                            <span className="text-xs">
                               {pair.audioUrl ? "Change" : "Upload"}
                             </span>
                             <input
@@ -862,8 +1138,8 @@ export default function CreateFlashcardSetForm({
                             />
                           </label>
                           {pair.audioUrl && (
-                            <div className="mt-2">
-                              <audio controls className="w-full h-8">
+                            <div className="mt-1.5">
+                              <audio controls className="w-full h-7">
                                 <source src={pair.audioUrl} />
                               </audio>
                               <button
@@ -890,8 +1166,8 @@ export default function CreateFlashcardSetForm({
             </div>
 
             {/* Preset Add Amount Buttons */}
-            <div className="mt-3">
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            <div className="mt-2">
+              <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5">
                 Add amount:
               </label>
               <div className="flex gap-2">
@@ -900,7 +1176,7 @@ export default function CreateFlashcardSetForm({
                     key={amount}
                     type="button"
                     onClick={() => setAddAmount(amount)}
-                    className={`flex-1 px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+                    className={`flex-1 px-2 py-1.5 text-xs font-medium rounded-lg transition-colors ${
                       addAmount === amount
                         ? "bg-blue-600 text-white"
                         : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
@@ -916,10 +1192,11 @@ export default function CreateFlashcardSetForm({
             <button
               type="button"
               onClick={addWordPair}
-              className="mt-3 w-full px-4 py-2 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors flex items-center justify-center gap-2"
+              disabled={wordPairs.length >= 100}
+              className="mt-2 w-full px-3 py-1.5 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors flex items-center justify-center gap-2 text-xs disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <svg
-                className="w-5 h-5"
+                className="w-4 h-4"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -937,26 +1214,32 @@ export default function CreateFlashcardSetForm({
 
           {/* Error Message */}
           {error && (
-            <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-red-600 dark:text-red-400 text-sm">
+            <div className="p-2 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-red-600 dark:text-red-400 text-xs">
               {error}
             </div>
           )}
 
           {/* Action Buttons */}
-          <div className="flex gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
+          <div className="flex gap-2 pt-3 border-t border-gray-200 dark:border-gray-700">
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+              className="flex-1 px-3 py-1.5 text-sm bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={loading}
-              className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="flex-1 px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
-              {loading ? "Creating..." : "Create Set"}
+              {loading
+                ? isEditMode
+                  ? "Updating..."
+                  : "Creating..."
+                : isEditMode
+                ? "Update Set"
+                : "Create Set"}
             </button>
           </div>
         </form>

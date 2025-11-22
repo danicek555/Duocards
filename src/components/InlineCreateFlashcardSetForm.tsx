@@ -25,6 +25,8 @@ export default function InlineCreateFlashcardSetForm({
   const [setName, setSetName] = useState("");
   const [fromLanguage, setFromLanguage] = useState("English");
   const [toLanguage, setToLanguage] = useState("Spanish");
+  const [tags, setTags] = useState<string[]>([]);
+  const [tagInput, setTagInput] = useState("");
   const [addAmount, setAddAmount] = useState(5);
   const [wordPairs, setWordPairs] = useState<WordPair[]>(
     Array.from({ length: 5 }, () => ({ word: "", translation: "" }))
@@ -39,14 +41,34 @@ export default function InlineCreateFlashcardSetForm({
   const [expandedIndices, setExpandedIndices] = useState<Set<number>>(
     new Set()
   );
-  const [autoTranslateEnabled, setAutoTranslateEnabled] = useState(true);
+  const [autoTranslateEnabled, setAutoTranslateEnabled] = useState(false);
+  const [translateToOneWord, setTranslateToOneWord] = useState(true);
+  const [translateToPhrase, setTranslateToPhrase] = useState(false);
   const debounceTimers = useRef<Map<number, NodeJS.Timeout>>(new Map());
   const translatingRef = useRef<Set<number>>(new Set());
 
   const addWordPair = () => {
+    const MAX_WORDS = 100;
+    const currentValidCount = wordPairs.filter(
+      (pair) => pair.word.trim() && pair.translation.trim()
+    ).length;
+
+    if (currentValidCount >= MAX_WORDS) {
+      setError(`Maximum ${MAX_WORDS} words allowed per flashcard set`);
+      return;
+    }
+
+    const remainingSlots = MAX_WORDS - wordPairs.length;
+    const amountToAdd = Math.min(addAmount, remainingSlots);
+
+    if (amountToAdd <= 0) {
+      setError(`Maximum ${MAX_WORDS} words allowed per flashcard set`);
+      return;
+    }
+
     const newPairs = [
       ...wordPairs,
-      ...Array.from({ length: addAmount }, () => ({
+      ...Array.from({ length: amountToAdd }, () => ({
         word: "",
         translation: "",
       })),
@@ -121,6 +143,8 @@ export default function InlineCreateFlashcardSetForm({
           word: word.trim(),
           fromLanguage,
           toLanguage,
+          translateToOneWord,
+          translateToPhrase,
         }),
       });
 
@@ -295,6 +319,12 @@ export default function InlineCreateFlashcardSetForm({
       return;
     }
 
+    const MAX_WORDS = 100;
+    if (validPairs.length > MAX_WORDS) {
+      setError(`Maximum ${MAX_WORDS} words allowed per flashcard set`);
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -305,6 +335,7 @@ export default function InlineCreateFlashcardSetForm({
           name: setName.trim(),
           fromLanguage,
           toLanguage,
+          tags,
           words: validPairs,
         }),
       });
@@ -354,6 +385,69 @@ export default function InlineCreateFlashcardSetForm({
             className="w-full px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             required
           />
+        </div>
+
+        {/* Tags */}
+        <div>
+          <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+            Tags (optional) - Max 5 tags per set ({tags.length}/5)
+          </label>
+          <div className="flex flex-wrap gap-2 mb-2">
+            {tags.map((tag, index) => (
+              <span
+                key={index}
+                className="px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded text-xs flex items-center gap-1"
+              >
+                {tag}
+                <button
+                  type="button"
+                  onClick={() => setTags(tags.filter((_, i) => i !== index))}
+                  className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-200"
+                >
+                  ×
+                </button>
+              </span>
+            ))}
+          </div>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={tagInput}
+              onChange={(e) => setTagInput(e.target.value)}
+              onKeyPress={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  const trimmed = tagInput.trim();
+                  if (trimmed && !tags.includes(trimmed) && tags.length < 5) {
+                    setTags([...tags, trimmed]);
+                    setTagInput("");
+                  }
+                }
+              }}
+              placeholder={
+                tags.length >= 5
+                  ? "Maximum 5 tags per set"
+                  : "Add a tag and press Enter"
+              }
+              maxLength={20}
+              disabled={tags.length >= 5}
+              className="flex-1 px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
+            />
+            <button
+              type="button"
+              onClick={() => {
+                const trimmed = tagInput.trim();
+                if (trimmed && !tags.includes(trimmed) && tags.length < 5) {
+                  setTags([...tags, trimmed]);
+                  setTagInput("");
+                }
+              }}
+              disabled={tags.length >= 5}
+              className="px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-xs disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Add
+            </button>
+          </div>
         </div>
 
         {/* From and To Languages */}
@@ -467,6 +561,76 @@ export default function InlineCreateFlashcardSetForm({
                   />
                 </button>
               </div>
+              <div className="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-700/30 rounded-lg">
+                <div className="flex items-center gap-2">
+                  <svg
+                    className="w-4 h-4 text-gray-500 dark:text-gray-400"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"
+                    />
+                  </svg>
+                  <span className="text-xs text-gray-600 dark:text-gray-400">
+                    Translate to one word
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setTranslateToOneWord(!translateToOneWord)}
+                  className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 ${
+                    translateToOneWord
+                      ? "bg-green-600 dark:bg-green-500"
+                      : "bg-gray-300 dark:bg-gray-600"
+                  }`}
+                >
+                  <span
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                      translateToOneWord ? "translate-x-5" : "translate-x-0.5"
+                    }`}
+                  />
+                </button>
+              </div>
+              <div className="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-700/30 rounded-lg">
+                <div className="flex items-center gap-2">
+                  <svg
+                    className="w-4 h-4 text-gray-500 dark:text-gray-400"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"
+                    />
+                  </svg>
+                  <span className="text-xs text-gray-600 dark:text-gray-400">
+                    Translate to whole phrase
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setTranslateToPhrase(!translateToPhrase)}
+                  className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 ${
+                    translateToPhrase
+                      ? "bg-green-600 dark:bg-green-500"
+                      : "bg-gray-300 dark:bg-gray-600"
+                  }`}
+                >
+                  <span
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                      translateToPhrase ? "translate-x-5" : "translate-x-0.5"
+                    }`}
+                  />
+                </button>
+              </div>
               <button
                 type="button"
                 onClick={() => {
@@ -543,9 +707,19 @@ export default function InlineCreateFlashcardSetForm({
 
         {/* Word Pairs */}
         <div>
-          <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">
-            Words and Translations
-          </label>
+          <div className="flex items-center justify-between mb-2">
+            <label className="block text-xs font-medium text-gray-700 dark:text-gray-300">
+              Words and Translations
+            </label>
+            <span className="text-xs text-gray-500 dark:text-gray-400">
+              {
+                wordPairs.filter(
+                  (pair) => pair.word.trim() && pair.translation.trim()
+                ).length
+              }{" "}
+              / 100 words
+            </span>
+          </div>
           <div className="space-y-2.5">
             {wordPairs.map((pair, index) => (
               <div
@@ -921,7 +1095,8 @@ export default function InlineCreateFlashcardSetForm({
           <button
             type="button"
             onClick={addWordPair}
-            className="mt-1.5 w-full px-3 py-1.5 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors flex items-center justify-center gap-1.5 text-xs cursor-pointer active:scale-[0.98]"
+            disabled={wordPairs.length >= 100}
+            className="mt-1.5 w-full px-3 py-1.5 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors flex items-center justify-center gap-1.5 text-xs cursor-pointer active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <svg
               className="w-3.5 h-3.5"

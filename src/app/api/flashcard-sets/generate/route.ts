@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { verifyAuthToken } from "@/lib/auth";
-import { checkCoins, deductCoins, COIN_COSTS } from "@/lib/coins";
+import { checkCoins, COIN_COSTS } from "@/lib/coins";
 
 // Initialize OpenAI client lazily to avoid build-time errors
 async function getOpenAIClient() {
@@ -86,6 +86,18 @@ export async function POST(request: NextRequest) {
       );
     }
     */
+
+    // Check maximum flashcard sets limit (100)
+    const existingSetsCount = await prisma.flashcardSet.count({
+      where: { userId: payload.userId },
+    });
+
+    if (existingSetsCount >= 100) {
+      return NextResponse.json(
+        { error: "Maximum 100 flashcard sets allowed" },
+        { status: 400 }
+      );
+    }
 
     const body: GenerateRequest = await request.json();
     const {
@@ -514,6 +526,7 @@ Requirements:
           fromLanguage: fromLanguage,
           toLanguage: toLanguage,
           isAIGenerated: true,
+          tags: ["AI Generated"], // Automatically add AI Generated tag
           words: {
             create: wordsToCreate,
           },

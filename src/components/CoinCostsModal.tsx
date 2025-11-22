@@ -21,11 +21,14 @@ export default function CoinCostsModal({
 
     if (isOpen) {
       document.addEventListener("keydown", handleEscape);
-      // Don't set overflow hidden to avoid black background
+      // Prevent body scrolling when modal is open
+      document.body.style.overflow = "hidden";
     }
 
     return () => {
       document.removeEventListener("keydown", handleEscape);
+      // Restore body scrolling when modal closes
+      document.body.style.overflow = "unset";
     };
   }, [isOpen, onClose]);
 
@@ -146,7 +149,7 @@ export default function CoinCostsModal({
   ];
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto">
+    <div className="fixed inset-0 z-50 overflow-hidden">
       {/* Backdrop - very subtle dark overlay */}
       <div
         className="fixed inset-0 transition-opacity"
@@ -155,7 +158,7 @@ export default function CoinCostsModal({
       />
 
       {/* Modal */}
-      <div className="flex min-h-full items-center justify-center p-4">
+      <div className="flex min-h-full items-center justify-center p-4 overflow-y-auto">
         <div className="relative transform overflow-hidden rounded-2xl bg-white dark:bg-gray-800 shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-2xl border-2 border-purple-200 dark:border-purple-800">
           {/* Header */}
           <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-900/20 dark:to-blue-900/20">

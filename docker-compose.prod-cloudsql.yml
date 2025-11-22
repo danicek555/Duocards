@@ -1,4 +1,4 @@
-version: '3.8'
+version: "3.8"
 
 # Production Docker Compose with Cloud SQL Proxy
 # Usage: docker-compose -f docker-compose.prod-cloudsql.yml up
@@ -46,4 +46,3 @@ services:
 networks:
   duocards-network:
     driver: bridge
-

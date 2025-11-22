@@ -7,7 +7,9 @@ import InlineCreateFlashcardSetForm from "@/components/InlineCreateFlashcardSetF
 import InlineAIGenerateForm from "@/components/InlineAIGenerateForm";
 import CoinCostsModal from "@/components/CoinCostsModal";
 import DailyRewardButton from "@/components/DailyRewardButton";
+import CreateFlashcardSetForm from "@/components/CreateFlashcardSetForm";
 import { getLanguageFlag } from "@/lib/flags";
+import { LANGUAGES } from "@/lib/languages";
 
 interface User {
   id: number;
@@ -55,6 +57,7 @@ interface FlashcardSet {
   fromLanguage: string | null;
   toLanguage: string | null;
   isAIGenerated: boolean;
+  tags: string[];
   createdAt: string;
   updatedAt: string;
   words: Word[];
@@ -76,6 +79,18 @@ export default function Dashboard() {
   // Cache for fetched images and audio
   const [imageCache, setImageCache] = useState<Record<number, string>>({});
   const [audioCache, setAudioCache] = useState<Record<number, string>>({});
+  const [openSettingsId, setOpenSettingsId] = useState<number | null>(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [editingSetId, setEditingSetId] = useState<number | null>(null);
+  const [editingSetData, setEditingSetData] = useState<FlashcardSet | null>(
+    null
+  );
+  const [loadingEditId, setLoadingEditId] = useState<number | null>(null);
+  const [filtering, setFiltering] = useState(false);
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [filterFromLanguage, setFilterFromLanguage] = useState<string>("");
+  const [filterToLanguage, setFilterToLanguage] = useState<string>("");
   const router = useRouter();
 
   const handleCreateSuccess = () => {
@@ -110,6 +125,27 @@ export default function Dashboard() {
     fetchFlashcardSets();
     fetchCoins();
   }, [router]);
+
+  // Close settings menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (
+        openSettingsId !== null &&
+        !target.closest(".settings-menu-container")
+      ) {
+        setOpenSettingsId(null);
+        setDeleteConfirmId(null);
+      }
+    };
+
+    if (openSettingsId !== null) {
+      document.addEventListener("mousedown", handleClickOutside);
+      return () => {
+        document.removeEventListener("mousedown", handleClickOutside);
+      };
+    }
+  }, [openSettingsId]);
 
   const fetchFlashcardSets = async () => {
     try {
@@ -169,6 +205,64 @@ export default function Dashboard() {
   const handlePrevious = () => {
     if (currentIndex > 0) {
       setCurrentIndex(currentIndex - 1);
+    }
+  };
+
+  const handleDeleteSet = async (setId: number) => {
+    setDeletingId(setId);
+    try {
+      const response = await fetch(`/api/flashcard-sets/${setId}`, {
+        method: "DELETE",
+      });
+
+      if (response.ok) {
+        // Remove from local state
+        setFlashcardSets((prev) => prev.filter((set) => set.id !== setId));
+        // If the deleted set was selected, go back to sets view
+        if (selectedSet?.id === setId) {
+          handleBackToSets();
+        }
+      } else {
+        const data = await response.json();
+        alert(data.error || "Failed to delete flashcard set");
+      }
+    } catch (error) {
+      console.error("Error deleting flashcard set:", error);
+      alert("Failed to delete flashcard set");
+    } finally {
+      setDeletingId(null);
+      setDeleteConfirmId(null);
+      setOpenSettingsId(null);
+    }
+  };
+
+  const handleEditSet = async (setId: number) => {
+    setLoadingEditId(setId);
+    try {
+      const response = await fetch(`/api/flashcard-sets/${setId}`);
+      if (response.ok) {
+        const data = await response.json();
+        setEditingSetData(data.flashcardSet);
+        setEditingSetId(setId);
+        setOpenSettingsId(null);
+      } else {
+        alert("Failed to load flashcard set for editing");
+      }
+    } catch (error) {
+      console.error("Error loading flashcard set:", error);
+      alert("Failed to load flashcard set for editing");
+    } finally {
+      setLoadingEditId(null);
+    }
+  };
+
+  const handleEditSuccess = () => {
+    setEditingSetId(null);
+    setEditingSetData(null);
+    fetchFlashcardSets();
+    // If editing the currently selected set, refresh it
+    if (selectedSet && editingSetId === selectedSet.id) {
+      handleSetClick(selectedSet);
     }
   };
 
@@ -390,8 +484,11 @@ export default function Dashboard() {
               <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
                 Your Flashcard Sets
               </h2>
-              <p className="text-gray-600 dark:text-gray-400">
+              <p className="text-gray-600 dark:text-gray-400 mb-1">
                 Click on a set to start practicing
+              </p>
+              <p className="text-sm text-gray-500 dark:text-gray-500 mb-4">
+                {flashcardSets.length} / 100 flashcard sets
               </p>
             </div>
 
@@ -416,10 +513,15 @@ export default function Dashboard() {
                 <>
                   <button
                     onClick={() => {
+                      if (flashcardSets.length >= 100) {
+                        alert("Maximum 100 flashcard sets allowed");
+                        return;
+                      }
                       setShowCreateForm(true);
                       setShowAIGenerateForm(false);
                     }}
-                    className="bg-white dark:bg-gray-800 rounded-xl shadow-lg hover:shadow-xl transition-all p-4 text-left border-2 border-dashed border-gray-300 dark:border-gray-600 hover:border-blue-500 dark:hover:border-blue-400 flex flex-col items-center justify-center min-h-[140px] cursor-pointer active:scale-[0.98]"
+                    disabled={flashcardSets.length >= 100}
+                    className="bg-white dark:bg-gray-800 rounded-xl shadow-lg hover:shadow-xl transition-all p-4 text-left border-2 border-dashed border-gray-300 dark:border-gray-600 hover:border-blue-500 dark:hover:border-blue-400 flex flex-col items-center justify-center min-h-[140px] cursor-pointer active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:border-gray-300 dark:disabled:hover:border-gray-600"
                   >
                     <svg
                       className="w-8 h-8 text-gray-400 dark:text-gray-500 mb-2"
@@ -443,10 +545,15 @@ export default function Dashboard() {
                   </button>
                   <button
                     onClick={() => {
+                      if (flashcardSets.length >= 100) {
+                        alert("Maximum 100 flashcard sets allowed");
+                        return;
+                      }
                       setShowAIGenerateForm(true);
                       setShowCreateForm(false);
                     }}
-                    className="bg-gradient-to-br from-purple-50 to-blue-50 dark:from-purple-900/20 dark:to-blue-900/20 rounded-xl shadow-lg hover:shadow-xl transition-all p-4 text-left border-2 border-dashed border-purple-300 dark:border-purple-600 hover:border-purple-500 dark:hover:border-purple-400 flex flex-col items-center justify-center min-h-[140px] cursor-pointer active:scale-[0.98]"
+                    disabled={flashcardSets.length >= 100}
+                    className="bg-gradient-to-br from-purple-50 to-blue-50 dark:from-purple-900/20 dark:to-blue-900/20 rounded-xl shadow-lg hover:shadow-xl transition-all p-4 text-left border-2 border-dashed border-purple-300 dark:border-purple-600 hover:border-purple-500 dark:hover:border-purple-400 flex flex-col items-center justify-center min-h-[140px] cursor-pointer active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:border-purple-300 dark:disabled:hover:border-purple-600"
                   >
                     <svg
                       className="w-8 h-8 text-purple-600 dark:text-purple-400 mb-2"
@@ -472,6 +579,143 @@ export default function Dashboard() {
               )}
             </div>
 
+            {/* Filters */}
+            {flashcardSets.length > 0 && (
+              <div className="mb-6 space-y-3">
+                {/* Language Filters */}
+                <div className="flex flex-wrap gap-3 items-end">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                      From:
+                    </label>
+                    <select
+                      value={filterFromLanguage}
+                      onChange={(e) => {
+                        setFiltering(true);
+                        setFilterFromLanguage(e.target.value);
+                        setTimeout(() => setFiltering(false), 300);
+                      }}
+                      className="px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent cursor-pointer"
+                    >
+                      <option value="">All languages</option>
+                      {LANGUAGES.map((lang) => (
+                        <option key={lang.value} value={lang.value}>
+                          {lang.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                      To:
+                    </label>
+                    <select
+                      value={filterToLanguage}
+                      onChange={(e) => {
+                        setFiltering(true);
+                        setFilterToLanguage(e.target.value);
+                        setTimeout(() => setFiltering(false), 300);
+                      }}
+                      className="px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent cursor-pointer"
+                    >
+                      <option value="">All languages</option>
+                      {LANGUAGES.map((lang) => (
+                        <option key={lang.value} value={lang.value}>
+                          {lang.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  {(filterFromLanguage ||
+                    filterToLanguage ||
+                    selectedTags.length > 0) && (
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => {
+                          setFiltering(true);
+                          setFilterFromLanguage("");
+                          setFilterToLanguage("");
+                          setSelectedTags([]);
+                          setTimeout(() => setFiltering(false), 300);
+                        }}
+                        className="px-3 py-1.5 text-xs rounded-lg bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors"
+                      >
+                        Clear filters
+                      </button>
+                      {filtering && (
+                        <div className="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400">
+                          <svg
+                            className="animate-spin h-3 w-3"
+                            xmlns="http://www.w3.org/2000/svg"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                          >
+                            <circle
+                              className="opacity-25"
+                              cx="12"
+                              cy="12"
+                              r="10"
+                              stroke="currentColor"
+                              strokeWidth="4"
+                            ></circle>
+                            <path
+                              className="opacity-75"
+                              fill="currentColor"
+                              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                            ></path>
+                          </svg>
+                          Filtering...
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Custom Tags Filter */}
+                {(() => {
+                  // Get all unique custom tags (excluding language tags)
+                  const allTags = new Set<string>();
+                  flashcardSets.forEach((set) => {
+                    if (set.isAIGenerated) allTags.add("AI Generated");
+                    set.tags?.forEach((tag) => allTags.add(tag));
+                  });
+                  const tagsArray = Array.from(allTags).sort();
+                  if (tagsArray.length === 0) return null;
+
+                  return (
+                    <div>
+                      <p className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Filter by tags:
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        {tagsArray.map((tag) => (
+                          <button
+                            key={tag}
+                            onClick={() => {
+                              setFiltering(true);
+                              setSelectedTags((prev) =>
+                                prev.includes(tag)
+                                  ? prev.filter((t) => t !== tag)
+                                  : [...prev, tag]
+                              );
+                              setTimeout(() => setFiltering(false), 300);
+                            }}
+                            className={`px-3 py-1 text-xs rounded-full transition-colors ${
+                              selectedTags.includes(tag)
+                                ? "bg-blue-600 text-white"
+                                : "bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600"
+                            }`}
+                          >
+                            {tag}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+            )}
+
             {flashcardSets.length === 0 &&
             !showCreateForm &&
             !showAIGenerateForm ? (
@@ -496,8 +740,15 @@ export default function Dashboard() {
                   Create your first flashcard set to get started!
                 </p>
                 <button
-                  onClick={() => setShowCreateForm(true)}
-                  className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors inline-flex items-center gap-2"
+                  onClick={() => {
+                    if (flashcardSets.length >= 100) {
+                      alert("Maximum 100 flashcard sets allowed");
+                      return;
+                    }
+                    setShowCreateForm(true);
+                  }}
+                  disabled={flashcardSets.length >= 100}
+                  className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors inline-flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <svg
                     className="w-5 h-5"
@@ -517,72 +768,354 @@ export default function Dashboard() {
               </div>
             ) : (
               <>
-                {flashcardSets.length > 0 && (
+                {(() => {
+                  // Filter flashcard sets based on language filters and tags
+                  let filteredSets = flashcardSets;
+
+                  // Apply language filters
+                  if (filterFromLanguage || filterToLanguage) {
+                    filteredSets = filteredSets.filter((set) => {
+                      const fromMatch =
+                        !filterFromLanguage ||
+                        set.fromLanguage === filterFromLanguage;
+                      const toMatch =
+                        !filterToLanguage ||
+                        set.toLanguage === filterToLanguage;
+                      return fromMatch && toMatch;
+                    });
+                  }
+
+                  // Apply custom tags filter
+                  if (selectedTags.length > 0) {
+                    filteredSets = filteredSets.filter((set) => {
+                      const setTags = new Set<string>();
+                      if (set.isAIGenerated) setTags.add("AI Generated");
+                      set.tags?.forEach((tag) => setTags.add(tag));
+
+                      // Check if any selected tag matches
+                      return selectedTags.some((tag) => setTags.has(tag));
+                    });
+                  }
+
+                  return filteredSets;
+                })().length > 0 ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {flashcardSets.map((set) => (
-                      <button
+                    {(() => {
+                      // Filter flashcard sets based on language filters and tags
+                      let filteredSets = flashcardSets;
+
+                      // Apply language filters
+                      if (filterFromLanguage || filterToLanguage) {
+                        filteredSets = filteredSets.filter((set) => {
+                          const fromMatch =
+                            !filterFromLanguage ||
+                            set.fromLanguage === filterFromLanguage;
+                          const toMatch =
+                            !filterToLanguage ||
+                            set.toLanguage === filterToLanguage;
+                          return fromMatch && toMatch;
+                        });
+                      }
+
+                      // Apply custom tags filter
+                      if (selectedTags.length > 0) {
+                        filteredSets = filteredSets.filter((set) => {
+                          const setTags = new Set<string>();
+                          if (set.isAIGenerated) setTags.add("AI Generated");
+                          set.tags?.forEach((tag) => setTags.add(tag));
+
+                          // Check if any selected tag matches
+                          return selectedTags.some((tag) => setTags.has(tag));
+                        });
+                      }
+
+                      return filteredSets;
+                    })().map((set) => (
+                      <div
                         key={set.id}
-                        onClick={() => handleSetClick(set)}
-                        className="bg-white dark:bg-gray-800 rounded-xl shadow-lg hover:shadow-xl transition-all p-6 text-left border-2 border-transparent hover:border-blue-500 dark:hover:border-blue-400 cursor-pointer active:scale-[0.98]"
+                        className="bg-white dark:bg-gray-800 rounded-xl shadow-lg hover:shadow-xl transition-all p-6 text-left border-2 border-transparent hover:border-blue-500 dark:hover:border-blue-400 relative"
                       >
-                        <div className="flex items-start justify-between mb-4">
-                          <h3 className="text-xl font-bold text-gray-900 dark:text-white">
-                            {set.name}
-                          </h3>
-                          <div className="bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 px-5 py-2 rounded-full text-sm font-medium whitespace-nowrap">
-                            {set.words.length}{" "}
-                            {set.words.length === 1 ? "card" : "cards"}
+                        <button
+                          onClick={() => handleSetClick(set)}
+                          className="w-full text-left"
+                        >
+                          <div className="flex items-start justify-between mb-4">
+                            <h3 className="text-xl font-bold text-gray-900 dark:text-white">
+                              {set.name}
+                            </h3>
+                            <div className="bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 px-5 py-2 rounded-full text-sm font-medium whitespace-nowrap">
+                              {set.words.length}{" "}
+                              {set.words.length === 1 ? "card" : "cards"}
+                            </div>
                           </div>
-                        </div>
-                        {/* Language Flags */}
-                        <div className="flex items-center justify-between mb-2">
-                          {(set.fromLanguage || set.toLanguage) && (
-                            <div className="flex items-center gap-2">
-                              <span className="text-2xl">
-                                {getLanguageFlag(set.fromLanguage)}
-                              </span>
-                              <svg
-                                className="w-4 h-4 text-gray-400 dark:text-gray-500"
-                                fill="none"
-                                stroke="currentColor"
-                                viewBox="0 0 24 24"
-                              >
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  strokeWidth={2}
-                                  d="M13 7l5 5m0 0l-5 5m5-5H6"
-                                />
-                              </svg>
-                              <span className="text-2xl">
-                                {getLanguageFlag(set.toLanguage)}
-                              </span>
+                          {/* Tags */}
+                          {(() => {
+                            const displayTags: string[] = [];
+                            // Always include AI Generated tag if set is AI-generated
+                            if (
+                              set.isAIGenerated &&
+                              !set.tags?.includes("AI Generated")
+                            ) {
+                              displayTags.push("AI Generated");
+                            }
+                            // Add other tags
+                            if (set.tags && set.tags.length > 0) {
+                              displayTags.push(...set.tags);
+                            }
+                            return displayTags.length > 0 ? (
+                              <div className="flex flex-wrap gap-1.5 mb-2">
+                                {displayTags.slice(0, 5).map((tag, idx) => (
+                                  <span
+                                    key={idx}
+                                    className="px-2 py-0.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded text-xs"
+                                  >
+                                    {tag}
+                                  </span>
+                                ))}
+                              </div>
+                            ) : null;
+                          })()}
+                          {/* Language Flags */}
+                          <div className="flex items-center justify-between mb-2">
+                            {(set.fromLanguage || set.toLanguage) && (
+                              <div className="flex items-center gap-2">
+                                <span className="text-2xl">
+                                  {getLanguageFlag(set.fromLanguage)}
+                                </span>
+                                <svg
+                                  className="w-4 h-4 text-gray-400 dark:text-gray-500"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  viewBox="0 0 24 24"
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M13 7l5 5m0 0l-5 5m5-5H6"
+                                  />
+                                </svg>
+                                <span className="text-2xl">
+                                  {getLanguageFlag(set.toLanguage)}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                          <p className="text-sm text-gray-500 dark:text-gray-400">
+                            Created{" "}
+                            {new Date(set.createdAt).toLocaleDateString()}
+                          </p>
+                        </button>
+                        {/* Settings button in bottom right corner */}
+                        <div className="absolute bottom-4 right-4 settings-menu-container">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setOpenSettingsId(
+                                openSettingsId === set.id ? null : set.id
+                              );
+                              setDeleteConfirmId(null);
+                            }}
+                            className="w-6 h-6 flex items-center justify-center rounded-full bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors z-10"
+                            title="Settings"
+                          >
+                            <svg
+                              className="w-4 h-4 text-gray-600 dark:text-gray-400"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"
+                              />
+                            </svg>
+                          </button>
+                          {/* Settings menu */}
+                          {openSettingsId === set.id && (
+                            <div className="absolute top-[-90px] left-full ml-[-10px] bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 py-2 min-w-[120px] z-20">
+                              {deleteConfirmId === set.id ? (
+                                <div className="px-3 py-2">
+                                  <p className="text-xs text-gray-600 dark:text-gray-400 mb-2">
+                                    Delete this set?
+                                  </p>
+                                  <div className="flex gap-2">
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleDeleteSet(set.id);
+                                      }}
+                                      disabled={deletingId === set.id}
+                                      className="px-2 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50 flex items-center gap-1"
+                                    >
+                                      {deletingId === set.id ? (
+                                        <>
+                                          <svg
+                                            className="animate-spin h-3 w-3"
+                                            xmlns="http://www.w3.org/2000/svg"
+                                            fill="none"
+                                            viewBox="0 0 24 24"
+                                          >
+                                            <circle
+                                              className="opacity-25"
+                                              cx="12"
+                                              cy="12"
+                                              r="10"
+                                              stroke="currentColor"
+                                              strokeWidth="4"
+                                            ></circle>
+                                            <path
+                                              className="opacity-75"
+                                              fill="currentColor"
+                                              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                                            ></path>
+                                          </svg>
+                                          Deleting...
+                                        </>
+                                      ) : (
+                                        "Yes"
+                                      )}
+                                    </button>
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setDeleteConfirmId(null);
+                                        setOpenSettingsId(null);
+                                      }}
+                                      className="px-2 py-1 text-xs bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-300 dark:hover:bg-gray-600"
+                                    >
+                                      No
+                                    </button>
+                                  </div>
+                                </div>
+                              ) : (
+                                <>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleEditSet(set.id);
+                                    }}
+                                    disabled={loadingEditId === set.id}
+                                    className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                                  >
+                                    {loadingEditId === set.id ? (
+                                      <>
+                                        <svg
+                                          className="animate-spin h-4 w-4"
+                                          xmlns="http://www.w3.org/2000/svg"
+                                          fill="none"
+                                          viewBox="0 0 24 24"
+                                        >
+                                          <circle
+                                            className="opacity-25"
+                                            cx="12"
+                                            cy="12"
+                                            r="10"
+                                            stroke="currentColor"
+                                            strokeWidth="4"
+                                          ></circle>
+                                          <path
+                                            className="opacity-75"
+                                            fill="currentColor"
+                                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                                          ></path>
+                                        </svg>
+                                        Loading...
+                                      </>
+                                    ) : (
+                                      <>
+                                        <svg
+                                          className="w-4 h-4"
+                                          fill="none"
+                                          stroke="currentColor"
+                                          viewBox="0 0 24 24"
+                                        >
+                                          <path
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            strokeWidth={2}
+                                            d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                                          />
+                                        </svg>
+                                        Change
+                                      </>
+                                    )}
+                                  </button>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setDeleteConfirmId(set.id);
+                                    }}
+                                    className="w-full px-4 py-2 text-left text-sm text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"
+                                  >
+                                    <svg
+                                      className="w-4 h-4"
+                                      fill="none"
+                                      stroke="currentColor"
+                                      viewBox="0 0 24 24"
+                                    >
+                                      <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth={2}
+                                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                                      />
+                                    </svg>
+                                    Delete
+                                  </button>
+                                </>
+                              )}
                             </div>
                           )}
-                          {set.isAIGenerated && (
-                            <div className="inline-flex items-center gap-1 bg-gradient-to-r from-purple-100 to-blue-100 dark:from-purple-900/30 dark:to-blue-900/30 text-purple-700 dark:text-purple-400 px-3 py-1 rounded-full text-xs font-semibold">
-                              <svg
-                                className="w-3 h-3"
-                                fill="none"
-                                stroke="currentColor"
-                                viewBox="0 0 24 24"
-                              >
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  strokeWidth={2}
-                                  d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"
-                                />
-                              </svg>
-                              AI Generated
-                            </div>
-                          )}
                         </div>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">
-                          Created {new Date(set.createdAt).toLocaleDateString()}
-                        </p>
-                      </button>
+                      </div>
                     ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-16">
+                    <p className="text-gray-600 dark:text-gray-400">
+                      No flashcard sets match the selected filters.
+                    </p>
+                    {(filterFromLanguage ||
+                      filterToLanguage ||
+                      selectedTags.length > 0) && (
+                      <button
+                        onClick={() => {
+                          setFiltering(true);
+                          setFilterFromLanguage("");
+                          setFilterToLanguage("");
+                          setSelectedTags([]);
+                          setTimeout(() => setFiltering(false), 300);
+                        }}
+                        className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2 mx-auto"
+                      >
+                        {filtering && (
+                          <svg
+                            className="animate-spin h-4 w-4"
+                            xmlns="http://www.w3.org/2000/svg"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                          >
+                            <circle
+                              className="opacity-25"
+                              cx="12"
+                              cy="12"
+                              r="10"
+                              stroke="currentColor"
+                              strokeWidth="4"
+                            ></circle>
+                            <path
+                              className="opacity-75"
+                              fill="currentColor"
+                              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                            ></path>
+                          </svg>
+                        )}
+                        Clear filters
+                      </button>
+                    )}
                   </div>
                 )}
               </>
@@ -675,6 +1208,32 @@ export default function Dashboard() {
         isOpen={showCostsModal}
         onClose={() => setShowCostsModal(false)}
       />
+
+      {/* Edit Flashcard Set Form */}
+      {editingSetId && editingSetData && (
+        <CreateFlashcardSetForm
+          onClose={() => {
+            setEditingSetId(null);
+            setEditingSetData(null);
+          }}
+          onSuccess={handleEditSuccess}
+          onCoinsUpdate={fetchCoins}
+          editSetId={editingSetId}
+          initialData={{
+            name: editingSetData.name,
+            fromLanguage: editingSetData.fromLanguage,
+            toLanguage: editingSetData.toLanguage,
+            tags: editingSetData.tags || [],
+            words: editingSetData.words.map((word) => ({
+              word: word.word,
+              translation: word.translation,
+              pronunciation: word.pronunciation,
+              imageId: word.imageId,
+              audioId: word.audioId,
+            })),
+          }}
+        />
+      )}
     </div>
   );
 }

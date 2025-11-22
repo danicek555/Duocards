@@ -95,6 +95,40 @@ export default function Flashcard({
     difficultyConfig[difficulty as keyof typeof difficultyConfig] ||
     difficultyConfig[1];
 
+  // Parse translation to detect format
+  const parseTranslation = () => {
+    const trimmedTranslation = translation.trim();
+
+    // Check if it's in "word: phrase" format
+    if (trimmedTranslation.includes(":")) {
+      const parts = trimmedTranslation.split(":").map((p) => p.trim());
+      if (parts.length >= 2) {
+        return {
+          type: "both" as const,
+          word: parts[0],
+          phrase: parts.slice(1).join(":"), // In case there are multiple colons
+        };
+      }
+    }
+
+    // Check if it's a phrase (multiple words, longer text)
+    const wordCount = trimmedTranslation.split(/\s+/).length;
+    if (wordCount > 3 || trimmedTranslation.length > 20) {
+      return {
+        type: "phrase" as const,
+        text: trimmedTranslation,
+      };
+    }
+
+    // Single word (default)
+    return {
+      type: "word" as const,
+      text: trimmedTranslation,
+    };
+  };
+
+  const translationData = parseTranslation();
+
   return (
     <div className="flex flex-col items-center justify-center h-full w-full px-4 py-6">
       {/* Flashcard */}
@@ -259,15 +293,49 @@ export default function Flashcard({
                       } ml-2`}
                     ></div>
                   </div>
-                  <h2
-                    className={`text-5xl md:text-6xl font-bold mb-4 leading-tight ${
-                      imageUrl
-                        ? "text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]"
-                        : "text-gray-900 dark:text-white"
-                    }`}
-                  >
-                    {translation}
-                  </h2>
+                  {/* Translation display based on format */}
+                  {translationData.type === "both" ? (
+                    <>
+                      <h2
+                        className={`text-5xl md:text-6xl font-bold mb-2 leading-tight ${
+                          imageUrl
+                            ? "text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]"
+                            : "text-gray-900 dark:text-white"
+                        }`}
+                      >
+                        {translationData.word}
+                      </h2>
+                      <p
+                        className={`text-xl md:text-2xl font-medium mb-4 leading-relaxed ${
+                          imageUrl
+                            ? "text-white/90 drop-shadow-[0_1px_4px_rgba(0,0,0,0.8)]"
+                            : "text-gray-600 dark:text-gray-300"
+                        }`}
+                      >
+                        {translationData.phrase}
+                      </p>
+                    </>
+                  ) : translationData.type === "phrase" ? (
+                    <h2
+                      className={`text-3xl md:text-4xl font-bold mb-4 leading-tight px-4 ${
+                        imageUrl
+                          ? "text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]"
+                          : "text-gray-900 dark:text-white"
+                      }`}
+                    >
+                      {translationData.text}
+                    </h2>
+                  ) : (
+                    <h2
+                      className={`text-5xl md:text-6xl font-bold mb-4 leading-tight ${
+                        imageUrl
+                          ? "text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]"
+                          : "text-gray-900 dark:text-white"
+                      }`}
+                    >
+                      {translationData.text}
+                    </h2>
+                  )}
                   {/* Pronunciation and audio button under translation */}
                   <div className="flex items-center justify-center gap-3 mb-4 relative z-20">
                     {pronunciation && (

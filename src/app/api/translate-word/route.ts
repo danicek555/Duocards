@@ -18,6 +18,8 @@ interface TranslateRequest {
   word: string;
   fromLanguage: string;
   toLanguage: string;
+  translateToOneWord?: boolean;
+  translateToPhrase?: boolean;
 }
 
 // POST - Translate a single word using AI
@@ -49,7 +51,13 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-    const { word, fromLanguage, toLanguage } = body;
+    const {
+      word,
+      fromLanguage,
+      toLanguage,
+      translateToOneWord = true,
+      translateToPhrase = false,
+    } = body;
 
     // Validate input
     if (!word || !word.trim()) {
@@ -80,9 +88,38 @@ export async function POST(request: NextRequest) {
     // Use a lightweight model for single word translation
     const modelName = "gpt-4o-mini";
 
-    const prompt = `Translate the word "${word.trim()}" from ${fromLanguage} to ${toLanguage}. 
-Return only the translation, nothing else. If the word is a phrase or multiple words, translate it as a whole.
+    // Build prompt based on translation modes
+    let prompt = "";
+    let systemMessage = "";
+    let maxTokens = 50;
+
+    if (translateToOneWord && translateToPhrase) {
+      // Both modes: return "word: phrase" format
+      prompt = `Translate the word "${word.trim()}" from ${fromLanguage} to ${toLanguage}. 
+Return the translation in this exact format: "single_word_translation: phrase_explaining_the_word"
+- The single word translation should be just one word (or the most concise translation)
+- The phrase should be a brief explanation or example phrase showing how the word is used in ${toLanguage}
+- Format: "word: phrase" (with colon and space between them)
+- Return only this format, nothing else.`;
+      systemMessage =
+        "You are a language translation assistant. Return translations in the format 'word: phrase' when both are requested.";
+      maxTokens = 150; // More tokens needed for phrase
+    } else if (translateToPhrase) {
+      // Only phrase mode: return phrase explaining the word
+      prompt = `Translate the word "${word.trim()}" from ${fromLanguage} to ${toLanguage} and provide a brief phrase or explanation showing how it's used in ${toLanguage}.
+Return only the phrase/explanation, nothing else.`;
+      systemMessage =
+        "You are a language translation assistant. Return phrase explanations for words.";
+      maxTokens = 100; // More tokens for phrase
+    } else {
+      // Only one word mode (default): return single word translation
+      prompt = `Translate the word "${word.trim()}" from ${fromLanguage} to ${toLanguage}. 
+Return only the translation as a single word, nothing else. If the word is a phrase or multiple words, translate it as a whole but keep it concise.
 Do not include any explanations, context, or additional text - just the translation.`;
+      systemMessage =
+        "You are a language translation assistant. Return only the translation, no additional text or explanations.";
+      maxTokens = 50;
+    }
 
     const openai = await getOpenAIClient();
     const completion = await openai.chat.completions.create({
@@ -90,8 +127,7 @@ Do not include any explanations, context, or additional text - just the translat
       messages: [
         {
           role: "system",
-          content:
-            "You are a language translation assistant. Return only the translation, no additional text or explanations.",
+          content: systemMessage,
         },
         {
           role: "user",
@@ -99,7 +135,7 @@ Do not include any explanations, context, or additional text - just the translat
         },
       ],
       temperature: 0.3, // Lower temperature for more consistent translations
-      max_tokens: 50, // Single word/phrase translation shouldn't need many tokens
+      max_tokens: maxTokens,
     });
 
     const translation = completion.choices[0]?.message?.content?.trim();

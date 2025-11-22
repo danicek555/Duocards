@@ -42,7 +42,26 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    return NextResponse.json({ flashcardSets });
+    // Ensure all AI-generated sets have "AI Generated" tag
+    const updatedSets = await Promise.all(
+      flashcardSets.map(async (set) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const setWithTags = set as any;
+        if (set.isAIGenerated && !setWithTags.tags?.includes("AI Generated")) {
+          // Update the set to include "AI Generated" tag
+          const updatedTags = [...(setWithTags.tags || []), "AI Generated"];
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          await (prisma.flashcardSet.update as any)({
+            where: { id: set.id },
+            data: { tags: updatedTags },
+          });
+          return { ...set, tags: updatedTags };
+        }
+        return set;
+      })
+    );
+
+    return NextResponse.json({ flashcardSets: updatedSets });
   } catch (error) {
     console.error("Error fetching flashcard sets:", error);
     return NextResponse.json(
@@ -73,7 +92,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { name, words, fromLanguage, toLanguage } = body;
+    const { name, words, fromLanguage, toLanguage, tags } = body;
 
     if (!name || !name.trim()) {
       return NextResponse.json(
@@ -85,6 +104,47 @@ export async function POST(request: NextRequest) {
     if (!words || !Array.isArray(words) || words.length === 0) {
       return NextResponse.json(
         { error: "At least one word pair is required" },
+        { status: 400 }
+      );
+    }
+
+    // Check maximum flashcard sets limit (100)
+    const existingSetsCount = await prisma.flashcardSet.count({
+      where: { userId: payload.userId },
+    });
+
+    if (existingSetsCount >= 100) {
+      return NextResponse.json(
+        { error: "Maximum 100 flashcard sets allowed" },
+        { status: 400 }
+      );
+    }
+
+    // Validate tags
+    const tagsArray = Array.isArray(tags)
+      ? tags.filter((tag: string) => tag.trim())
+      : [];
+    if (tagsArray.length > 5) {
+      return NextResponse.json(
+        { error: "Maximum 5 tags allowed per flashcard set" },
+        { status: 400 }
+      );
+    }
+
+    // Check total tags limit (20 tags across all sets)
+    const allExistingSets = await prisma.flashcardSet.findMany({
+      where: { userId: payload.userId },
+    });
+    const totalTagsCount = allExistingSets.reduce(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (sum, set) => sum + ((set as any).tags?.length || 0),
+      0
+    );
+    if (totalTagsCount + tagsArray.length > 20) {
+      return NextResponse.json(
+        {
+          error: `Maximum 20 tags allowed total. You currently have ${totalTagsCount} tags across all sets.`,
+        },
         { status: 400 }
       );
     }
@@ -161,12 +221,14 @@ export async function POST(request: NextRequest) {
     );
 
     // Create flashcard set with words in a transaction
-    const flashcardSet = await prisma.flashcardSet.create({
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const flashcardSet = await (prisma.flashcardSet.create as any)({
       data: {
         name: name.trim(),
         userId: payload.userId,
         fromLanguage: fromLanguage || null,
         toLanguage: toLanguage || null,
+        tags: tagsArray,
         words: {
           create: wordsWithExtras,
         },
