@@ -58,7 +58,6 @@ export default function DailyRewardButton({ onCoinsUpdate }: DailyRewardButtonPr
       });
 
       if (response.ok) {
-        const data = await response.json();
         // Refetch status to get accurate time until next reward
         await fetchRewardStatus();
         if (onCoinsUpdate) {

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { COIN_COSTS } from "@/lib/coins";
+import { COIN_COSTS } from "@/lib/coin-costs";
 
 interface CoinCostsModalProps {
   isOpen: boolean;

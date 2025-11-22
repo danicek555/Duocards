@@ -4,24 +4,27 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "prisma generate --no-engine && next build",
-    "build:prod": "prisma generate --no-engine && next build",
-    "build:vercel": "prisma migrate deploy && prisma generate --no-engine && next build",
+    "build": "prisma generate && next build",
+    "build:prod": "prisma generate && next build",
+    "build:vercel": "prisma migrate deploy && prisma generate && next build",
     "start": "next start",
     "lint": "eslint",
     "delete-users": "npx tsx scripts/delete-users.ts",
     "check-users": "npx tsx scripts/check-users.ts"
   },
   "dependencies": {
-    "@prisma/client": "^6.19.0",
-    "@prisma/extension-accelerate": "^2.0.2",
+    "@prisma/adapter-pg": "^7.0.0",
+    "@prisma/client": "7.0.0",
+    "@prisma/extension-accelerate": "^3.0.0",
     "@sentry/nextjs": "^10.22.0",
     "argon2": "^0.44.0",
     "next": "15.5.4",
     "openai": "^6.7.0",
+    "pg": "^8.16.3",
     "react": "19.1.0",
     "react-dom": "19.1.0",
-    "resend": "^6.1.2"
+    "resend": "^6.1.2",
+    "server-only": "^0.0.1"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.0.0",
@@ -31,7 +34,7 @@
     "@types/react-dom": "^19.0.0",
     "eslint": "^9.0.0",
     "eslint-config-next": "15.5.4",
-    "prisma": "^6.19.0",
+    "prisma": "7.0.0",
     "tailwindcss": "^4.0.0",
     "typescript": "^5.0.0"
   }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import Image from "next/image";
 import { LANGUAGES } from "@/lib/languages";
 
 interface WordPair {
@@ -967,10 +968,12 @@ export default function InlineCreateFlashcardSetForm({
                           <div className="mt-1 relative">
                             <div className="w-full max-w-xl mx-auto">
                               <div className="relative w-full h-[380px] rounded-2xl overflow-hidden border-2 border-gray-300 dark:border-gray-600 shadow-lg">
-                                <img
+                                <Image
                                   src={pair.imageUrl}
                                   alt="Word image preview"
-                                  className="w-full h-full object-cover"
+                                  fill
+                                  className="object-cover"
+                                  unoptimized
                                 />
                                 <div className="absolute inset-0 bg-black/40 dark:bg-black/60"></div>
                                 <div className="absolute inset-0 flex items-center justify-center">

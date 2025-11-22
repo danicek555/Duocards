@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { COIN_COSTS } from "@/lib/coins";
+import { COIN_COSTS } from "@/lib/coin-costs";
 import { LANGUAGES } from "@/lib/languages";
 
 interface InlineAIGenerateFormProps {

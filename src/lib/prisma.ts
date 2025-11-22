@@ -9,10 +9,16 @@
  *
  * For Prisma Accelerate: The PRISMA_DATABASE_URL should use prisma:// or prisma+postgres:// protocol
  * The directUrl (DIRECT_DATABASE_URL) is used for migrations and introspection
+ *
+ * NOTE: This file is server-only and should never be imported in client components
  */
 
 import { PrismaClient } from "@prisma/client";
 import { withAccelerate } from "@prisma/extension-accelerate";
+
+// Import adapter loader (server-side only - Next.js will exclude from client bundle)
+// The prisma-adapter.ts file uses top-level imports which webpack will handle correctly
+import { createPgAdapter } from "./prisma-adapter";
 
 // Global variable to store Prisma client instance
 // In development, this prevents creating multiple connections during hot reloads
@@ -23,34 +29,36 @@ const globalForPrisma = globalThis as unknown as {
 // Function to create Prisma client with proper configuration
 function createPrismaClient(): PrismaClient {
   // Check if we're using Prisma Accelerate
-  // Note: We check PRISMA_DATABASE_URL because that's what the schema uses
   const databaseUrl = process.env.PRISMA_DATABASE_URL || "";
   const isAccelerate =
     databaseUrl.startsWith("prisma://") ||
     databaseUrl.startsWith("prisma+postgres://");
 
-  // Create base Prisma client
-  // Prisma Client 6.x should support Accelerate URLs natively,
-  // but we'll use the extension for better compatibility
-  const baseClient = new PrismaClient({
-    // Log database queries in development (helpful for debugging)
+  // Prisma 7: Use accelerateUrl for Accelerate, adapter for direct connections
+  if (isAccelerate) {
+    const baseClient = new PrismaClient({
+      accelerateUrl: databaseUrl,
+      log:
+        process.env.NODE_ENV === "development"
+          ? ["query", "error", "warn"]
+          : ["error"],
+    });
+    // Apply Accelerate extension for additional features
+    const extended = baseClient.$extends(withAccelerate());
+    return extended as unknown as PrismaClient;
+  }
+
+  // Direct PostgreSQL connection
+  // Prisma 7 REQUIRES an adapter for direct connections
+  const adapter = createPgAdapter(databaseUrl);
+
+  return new PrismaClient({
+    adapter,
     log:
       process.env.NODE_ENV === "development"
         ? ["query", "error", "warn"]
         : ["error"],
   });
-
-  // For Accelerate URLs, apply the extension
-  // The extended client is compatible with PrismaClient at runtime
-  // We use type assertion to maintain compatibility
-  if (isAccelerate) {
-    const extended = baseClient.$extends(withAccelerate());
-    // TypeScript doesn't recognize extended clients have all the same methods
-    // But at runtime they do, so we assert the type
-    return extended as unknown as PrismaClient;
-  }
-
-  return baseClient;
 }
 
 // Create Prisma client instance
@@ -81,12 +89,11 @@ function createDirectPrismaClient(): PrismaClient {
   }
 
   // For Prisma Accelerate, use direct URL for large data operations
+  // Prisma 7: Use adapter for direct connections
+  const adapter = createPgAdapter(directUrl);
+
   return new PrismaClient({
-    datasources: {
-      db: {
-        url: directUrl,
-      },
-    },
+    adapter,
     log: process.env.NODE_ENV === "development" ? ["error", "warn"] : ["error"],
   });
 }

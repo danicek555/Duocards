@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyAuthToken } from "@/lib/auth";
-import { checkCoins, deductCoins, COIN_COSTS } from "@/lib/coins";
+import { checkCoins, deductCoins } from "@/lib/coins";
+import { COIN_COSTS } from "@/lib/coin-costs";
 
 // Initialize OpenAI client lazily to avoid build-time errors
 async function getOpenAIClient() {

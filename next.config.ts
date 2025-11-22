@@ -3,7 +3,22 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   outputFileTracingRoot: __dirname,
-  output: 'standalone',
+  output: "standalone",
+  webpack: (config, { isServer }) => {
+    if (!isServer) {
+      // Exclude pg and adapter from client bundle
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        pg: false,
+        "@prisma/adapter-pg": false,
+        net: false,
+        tls: false,
+        fs: false,
+        dns: false,
+      };
+    }
+    return config;
+  },
   /* config options here */
 };
 
