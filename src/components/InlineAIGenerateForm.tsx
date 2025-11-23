@@ -64,7 +64,7 @@ export default function InlineAIGenerateForm({
         if (response.ok) {
           const data = await response.json();
           const flashcardSets = data.flashcardSets || [];
-          
+
           // Collect all unique tags from existing sets
           const existingUniqueTags = new Set<string>();
           flashcardSets.forEach((set: { tags?: string[] }) => {
@@ -75,7 +75,7 @@ export default function InlineAIGenerateForm({
               }
             });
           });
-          
+
           setExistingUniqueTagsCount(existingUniqueTags.size);
         }
       } catch (error) {
@@ -279,7 +279,8 @@ export default function InlineAIGenerateForm({
             Tags (optional) - Max 5 tags per set ({tags.length}/5)
           </label>
           <div className="text-xs text-gray-500 dark:text-gray-400 mb-1.5">
-            Maximum 20 different tags allowed across all sets. You currently have {existingUniqueTagsCount} unique tags.
+            Maximum 20 different tags allowed across all sets. You currently
+            have {existingUniqueTagsCount} unique tags.
           </div>
           <div className="flex flex-wrap gap-2 mb-2">
             {tags.map((tag, index) => (

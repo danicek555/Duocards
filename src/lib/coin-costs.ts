@@ -16,5 +16,5 @@ export const COIN_COSTS = {
   WORD_TRANSLATION: 1, // Very cheap
 
   // OCR (text extraction from image - uses vision API)
-  OCR_EXTRACTION: 3, // Moderate cost - vision API is more expensive
+  OCR_EXTRACTION: 50, // Expensive - vision API is more expensive
 } as const;

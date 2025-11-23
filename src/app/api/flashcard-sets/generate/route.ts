@@ -512,17 +512,17 @@ Requirements:
         }
       });
     });
-    
+
     // Combine user tags with "AI Generated" tag
     const aiGeneratedTag = "AI Generated";
     const allTagsToAdd = new Set([...tagsArray, aiGeneratedTag]);
-    
+
     // Count how many new unique tags are being added
     const newUniqueTags = Array.from(allTagsToAdd).filter(
       (tag: string) => !existingUniqueTags.has(tag.trim())
     );
     const uniqueTagsCount = existingUniqueTags.size + newUniqueTags.length;
-    
+
     if (uniqueTagsCount > 20) {
       return NextResponse.json(
         {
