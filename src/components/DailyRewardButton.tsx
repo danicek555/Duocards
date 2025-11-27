@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 
 interface DailyRewardButtonProps {
   onCoinsUpdate?: () => void;
@@ -63,7 +63,7 @@ export default function DailyRewardButton({
     );
   };
 
-  const fetchRewardStatus = async () => {
+  const fetchRewardStatus = useCallback(async () => {
     try {
       const response = await fetch("/api/user/daily-reward");
       if (response.ok) {
@@ -81,7 +81,7 @@ export default function DailyRewardButton({
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchRewardStatus();
@@ -102,7 +102,7 @@ export default function DailyRewardButton({
     }, 1000);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [fetchRewardStatus]);
 
   const handleClaim = async () => {
     if (!canClaim || claiming) return;

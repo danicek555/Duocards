@@ -233,7 +233,8 @@ export default function ImageTextSelector({
         </div>
         {selectionMode === "phrases" && (
           <div className="mt-2 text-xs text-gray-600 dark:text-gray-400">
-            Click words to build a phrase, then click "Create Phrase" to add it
+            Click words to build a phrase, then click &quot;Create Phrase&quot;
+            to add it
           </div>
         )}
         {selectionMode === "clear" && (
