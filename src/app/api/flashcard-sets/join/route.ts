@@ -107,6 +107,7 @@ export async function POST(request: NextRequest) {
           tags: publicSet.tags,
           isPublic: false, // User's copy is not public by default
           publicCode: null,
+          joinedFromCode: null, // Don't store the original code - users shouldn't see it
         },
       });
 

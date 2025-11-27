@@ -598,7 +598,7 @@ export default function CreateFlashcardSetForm({
               <div className="flex-1">
                 <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Make Public
-                  {isEditMode && isPublic && (
+                  {isEditMode && initialData?.isPublic && (
                     <span className="ml-2 text-xs text-gray-500 dark:text-gray-400 italic">
                       (Cannot be disabled after making public)
                     </span>
@@ -611,7 +611,7 @@ export default function CreateFlashcardSetForm({
               <button
                 type="button"
                 onClick={() => setIsPublic(!isPublic)}
-                disabled={isEditMode && isPublic}
+                disabled={isEditMode && initialData?.isPublic}
                 className={`relative inline-flex h-6 w-11 flex-shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
                   isEditMode && isPublic
                     ? "bg-blue-600 cursor-not-allowed opacity-50"
