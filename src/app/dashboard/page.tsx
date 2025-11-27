@@ -94,6 +94,7 @@ export default function Dashboard() {
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [filterFromLanguage, setFilterFromLanguage] = useState<string>("");
   const [filterToLanguage, setFilterToLanguage] = useState<string>("");
+  const [searchQuery, setSearchQuery] = useState<string>("");
   const router = useRouter();
 
   const handleCreateSuccess = () => {
@@ -715,48 +716,100 @@ export default function Dashboard() {
                   )}
                 </div>
 
-                {/* Custom Tags Filter */}
-                {(() => {
-                  // Get all unique custom tags (excluding language tags)
-                  const allTags = new Set<string>();
-                  flashcardSets.forEach((set) => {
-                    if (set.isAIGenerated) allTags.add("AI Generated");
-                    set.tags?.forEach((tag) => allTags.add(tag));
-                  });
-                  const tagsArray = Array.from(allTags).sort();
-                  if (tagsArray.length === 0) return null;
-
-                  return (
-                    <div>
-                      <p className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        Filter by tags:
-                      </p>
-                      <div className="flex flex-wrap gap-2">
-                        {tagsArray.map((tag) => (
-                          <button
-                            key={tag}
-                            onClick={() => {
-                              setFiltering(true);
-                              setSelectedTags((prev) =>
-                                prev.includes(tag)
-                                  ? prev.filter((t) => t !== tag)
-                                  : [...prev, tag]
-                              );
-                              setTimeout(() => setFiltering(false), 300);
-                            }}
-                            className={`px-3 py-1 text-xs rounded-full transition-colors ${
-                              selectedTags.includes(tag)
-                                ? "bg-blue-600 text-white"
-                                : "bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600"
-                            }`}
+                {/* Search Bar and Tags Filter */}
+                <div className="space-y-4">
+                  {/* Search Bar */}
+                  <div>
+                    <p className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Search flashcard sets:
+                    </p>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        placeholder="Search by name..."
+                        className="w-full px-4 py-2 pl-10 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
+                      <svg
+                        className="absolute left-3 top-2.5 w-5 h-5 text-gray-400"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                        />
+                      </svg>
+                      {searchQuery && (
+                        <button
+                          onClick={() => setSearchQuery("")}
+                          className="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                        >
+                          <svg
+                            className="w-5 h-5"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
                           >
-                            {tag}
-                          </button>
-                        ))}
-                      </div>
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M6 18L18 6M6 6l12 12"
+                            />
+                          </svg>
+                        </button>
+                      )}
                     </div>
-                  );
-                })()}
+                  </div>
+
+                  {/* Custom Tags Filter */}
+                  {(() => {
+                    // Get all unique custom tags (excluding language tags)
+                    const allTags = new Set<string>();
+                    flashcardSets.forEach((set) => {
+                      if (set.isAIGenerated) allTags.add("AI Generated");
+                      set.tags?.forEach((tag) => allTags.add(tag));
+                    });
+                    const tagsArray = Array.from(allTags).sort();
+                    if (tagsArray.length === 0) return null;
+
+                    return (
+                      <div>
+                        <p className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          Filter by tags:
+                        </p>
+                        <div className="flex flex-wrap gap-2">
+                          {tagsArray.map((tag) => (
+                            <button
+                              key={tag}
+                              onClick={() => {
+                                setFiltering(true);
+                                setSelectedTags((prev) =>
+                                  prev.includes(tag)
+                                    ? prev.filter((t) => t !== tag)
+                                    : [...prev, tag]
+                                );
+                                setTimeout(() => setFiltering(false), 300);
+                              }}
+                              className={`px-3 py-1 text-xs rounded-full transition-colors ${
+                                selectedTags.includes(tag)
+                                  ? "bg-blue-600 text-white"
+                                  : "bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600"
+                              }`}
+                            >
+                              {tag}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </div>
               </div>
             )}
 
@@ -813,8 +866,15 @@ export default function Dashboard() {
             ) : (
               <>
                 {(() => {
-                  // Filter flashcard sets based on language filters and tags
+                  // Filter flashcard sets based on search query, language filters and tags
                   let filteredSets = flashcardSets;
+
+                  // Apply search query filter
+                  if (searchQuery.trim()) {
+                    filteredSets = filteredSets.filter((set) =>
+                      set.name.toLowerCase().includes(searchQuery.toLowerCase())
+                    );
+                  }
 
                   // Apply language filters
                   if (filterFromLanguage || filterToLanguage) {
@@ -845,8 +905,17 @@ export default function Dashboard() {
                 })().length > 0 ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {(() => {
-                      // Filter flashcard sets based on language filters and tags
+                      // Filter flashcard sets based on search query, language filters and tags
                       let filteredSets = flashcardSets;
+
+                      // Apply search query filter
+                      if (searchQuery.trim()) {
+                        filteredSets = filteredSets.filter((set) =>
+                          set.name
+                            .toLowerCase()
+                            .includes(searchQuery.toLowerCase())
+                        );
+                      }
 
                       // Apply language filters
                       if (filterFromLanguage || filterToLanguage) {

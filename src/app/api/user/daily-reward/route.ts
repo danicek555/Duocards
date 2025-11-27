@@ -135,48 +135,19 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// Helper function to check if it's a new day (using UTC to avoid timezone issues)
+// Helper function to check if it's a new day
+// Note: Client-side will calculate based on user's local timezone for display
+// Server just checks if enough time has passed (24 hours minimum)
 function isNewDay(lastClaim: Date, now: Date): boolean {
-  const lastClaimDate = new Date(lastClaim);
-  const nowDate = new Date(now);
-
-  // Reset time to midnight UTC for comparison (consistent across all servers)
-  const lastClaimUTC = new Date(
-    Date.UTC(
-      lastClaimDate.getUTCFullYear(),
-      lastClaimDate.getUTCMonth(),
-      lastClaimDate.getUTCDate(),
-      0,
-      0,
-      0,
-      0
-    )
-  );
-
-  const nowUTC = new Date(
-    Date.UTC(
-      nowDate.getUTCFullYear(),
-      nowDate.getUTCMonth(),
-      nowDate.getUTCDate(),
-      0,
-      0,
-      0,
-      0
-    )
-  );
-
-  return nowUTC > lastClaimUTC;
+  // Check if at least 24 hours have passed
+  const hoursSinceLastClaim =
+    (now.getTime() - lastClaim.getTime()) / (1000 * 60 * 60);
+  return hoursSinceLastClaim >= 24;
 }
 
-// Helper function to get next reward time (midnight UTC of next day)
+// Helper function to get next reward time
+// Note: Client will calculate based on local midnight for accurate display
 function getNextRewardTime(lastClaim: Date): Date {
-  const lastClaimDate = new Date(lastClaim);
-  // Get UTC date components
-  const year = lastClaimDate.getUTCFullYear();
-  const month = lastClaimDate.getUTCMonth();
-  const date = lastClaimDate.getUTCDate();
-
-  // Create next day at midnight UTC
-  const nextDay = new Date(Date.UTC(year, month, date + 1, 0, 0, 0, 0));
-  return nextDay;
+  // Return 24 hours after last claim (client will calculate local midnight)
+  return new Date(lastClaim.getTime() + 24 * 60 * 60 * 1000);
 }

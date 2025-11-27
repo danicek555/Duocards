@@ -603,6 +603,7 @@ export default function CreateFlashcardSetForm({
             toLanguage={toLanguage}
             translateToOneWord={translateToOneWord}
             translateToPhrase={translateToPhrase}
+            aiHelpEnabled={aiHelpEnabled}
             onCoinsUpdate={onCoinsUpdate}
             onError={setError}
           />
@@ -1080,9 +1081,29 @@ export default function CreateFlashcardSetForm({
                 ? isEditMode
                   ? "Updating..."
                   : "Creating..."
-                : isEditMode
-                ? "Update Set"
-                : "Create Set"}
+                : (() => {
+                    const validPairs = wordPairs.filter(
+                      (pair) => pair.word.trim() && pair.translation.trim()
+                    );
+                    const count = validPairs.length;
+                    if (isEditMode) {
+                      return `Update Set${
+                        count > 0
+                          ? ` (${count} ${
+                              count === 1 ? "flashcard" : "flashcards"
+                            })`
+                          : ""
+                      }`;
+                    } else {
+                      return `Create Set${
+                        count > 0
+                          ? ` (${count} ${
+                              count === 1 ? "flashcard" : "flashcards"
+                            })`
+                          : ""
+                      }`;
+                    }
+                  })()}
             </button>
           </div>
         </form>

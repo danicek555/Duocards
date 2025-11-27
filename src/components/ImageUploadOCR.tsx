@@ -15,6 +15,7 @@ interface ImageUploadOCRProps {
   toLanguage: string;
   translateToOneWord: boolean;
   translateToPhrase: boolean;
+  aiHelpEnabled: boolean;
   onCoinsUpdate?: () => void;
   onError?: (error: string) => void;
 }
@@ -25,13 +26,22 @@ export default function ImageUploadOCR({
   toLanguage,
   translateToOneWord,
   translateToPhrase,
+  aiHelpEnabled,
   onCoinsUpdate,
   onError,
 }: ImageUploadOCRProps) {
   const [imageUploadMode, setImageUploadMode] = useState(false);
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
   const [extractedText, setExtractedText] = useState<string>("");
-  const [selectedWords, setSelectedWords] = useState<Set<string>>(new Set());
+  const [selectedWordIndices, setSelectedWordIndices] = useState<Set<number>>(
+    new Set()
+  );
+  const [usedWordIndices, setUsedWordIndices] = useState<Set<number>>(
+    new Set()
+  );
+  const [wordIndexToText, setWordIndexToText] = useState<Map<number, string>>(
+    new Map()
+  );
   const [extractingText, setExtractingText] = useState(false);
   const [processingImage, setProcessingImage] = useState(false);
   const [translatingSelectedWords, setTranslatingSelectedWords] =
@@ -67,6 +77,12 @@ export default function ImageUploadOCR({
 
     try {
       setProcessingImage(true);
+      // Clear OCR text immediately when processing new image
+      setExtractedText("");
+      setSelectedWordIndices(new Set());
+      setUsedWordIndices(new Set());
+      setWordIndexToText(new Map());
+      setNoTextAlert(false);
       let fileToProcess = file;
       let dataUrl: string;
 
@@ -98,7 +114,7 @@ export default function ImageUploadOCR({
         dataUrl = reader.result as string;
         setUploadedImage(dataUrl);
         setExtractedText("");
-        setSelectedWords(new Set());
+        setSelectedWordIndices(new Set());
         setNoTextAlert(false);
         setProcessingImage(false);
       };
@@ -113,6 +129,47 @@ export default function ImageUploadOCR({
     }
   };
 
+  // Resize image to reduce token usage (max 2048px on longest side)
+  const resizeImageForOCR = async (
+    imageDataUrl: string,
+    maxDimension: number = 2048
+  ): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const img = new window.Image();
+      img.onload = () => {
+        // Calculate new dimensions
+        let width = img.width;
+        let height = img.height;
+
+        if (width > maxDimension || height > maxDimension) {
+          if (width > height) {
+            height = (height / width) * maxDimension;
+            width = maxDimension;
+          } else {
+            width = (width / height) * maxDimension;
+            height = maxDimension;
+          }
+        }
+
+        // Create canvas and resize
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) {
+          reject(new Error("Could not get canvas context"));
+          return;
+        }
+
+        ctx.drawImage(img, 0, 0, width, height);
+        const resizedDataUrl = canvas.toDataURL("image/jpeg", 0.9);
+        resolve(resizedDataUrl);
+      };
+      img.onerror = () => reject(new Error("Failed to load image"));
+      img.src = imageDataUrl;
+    });
+  };
+
   const extractTextFromImage = async () => {
     if (!uploadedImage) return;
 
@@ -121,11 +178,15 @@ export default function ImageUploadOCR({
     onError?.("");
 
     try {
+      // Resize image before sending to reduce token usage
+      // 2048px max dimension is optimal for OCR while minimizing tokens
+      const resizedImageDataUrl = await resizeImageForOCR(uploadedImage, 2048);
+
       const response = await fetch("/api/extract-text-from-image", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          imageDataUrl: uploadedImage,
+          imageDataUrl: resizedImageDataUrl,
         }),
       });
 
@@ -161,24 +222,149 @@ export default function ImageUploadOCR({
     }
   };
 
-  const toggleWordSelection = (word: string) => {
-    setSelectedWords((prev) => {
-      const newSet = new Set(prev);
-      const existingWord = Array.from(newSet).find(
-        (w) => w.toLowerCase() === word.toLowerCase()
-      );
+  const toggleWordSelection = (index: number, word: string) => {
+    // Store the word text for this index
+    setWordIndexToText((prev) => {
+      const newMap = new Map(prev);
+      newMap.set(index, word);
+      return newMap;
+    });
 
-      if (existingWord) {
-        newSet.delete(existingWord);
+    setSelectedWordIndices((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(index)) {
+        newSet.delete(index);
       } else {
-        newSet.add(word);
+        newSet.add(index);
       }
       return newSet;
     });
   };
 
+  // Calculate actual number of flashcards (phrases count as 1, words count as 1 each)
+  // Uses the same grouping logic as handleCreateFlashcardsFromSelectedWords
+  // Excludes words that are already used (already turned into flashcards)
+  const calculateFlashcardCount = (): number => {
+    if (selectedWordIndices.size === 0) return 0;
+
+    // Filter out used words - they've already been turned into flashcards
+    const availableIndices = Array.from(selectedWordIndices).filter(
+      (idx) => !usedWordIndices.has(idx)
+    );
+
+    if (availableIndices.length === 0) return 0;
+
+    // Extract all words from text to map indices to words
+    const allWords: string[] = [];
+    const regex = /(\S+)/g;
+    let match;
+    while ((match = regex.exec(extractedText)) !== null) {
+      allWords.push(match[0]);
+    }
+
+    // Use the same two-pass logic as handleCreateFlashcardsFromSelectedWords
+    const sortedIndices = availableIndices.sort((a, b) => a - b);
+    const wordGroups: Array<{ indices: number[]; text: string }> = [];
+    const processedIndices = new Set<number>();
+
+    // First pass: Process created phrases (phrases stored in wordIndexToText)
+    // Group indices that have the same phrase text (they're all part of the same phrase)
+    const phraseMap = new Map<string, number[]>();
+
+    for (const idx of sortedIndices) {
+      if (processedIndices.has(idx)) continue;
+
+      const storedText = wordIndexToText.get(idx);
+      if (storedText && storedText.includes(" ")) {
+        // This is a phrase - collect all indices that have this same phrase text
+        if (!phraseMap.has(storedText)) {
+          phraseMap.set(storedText, []);
+        }
+        phraseMap.get(storedText)!.push(idx);
+      }
+    }
+
+    // Process each unique phrase
+    for (const [phraseText, phraseIndices] of phraseMap.entries()) {
+      // Sort the indices to get them in order
+      const sortedPhraseIndices = phraseIndices.sort((a, b) => a - b);
+
+      // Only process if we haven't already processed any of these indices
+      if (sortedPhraseIndices.some((idx) => processedIndices.has(idx))) {
+        continue;
+      }
+
+      // Create a group for this phrase with all its indices
+      wordGroups.push({
+        indices: [...sortedPhraseIndices],
+        text: phraseText,
+      });
+
+      // Mark all indices in this phrase as processed
+      sortedPhraseIndices.forEach((i) => processedIndices.add(i));
+    }
+
+    // Second pass: Process remaining individual words (not part of phrases)
+    let currentGroup: number[] = [];
+    for (const idx of sortedIndices) {
+      if (processedIndices.has(idx)) continue;
+
+      if (currentGroup.length === 0) {
+        currentGroup = [idx];
+      } else {
+        const lastIdx = currentGroup[currentGroup.length - 1];
+        // Check if indices are consecutive (next word in the array)
+        if (idx === lastIdx + 1) {
+          currentGroup.push(idx);
+        } else {
+          // Save current group and start new one
+          const phraseText =
+            wordIndexToText.get(currentGroup[0]) ||
+            currentGroup.map((i) => allWords[i] || "").join(" ");
+          wordGroups.push({ indices: [...currentGroup], text: phraseText });
+          currentGroup = [idx];
+        }
+      }
+    }
+
+    // Add the last group
+    if (currentGroup.length > 0) {
+      const phraseText =
+        wordIndexToText.get(currentGroup[0]) ||
+        currentGroup.map((i) => allWords[i] || "").join(" ");
+      wordGroups.push({ indices: [...currentGroup], text: phraseText });
+    }
+
+    // Count flashcards: each group (phrase or word) counts as 1
+    return wordGroups.length;
+  };
+
+  const handlePhraseSelect = (phrase: string, indices: number[]) => {
+    // Store phrase text and all its indices
+    // Store the full phrase on ALL indices so we can detect them later
+    setWordIndexToText((prev) => {
+      const newMap = new Map(prev);
+      // Store the full phrase on ALL indices in the phrase
+      indices.forEach((idx) => {
+        newMap.set(idx, phrase);
+      });
+      return newMap;
+    });
+
+    // Remove individual word selections that are part of this phrase
+    setSelectedWordIndices((prev) => {
+      const newSet = new Set(prev);
+      indices.forEach((idx) => {
+        newSet.delete(idx);
+      });
+      // Add all indices from the phrase
+      indices.forEach((idx) => newSet.add(idx));
+      return newSet;
+    });
+  };
+
   const handleCreateFlashcardsFromSelectedWords = async () => {
-    if (selectedWords.size === 0) {
+    if (selectedWordIndices.size === 0) {
       onError?.("Please select at least one word");
       return;
     }
@@ -187,48 +373,161 @@ export default function ImageUploadOCR({
     onError?.("");
 
     try {
-      const wordsArray = Array.from(selectedWords);
+      // Extract all words from text to map indices to words
+      const allWords: string[] = [];
+      const regex = /(\S+)/g;
+      let match;
+      while ((match = regex.exec(extractedText)) !== null) {
+        allWords.push(match[0]);
+      }
+
+      // Group consecutive selected indices into phrases
+      // Priority: Created phrases (stored in wordIndexToText with spaces) take precedence
+      const sortedIndices = Array.from(selectedWordIndices).sort(
+        (a, b) => a - b
+      );
+      const wordGroups: Array<{ indices: number[]; text: string }> = [];
+      const processedIndices = new Set<number>();
+
+      // First pass: Process created phrases (phrases stored in wordIndexToText)
+      // Group indices that have the same phrase text (they're all part of the same phrase)
+      const phraseMap = new Map<string, number[]>();
+
+      for (const idx of sortedIndices) {
+        if (processedIndices.has(idx)) continue;
+
+        const storedText = wordIndexToText.get(idx);
+        if (storedText && storedText.includes(" ")) {
+          // This is a phrase - collect all indices that have this same phrase text
+          if (!phraseMap.has(storedText)) {
+            phraseMap.set(storedText, []);
+          }
+          phraseMap.get(storedText)!.push(idx);
+        }
+      }
+
+      // Process each unique phrase
+      for (const [phraseText, phraseIndices] of phraseMap.entries()) {
+        // Sort the indices to get them in order
+        const sortedPhraseIndices = phraseIndices.sort((a, b) => a - b);
+
+        // Only process if we haven't already processed any of these indices
+        if (sortedPhraseIndices.some((idx) => processedIndices.has(idx))) {
+          continue;
+        }
+
+        // Create a group for this phrase with all its indices
+        wordGroups.push({
+          indices: [...sortedPhraseIndices],
+          text: phraseText,
+        });
+
+        // Mark all indices in this phrase as processed
+        sortedPhraseIndices.forEach((i) => processedIndices.add(i));
+      }
+
+      // Second pass: Process remaining individual words (not part of phrases)
+      let currentGroup: number[] = [];
+      for (const idx of sortedIndices) {
+        if (processedIndices.has(idx)) continue;
+
+        if (currentGroup.length === 0) {
+          currentGroup = [idx];
+        } else {
+          const lastIdx = currentGroup[currentGroup.length - 1];
+          // Check if indices are consecutive (next word in the array)
+          if (idx === lastIdx + 1) {
+            currentGroup.push(idx);
+          } else {
+            // Save current group and start new one
+            const phraseText =
+              wordIndexToText.get(currentGroup[0]) ||
+              currentGroup.map((i) => allWords[i] || "").join(" ");
+            wordGroups.push({ indices: [...currentGroup], text: phraseText });
+            currentGroup = [idx];
+          }
+        }
+      }
+
+      // Add the last group
+      if (currentGroup.length > 0) {
+        const phraseText =
+          wordIndexToText.get(currentGroup[0]) ||
+          currentGroup.map((i) => allWords[i] || "").join(" ");
+        wordGroups.push({ indices: [...currentGroup], text: phraseText });
+      }
+
       const newWordPairs: WordPair[] = [];
 
-      for (const word of wordsArray) {
-        const cleanWord = word.trim().replace(/^[^\w]+|[^\w]+$/g, "");
+      for (const group of wordGroups) {
+        const word = group.text;
+        // Check if it's a phrase (contains spaces) or a single word
+        const isPhrase = group.indices.length > 1 || word.trim().includes(" ");
+        // For phrases, just trim. For single words, remove leading/trailing punctuation
+        const cleanWord = isPhrase
+          ? word.trim()
+          : word.trim().replace(/^[^\w]+|[^\w]+$/g, "");
         if (!cleanWord) continue;
 
-        try {
-          const response = await fetch("/api/translate-word", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              word: cleanWord,
-              fromLanguage,
-              toLanguage,
-              translateToOneWord,
-              translateToPhrase,
-            }),
-          });
-
-          if (response.ok) {
-            const data = await response.json();
-            newWordPairs.push({
-              word: cleanWord,
-              translation: data.translation || "",
+        if (aiHelpEnabled) {
+          // AI Help is enabled - translate the word/phrase
+          try {
+            const response = await fetch("/api/translate-word", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                word: cleanWord,
+                fromLanguage,
+                toLanguage,
+                // For phrases, always use phrase translation mode
+                translateToOneWord: isPhrase ? false : translateToOneWord,
+                translateToPhrase: isPhrase ? true : translateToPhrase,
+              }),
             });
-          } else {
+
+            if (response.ok) {
+              const data = await response.json();
+              newWordPairs.push({
+                word: isPhrase ? word.trim() : cleanWord,
+                translation: data.translation || "",
+              });
+            } else {
+              newWordPairs.push({
+                word: isPhrase ? word.trim() : cleanWord,
+                translation: "",
+              });
+            }
+          } catch {
             newWordPairs.push({
-              word: cleanWord,
+              word: isPhrase ? word.trim() : cleanWord,
               translation: "",
             });
           }
-        } catch {
+        } else {
+          // AI Help is disabled - just add words/phrases without translation
           newWordPairs.push({
-            word: cleanWord,
+            word: isPhrase ? word.trim() : cleanWord,
             translation: "",
           });
         }
       }
 
       onWordsCreated(newWordPairs);
-      setSelectedWords(new Set());
+
+      // Mark used word indices as used
+      const usedIndices = new Set<number>();
+      wordGroups.forEach((group) => {
+        group.indices.forEach((idx) => usedIndices.add(idx));
+      });
+
+      setUsedWordIndices((prev) => {
+        const newUsed = new Set(prev);
+        usedIndices.forEach((idx) => newUsed.add(idx));
+        return newUsed;
+      });
+
+      // Clear current selection so user can select more
+      setSelectedWordIndices(new Set());
 
       if (onCoinsUpdate) {
         onCoinsUpdate();
@@ -247,7 +546,9 @@ export default function ImageUploadOCR({
     if (imageUploadMode) {
       setUploadedImage(null);
       setExtractedText("");
-      setSelectedWords(new Set());
+      setSelectedWordIndices(new Set());
+      setUsedWordIndices(new Set());
+      setWordIndexToText(new Map());
       setNoTextAlert(false);
     }
   };
@@ -255,7 +556,9 @@ export default function ImageUploadOCR({
   const handleRemoveImage = () => {
     setUploadedImage(null);
     setExtractedText("");
-    setSelectedWords(new Set());
+    setSelectedWordIndices(new Set());
+    setUsedWordIndices(new Set());
+    setWordIndexToText(new Map());
     setNoTextAlert(false);
   };
 
@@ -324,9 +627,6 @@ export default function ImageUploadOCR({
                 </svg>
               </div>
               <p className="mt-4 text-sm font-semibold text-gray-700 dark:text-gray-300">
-                OCR
-              </p>
-              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                 Processing image...
               </p>
             </div>
@@ -507,64 +807,73 @@ export default function ImageUploadOCR({
                 <div className="space-y-3">
                   <ImageTextSelector
                     text={extractedText}
-                    selectedWords={selectedWords}
+                    selectedWordIndices={selectedWordIndices}
+                    usedWordIndices={usedWordIndices}
                     onWordToggle={toggleWordSelection}
+                    onPhraseSelect={handlePhraseSelect}
                   />
 
-                  {/* Done Button */}
-                  {selectedWords.size > 0 && (
-                    <button
-                      type="button"
-                      onClick={handleCreateFlashcardsFromSelectedWords}
-                      disabled={translatingSelectedWords}
-                      className="w-full px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2 text-sm font-semibold"
-                    >
-                      {translatingSelectedWords ? (
-                        <>
-                          <svg
-                            className="animate-spin h-4 w-4"
-                            xmlns="http://www.w3.org/2000/svg"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                          >
-                            <circle
-                              className="opacity-25"
-                              cx="12"
-                              cy="12"
-                              r="10"
-                              stroke="currentColor"
-                              strokeWidth="4"
-                            ></circle>
-                            <path
-                              className="opacity-75"
-                              fill="currentColor"
-                              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                            ></path>
-                          </svg>
-                          Translating {selectedWords.size} word
-                          {selectedWords.size !== 1 ? "s" : ""}...
-                        </>
-                      ) : (
-                        <>
-                          <svg
-                            className="w-4 h-4"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M5 13l4 4L19 7"
-                            />
-                          </svg>
-                          Done - Create {selectedWords.size} Flashcard
-                          {selectedWords.size !== 1 ? "s" : ""}
-                        </>
-                      )}
-                    </button>
-                  )}
+                  {/* Done Button - Show when there are selected words */}
+                  {selectedWordIndices.size > 0 &&
+                    (() => {
+                      const flashcardCount = calculateFlashcardCount();
+                      return (
+                        <button
+                          type="button"
+                          onClick={handleCreateFlashcardsFromSelectedWords}
+                          disabled={
+                            translatingSelectedWords ||
+                            selectedWordIndices.size === 0
+                          }
+                          className="w-full px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2 text-sm font-semibold"
+                        >
+                          {translatingSelectedWords ? (
+                            <>
+                              <svg
+                                className="animate-spin h-4 w-4"
+                                xmlns="http://www.w3.org/2000/svg"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                              >
+                                <circle
+                                  className="opacity-25"
+                                  cx="12"
+                                  cy="12"
+                                  r="10"
+                                  stroke="currentColor"
+                                  strokeWidth="4"
+                                ></circle>
+                                <path
+                                  className="opacity-75"
+                                  fill="currentColor"
+                                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                                ></path>
+                              </svg>
+                              Translating {flashcardCount} flashcard
+                              {flashcardCount !== 1 ? "s" : ""}...
+                            </>
+                          ) : (
+                            <>
+                              <svg
+                                className="w-4 h-4"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M5 13l4 4L19 7"
+                                />
+                              </svg>
+                              Done - Create {flashcardCount} Flashcard
+                              {flashcardCount !== 1 ? "s" : ""}
+                            </>
+                          )}
+                        </button>
+                      );
+                    })()}
                 </div>
               )}
             </div>

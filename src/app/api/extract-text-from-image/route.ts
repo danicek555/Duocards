@@ -82,14 +82,14 @@ export async function POST(request: NextRequest) {
     // Use GPT-4 Vision for OCR
     const openai = await getOpenAIClient();
     const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini", // Using mini for cost efficiency, can use gpt-4o for better accuracy
+      model: "gpt-4o-mini", // Using mini for cost efficiency
       messages: [
         {
           role: "user",
           content: [
             {
               type: "text",
-              text: "Extract all text from this image. Preserve the original formatting, spacing, and line breaks. Return only the extracted text, nothing else.",
+              text: "Extract ALL text from this image completely from top to bottom, left to right. Do not truncate, skip, or stop early. Extract every single word, sentence, and paragraph visible in the image. Continue extracting until you have captured ALL text in the image, even if it's very long. Preserve the original formatting, spacing, and line breaks. Return only the extracted text, nothing else. Do not stop after just a few lines - extract everything.",
             },
             {
               type: "image_url",
@@ -100,13 +100,32 @@ export async function POST(request: NextRequest) {
           ],
         },
       ],
-      max_tokens: 1000,
+      max_tokens: 16000, // Increased to handle very long book pages (GPT-4o-mini supports up to 128k tokens)
+      temperature: 0, // Use deterministic output to ensure complete extraction
     });
 
-    const extractedText = completion.choices[0]?.message?.content?.trim();
+    const choice = completion.choices[0];
+    const extractedText = choice?.message?.content?.trim();
+    const finishReason = choice?.finish_reason;
+
+    // Log for debugging
+    console.log("OCR Response:", {
+      finishReason,
+      textLength: extractedText?.length || 0,
+      textPreview: extractedText?.substring(0, 100) || "empty",
+    });
+
+    // Check if response was truncated due to token limit
+    if (finishReason === "length") {
+      console.warn(
+        "OCR response was truncated due to token limit. Consider increasing max_tokens or splitting the image."
+      );
+      // Still return the text, but it's incomplete
+    }
 
     // Check if OpenAI indicates there's no text in the image
-    if (!extractedText) {
+    if (!extractedText || extractedText.length === 0) {
+      console.log("No text extracted from image");
       // Don't deduct coins if no text was found
       return NextResponse.json(
         { error: "There is no text in the picture" },
@@ -118,33 +137,29 @@ export async function POST(request: NextRequest) {
     const textLength = extractedText.length;
 
     // Check if this looks like an OpenAI error message (not actual extracted text)
-    // OpenAI error messages are typically:
-    // 1. Short (less than 100 characters)
-    // 2. Start with apology/error phrases
-    // 3. Contain specific error patterns
+    // Be very conservative - only flag obvious error messages
+    // OpenAI error messages typically:
+    // 1. Are very short (less than 50 characters)
+    // 2. Contain specific error phrases about extraction/image
+    // 3. Don't look like actual book content
 
-    const startsWithErrorPhrase =
-      lowerText.startsWith("i'm sorry") ||
-      lowerText.startsWith("i'm unable") ||
-      lowerText.startsWith("unable to extract") ||
-      lowerText.startsWith("can't extract") ||
-      lowerText.startsWith("cannot extract") ||
-      lowerText.startsWith("i cannot") ||
-      lowerText.startsWith("i don't see");
+    // Only flag if it's VERY short AND contains clear error phrases about extraction
+    const isObviousErrorMessage =
+      textLength < 50 &&
+      (lowerText.includes("unable to extract text from") ||
+        lowerText.includes("cannot extract text from") ||
+        lowerText.includes("can't extract text from") ||
+        lowerText.includes("there is no text in the image") ||
+        lowerText.includes("i don't see any text in this image") ||
+        (lowerText.includes("i'm sorry") &&
+          lowerText.includes("extract text") &&
+          lowerText.includes("image")) ||
+        (lowerText.startsWith("i'm unable to") &&
+          lowerText.includes("extract")));
 
-    const isShortErrorMessage =
-      textLength < 100 &&
-      (lowerText.includes("unable to extract") ||
-        lowerText.includes("can't extract text") ||
-        lowerText.includes("cannot extract text") ||
-        (lowerText.includes("no text") && lowerText.includes("image")) ||
-        lowerText.includes("there is no text in") ||
-        (lowerText.includes("i'm sorry") && lowerText.includes("extract")) ||
-        (lowerText.includes("sorry, but") && lowerText.includes("extract")) ||
-        (lowerText.includes("i don't see") && lowerText.includes("text")));
-
-    // Only treat as error if it's clearly an OpenAI error message, not actual extracted text
-    if (startsWithErrorPhrase || isShortErrorMessage) {
+    // Only treat as error if it's clearly an OpenAI error message
+    // Be very conservative - actual book text should never be flagged
+    if (isObviousErrorMessage) {
       // Don't deduct coins if no text was found
       return NextResponse.json(
         { error: "There is no text in the picture" },

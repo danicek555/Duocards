@@ -501,6 +501,7 @@ export default function InlineCreateFlashcardSetForm({
           toLanguage={toLanguage}
           translateToOneWord={translateToOneWord}
           translateToPhrase={translateToPhrase}
+          aiHelpEnabled={aiHelpEnabled}
           onCoinsUpdate={onCoinsUpdate}
           onError={setError}
         />
@@ -974,7 +975,15 @@ export default function InlineCreateFlashcardSetForm({
             disabled={loading}
             className="flex-1 px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-xs cursor-pointer active:scale-[0.98] disabled:active:scale-100"
           >
-            {loading ? "Creating..." : "Create Set"}
+            {loading
+              ? "Creating..."
+              : (() => {
+                  const validPairs = wordPairs.filter(
+                    (pair) => pair.word.trim() && pair.translation.trim()
+                  );
+                  const count = validPairs.length;
+                  return `Create Set${count > 0 ? ` (${count} ${count === 1 ? "flashcard" : "flashcards"})` : ""}`;
+                })()}
           </button>
         </div>
       </form>
