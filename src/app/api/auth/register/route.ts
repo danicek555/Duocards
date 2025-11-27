@@ -13,7 +13,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { hashPassword, isValidEmail } from "@/lib/auth";
+import { hashPassword, isValidEmail, createAuthToken } from "@/lib/auth";
 import { validatePassword } from "@/lib/passwordValidation";
 import {
   generateVerificationCode,
@@ -88,6 +88,53 @@ export async function POST(request: NextRequest) {
     // Hash the password before storing
     const hashedPassword = await hashPassword(password);
 
+    // Check if email verification is disabled (for development)
+    const skipEmailVerification =
+      process.env.SKIP_EMAIL_VERIFICATION === "true" ||
+      process.env.NODE_ENV === "development";
+
+    if (skipEmailVerification) {
+      // Create user directly without email verification
+      const newUser = await prisma.user.create({
+        data: {
+          email: email.toLowerCase(),
+          password: hashedPassword,
+          nickname: nickname.trim(),
+          emailVerified: true, // Auto-verify in development
+        },
+        select: {
+          id: true,
+          email: true,
+          nickname: true,
+          emailVerified: true,
+          createdAt: true,
+        },
+      });
+
+      // Create signed auth cookie (same as login)
+      const token = await createAuthToken({
+        userId: newUser.id,
+        email: newUser.email,
+      });
+      const res = NextResponse.json(
+        {
+          message: "Registration successful!",
+          user: newUser,
+          requiresVerification: false,
+        },
+        { status: 201 } // 201 = Created
+      );
+      res.cookies.set("auth", token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        path: "/",
+        maxAge: 60 * 60 * 24 * 7, // 7 days
+      });
+      return res;
+    }
+
+    // Normal flow with email verification
     // Generate verification code
     const verificationCode = generateVerificationCode();
     const verificationCodeExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes from now

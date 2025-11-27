@@ -13,14 +13,23 @@ export function validateEnvironment(): EnvironmentValidation {
   const errors: string[] = [];
   const warnings: string[] = [];
 
+  // Check if email verification is disabled
+  const skipEmailVerification =
+    process.env.SKIP_EMAIL_VERIFICATION === "true" ||
+    process.env.NODE_ENV === "development";
+
   // Required environment variables
   // Note: We use PRISMA_DATABASE_URL (not DATABASE_URL) to match Prisma schema
-  const requiredVars = {
+  const requiredVars: Record<string, string | undefined> = {
     PRISMA_DATABASE_URL:
       process.env.PRISMA_DATABASE_URL || process.env.DATABASE_URL,
-    RESEND_API_KEY: process.env.RESEND_API_KEY,
-    FROM_EMAIL: process.env.FROM_EMAIL,
   };
+
+  // Email-related variables are only required if email verification is enabled
+  if (!skipEmailVerification) {
+    requiredVars.RESEND_API_KEY = process.env.RESEND_API_KEY;
+    requiredVars.FROM_EMAIL = process.env.FROM_EMAIL;
+  }
 
   // Check required variables
   Object.entries(requiredVars).forEach(([key, value]) => {

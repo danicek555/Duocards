@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { verifyAuthToken } from "@/lib/auth";
+import { generatePublicCode } from "@/lib/public-code";
 
 // GET - Fetch user's flashcard sets
 export async function GET(request: NextRequest) {
@@ -92,7 +93,15 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { name, words, fromLanguage, toLanguage, tags } = body;
+    const {
+      name,
+      words,
+      fromLanguage,
+      toLanguage,
+      tags,
+      isPublic,
+      previewCode,
+    } = body;
 
     if (!name || !name.trim()) {
       return NextResponse.json(
@@ -121,9 +130,19 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate tags
-    const tagsArray = Array.isArray(tags)
+    let tagsArray = Array.isArray(tags)
       ? tags.filter((tag: string) => tag.trim())
       : [];
+
+    // Add "public" tag if set is public, remove it if not
+    if (isPublic === true) {
+      if (!tagsArray.includes("public")) {
+        tagsArray.push("public");
+      }
+    } else {
+      tagsArray = tagsArray.filter((tag: string) => tag !== "public");
+    }
+
     if (tagsArray.length > 5) {
       return NextResponse.json(
         { error: "Maximum 5 tags allowed per flashcard set" },
@@ -146,13 +165,13 @@ export async function POST(request: NextRequest) {
         }
       });
     });
-    
+
     // Count how many new unique tags are being added
     const newUniqueTags = tagsArray.filter(
       (tag: string) => !existingUniqueTags.has(tag.trim())
     );
     const uniqueTagsCount = existingUniqueTags.size + newUniqueTags.length;
-    
+
     if (uniqueTagsCount > 20) {
       return NextResponse.json(
         {
@@ -233,6 +252,30 @@ export async function POST(request: NextRequest) {
       )
     );
 
+    // Use preview code if provided, otherwise generate new one, or set to null if not public
+    let publicCode: string | null = null;
+    if (isPublic === true) {
+      if (previewCode && typeof previewCode === "string") {
+        // Use the preview code that was shown to the user
+        // Verify it's unique (in case of race condition)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const existing = await (prisma.flashcardSet.findUnique as any)({
+          where: { publicCode: previewCode },
+          select: { id: true },
+        });
+        if (existing) {
+          // If code already exists, generate a new one
+          publicCode = await generatePublicCode();
+        } else {
+          publicCode = previewCode;
+        }
+      } else {
+        publicCode = await generatePublicCode();
+      }
+    } else {
+      publicCode = null; // Explicitly remove code if not public
+    }
+
     // Create flashcard set with words in a transaction
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const flashcardSet = await (prisma.flashcardSet.create as any)({
@@ -242,6 +285,8 @@ export async function POST(request: NextRequest) {
         fromLanguage: fromLanguage || null,
         toLanguage: toLanguage || null,
         tags: tagsArray,
+        isPublic: isPublic === true,
+        publicCode: publicCode,
         words: {
           create: wordsWithExtras,
         },

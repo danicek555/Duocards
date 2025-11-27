@@ -215,7 +215,12 @@ export default function Home() {
               formData.email
             )}`;
           } else {
-            // Store user data in localStorage
+            // Clear any old user data first
+            localStorage.removeItem("user");
+            localStorage.removeItem("rememberMe");
+            localStorage.removeItem("rememberedEmail");
+
+            // Store new user data in localStorage
             localStorage.setItem("user", JSON.stringify(data.user));
 
             // Redirect to dashboard

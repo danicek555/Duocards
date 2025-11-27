@@ -49,9 +49,11 @@ export default function InlineCreateFlashcardSetForm({
   const [translateToOneWord, setTranslateToOneWord] = useState(true);
   const [translateToPhrase, setTranslateToPhrase] = useState(false);
   const [existingUniqueTagsCount, setExistingUniqueTagsCount] = useState(0);
+  const [isPublic, setIsPublic] = useState(false);
+  const [publicCode, setPublicCode] = useState<string | null>(null);
+  const [generatingCode, setGeneratingCode] = useState(false);
   const debounceTimers = useRef<Map<number, NodeJS.Timeout>>(new Map());
   const translatingRef = useRef<Set<number>>(new Set());
-
 
   const addWordPair = () => {
     const MAX_WORDS = 100;
@@ -337,13 +339,41 @@ export default function InlineCreateFlashcardSetForm({
     fetchUniqueTagsCount();
   }, []);
 
+  // Generate preview code when public toggle is activated
+  useEffect(() => {
+    const generatePreviewCode = async () => {
+      if (isPublic && !publicCode) {
+        setGeneratingCode(true);
+        try {
+          const response = await fetch("/api/flashcard-sets/generate-code");
+          if (response.ok) {
+            const data = await response.json();
+            setPublicCode(data.code);
+          }
+        } catch (err) {
+          console.error("Error generating preview code:", err);
+        } finally {
+          setGeneratingCode(false);
+        }
+      } else if (!isPublic) {
+        setPublicCode(null);
+      }
+    };
+
+    generatePreviewCode();
+  }, [isPublic, publicCode]);
+
   const handleWordsCreatedFromOCR = (newWordPairs: WordPair[]) => {
     setWordPairs((prev) => {
       const updated = [...prev];
       let newPairsIndex = 0;
 
       // First, fill empty slots (where both word and translation are empty)
-      for (let i = 0; i < updated.length && newPairsIndex < newWordPairs.length; i++) {
+      for (
+        let i = 0;
+        i < updated.length && newPairsIndex < newWordPairs.length;
+        i++
+      ) {
         if (!updated[i].word.trim() && !updated[i].translation.trim()) {
           updated[i] = newWordPairs[newPairsIndex];
           newPairsIndex++;
@@ -392,6 +422,8 @@ export default function InlineCreateFlashcardSetForm({
           toLanguage,
           tags,
           words: validPairs,
+          isPublic,
+          previewCode: publicCode, // Send the preview code so it stays the same
         }),
       });
 
@@ -400,14 +432,34 @@ export default function InlineCreateFlashcardSetForm({
         throw new Error(data.error || "Failed to create flashcard set");
       }
 
-      onSuccess();
-      // Reset form
-      setSetName("");
-      setFromLanguage("English");
-      setToLanguage("Spanish");
-      setWordPairs(
-        Array.from({ length: 5 }, () => ({ word: "", translation: "" }))
-      );
+      const data = await response.json();
+      // If set was made public, show the code
+      if (isPublic && data.flashcardSet?.publicCode) {
+        setPublicCode(data.flashcardSet.publicCode);
+        // Don't close immediately, show the code first
+        setTimeout(() => {
+          onSuccess();
+          // Reset form
+          setSetName("");
+          setFromLanguage("English");
+          setToLanguage("Spanish");
+          setWordPairs(
+            Array.from({ length: 5 }, () => ({ word: "", translation: "" }))
+          );
+          setIsPublic(false);
+          setPublicCode(null);
+        }, 3000); // Close after 3 seconds
+      } else {
+        onSuccess();
+        // Reset form
+        setSetName("");
+        setFromLanguage("English");
+        setToLanguage("Spanish");
+        setWordPairs(
+          Array.from({ length: 5 }, () => ({ word: "", translation: "" }))
+        );
+        setIsPublic(false);
+      }
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Failed to create flashcard set"
@@ -442,6 +494,107 @@ export default function InlineCreateFlashcardSetForm({
           />
         </div>
 
+        {/* Public Toggle */}
+        <div className="space-y-2">
+          <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-900/50 rounded-lg border border-gray-200 dark:border-gray-700">
+            <div className="flex-1">
+              <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Make Public
+              </label>
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                Share this flashcard set with others using a unique code
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsPublic(!isPublic)}
+              className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
+                isPublic ? "bg-blue-600" : "bg-gray-200 dark:bg-gray-700"
+              }`}
+            >
+              <span
+                className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                  isPublic ? "translate-x-5" : "translate-x-0"
+                }`}
+              />
+            </button>
+          </div>
+          {generatingCode && (
+            <div className="p-3 bg-blue-50 dark:bg-blue-900/20 border-2 border-blue-400 dark:border-blue-600 rounded-lg">
+              <div className="flex items-center gap-2">
+                <svg
+                  className="animate-spin h-4 w-4 text-blue-600 dark:text-blue-400"
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                >
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                  ></circle>
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                  ></path>
+                </svg>
+                <p className="text-xs text-blue-700 dark:text-blue-300">
+                  Generating public code...
+                </p>
+              </div>
+            </div>
+          )}
+          {publicCode && !generatingCode && (
+            <div className="p-3 bg-green-50 dark:bg-green-900/20 border-2 border-green-400 dark:border-green-600 rounded-lg">
+              <p className="text-xs font-medium text-green-700 dark:text-green-300 mb-2">
+                Your public code:
+              </p>
+              <div className="flex items-center gap-2">
+                <code className="flex-1 px-3 py-2 text-lg font-mono font-bold text-green-800 dark:text-green-200 bg-white dark:bg-gray-800 border-2 border-green-400 dark:border-green-600 rounded-lg text-center tracking-widest">
+                  {publicCode}
+                </code>
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigator.clipboard.writeText(publicCode);
+                  }}
+                  className="px-3 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors text-xs font-medium"
+                  title="Copy to clipboard"
+                >
+                  <svg
+                    className="w-4 h-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
+                    />
+                  </svg>
+                </button>
+              </div>
+              <p className="text-xs text-green-600 dark:text-green-400 mt-2">
+                Share this code with others so they can join your flashcard set!
+              </p>
+            </div>
+          )}
+        </div>
+
+        {/* From and To Languages */}
+        <LanguageSelectors
+          fromLanguage={fromLanguage}
+          toLanguage={toLanguage}
+          onFromLanguageChange={setFromLanguage}
+          onToLanguageChange={setToLanguage}
+        />
+
         {/* Tags */}
         <TagsInput
           tags={tags}
@@ -456,14 +609,6 @@ export default function InlineCreateFlashcardSetForm({
           }}
           onRemoveTag={(index) => setTags(tags.filter((_, i) => i !== index))}
           existingUniqueTagsCount={existingUniqueTagsCount}
-        />
-
-        {/* From and To Languages */}
-        <LanguageSelectors
-          fromLanguage={fromLanguage}
-          toLanguage={toLanguage}
-          onFromLanguageChange={setFromLanguage}
-          onToLanguageChange={setToLanguage}
         />
 
         {/* AI Help Section */}
@@ -982,7 +1127,13 @@ export default function InlineCreateFlashcardSetForm({
                     (pair) => pair.word.trim() && pair.translation.trim()
                   );
                   const count = validPairs.length;
-                  return `Create Set${count > 0 ? ` (${count} ${count === 1 ? "flashcard" : "flashcards"})` : ""}`;
+                  return `Create Set${
+                    count > 0
+                      ? ` (${count} ${
+                          count === 1 ? "flashcard" : "flashcards"
+                        })`
+                      : ""
+                  }`;
                 })()}
           </button>
         </div>

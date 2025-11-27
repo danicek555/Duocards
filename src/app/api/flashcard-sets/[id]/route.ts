@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { verifyAuthToken } from "@/lib/auth";
+import { generatePublicCode } from "@/lib/public-code";
 
 // GET - Fetch a specific flashcard set with its words
 export async function GET(
@@ -166,7 +167,15 @@ export async function PATCH(
     }
 
     const body = await request.json();
-    const { name, words, fromLanguage, toLanguage, tags } = body;
+    const {
+      name,
+      words,
+      fromLanguage,
+      toLanguage,
+      tags,
+      isPublic,
+      previewCode,
+    } = body;
 
     if (!name || !name.trim()) {
       return NextResponse.json(
@@ -183,9 +192,19 @@ export async function PATCH(
     }
 
     // Validate tags
-    const tagsArray = Array.isArray(tags)
+    let tagsArray = Array.isArray(tags)
       ? tags.filter((tag: string) => tag.trim())
       : [];
+
+    // Add "public" tag if set is public, remove it if not
+    if (isPublic === true) {
+      if (!tagsArray.includes("public")) {
+        tagsArray.push("public");
+      }
+    } else {
+      tagsArray = tagsArray.filter((tag: string) => tag !== "public");
+    }
+
     if (tagsArray.length > 5) {
       return NextResponse.json(
         { error: "Maximum 5 tags allowed per flashcard set" },
@@ -210,13 +229,13 @@ export async function PATCH(
           }
         });
       });
-    
+
     // Count how many new unique tags are being added
     const newUniqueTags = tagsArray.filter(
       (tag: string) => !existingUniqueTags.has(tag.trim())
     );
     const uniqueTagsCount = existingUniqueTags.size + newUniqueTags.length;
-    
+
     if (uniqueTagsCount > 20) {
       return NextResponse.json(
         {
@@ -297,6 +316,35 @@ export async function PATCH(
       )
     );
 
+    // Handle public code generation/removal
+    let publicCode: string | null = null;
+    if (isPublic === true) {
+      // Use preview code if provided (user wants to keep/change it)
+      if (previewCode && typeof previewCode === "string") {
+        // Verify it's unique (in case of race condition or if user changed it)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const existing = await (prisma.flashcardSet.findUnique as any)({
+          where: { publicCode: previewCode },
+          select: { id: true },
+        });
+        // If code exists and belongs to a different set, generate new one
+        if (existing && existing.id !== setId) {
+          publicCode = await generatePublicCode();
+        } else {
+          publicCode = previewCode;
+        }
+      } else if (flashcardSet.publicCode) {
+        // Keep existing code if no preview code provided
+        publicCode = flashcardSet.publicCode;
+      } else {
+        // Generate new code if set is being made public for the first time
+        publicCode = await generatePublicCode();
+      }
+    } else {
+      // If making set private, remove the code
+      publicCode = null;
+    }
+
     // Delete all existing words and create new ones
     // This is simpler than trying to match and update individual words
     await prisma.$transaction(async (tx) => {
@@ -318,6 +366,8 @@ export async function PATCH(
           fromLanguage: fromLanguage || null,
           toLanguage: toLanguage || null,
           tags: tagsArray,
+          isPublic: isPublic === true,
+          publicCode: publicCode,
           words: {
             create: wordsWithExtras,
           },

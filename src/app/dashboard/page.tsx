@@ -8,6 +8,7 @@ import InlineAIGenerateForm from "@/components/InlineAIGenerateForm";
 import CoinCostsModal from "@/components/CoinCostsModal";
 import DailyRewardButton from "@/components/DailyRewardButton";
 import CreateFlashcardSetForm from "@/components/CreateFlashcardSetForm";
+import JoinPublicSetModal from "@/components/JoinPublicSetModal";
 import { getLanguageFlag } from "@/lib/flags";
 import { LANGUAGES } from "@/lib/languages";
 
@@ -58,6 +59,8 @@ interface FlashcardSet {
   toLanguage: string | null;
   isAIGenerated: boolean;
   tags: string[];
+  isPublic?: boolean;
+  publicCode?: string | null;
   createdAt: string;
   updatedAt: string;
   words: Word[];
@@ -95,6 +98,7 @@ export default function Dashboard() {
   const [filterFromLanguage, setFilterFromLanguage] = useState<string>("");
   const [filterToLanguage, setFilterToLanguage] = useState<string>("");
   const [searchQuery, setSearchQuery] = useState<string>("");
+  const [showJoinModal, setShowJoinModal] = useState(false);
   const router = useRouter();
 
   const handleCreateSuccess = () => {
@@ -206,9 +210,23 @@ export default function Dashboard() {
     }
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem("user");
-    router.push("/");
+  const handleLogout = async () => {
+    try {
+      // Call logout API to clear auth cookie
+      await fetch("/api/auth/logout", {
+        method: "POST",
+      });
+    } catch (error) {
+      console.error("Logout error:", error);
+    } finally {
+      // Clear localStorage
+      localStorage.removeItem("user");
+      localStorage.removeItem("rememberMe");
+      localStorage.removeItem("rememberedEmail");
+
+      // Redirect to home
+      router.push("/");
+    }
   };
 
   const handleSetClick = async (set: FlashcardSet) => {
@@ -492,6 +510,27 @@ export default function Dashboard() {
                   />
                 </svg>
                 Statistics
+              </div>
+            </button>
+            <button
+              onClick={() => setShowJoinModal(true)}
+              className="w-full text-left px-4 py-3 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors cursor-pointer active:scale-[0.98]"
+            >
+              <div className="flex items-center">
+                <svg
+                  className="w-5 h-5 mr-3"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"
+                  />
+                </svg>
+                Public Codes
               </div>
             </button>
           </nav>
@@ -1353,6 +1392,16 @@ export default function Dashboard() {
         onClose={() => setShowCostsModal(false)}
       />
 
+      {showJoinModal && (
+        <JoinPublicSetModal
+          onClose={() => setShowJoinModal(false)}
+          onSuccess={() => {
+            fetchFlashcardSets();
+            setShowJoinModal(false);
+          }}
+        />
+      )}
+
       {/* Edit Flashcard Set Form */}
       {editingSetId && editingSetData && (
         <CreateFlashcardSetForm
@@ -1368,6 +1417,8 @@ export default function Dashboard() {
             fromLanguage: editingSetData.fromLanguage,
             toLanguage: editingSetData.toLanguage,
             tags: editingSetData.tags || [],
+            isPublic: editingSetData.isPublic || false,
+            publicCode: editingSetData.publicCode || null,
             words: editingSetData.words.map((word) => ({
               word: word.word,
               translation: word.translation,

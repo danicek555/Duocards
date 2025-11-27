@@ -13,7 +13,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { isValidEmail } from "@/lib/auth";
+import { isValidEmail, createAuthToken } from "@/lib/auth";
 import {
   isValidVerificationCode,
   isVerificationCodeExpired,
@@ -136,14 +136,26 @@ export async function POST(request: NextRequest) {
 
     const verifiedUser = newUser;
 
-    // Return success response
-    return NextResponse.json(
+    // Create signed auth cookie (same as login)
+    const token = await createAuthToken({
+      userId: verifiedUser.id,
+      email: verifiedUser.email,
+    });
+    const res = NextResponse.json(
       {
         message: "Email verified successfully!",
         user: verifiedUser,
       },
       { status: 200 }
     );
+    res.cookies.set("auth", token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      path: "/",
+      maxAge: 60 * 60 * 24 * 7, // 7 days
+    });
+    return res;
   } catch (error) {
     console.error("Verification error:", error);
 
@@ -154,6 +166,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-
-
-

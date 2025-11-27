@@ -124,7 +124,13 @@ function VerifyEmailContent() {
 
       if (response.ok) {
         // Verification successful
+        // Clear any old user data first
         localStorage.removeItem("pendingVerificationEmail");
+        localStorage.removeItem("user");
+        localStorage.removeItem("rememberMe");
+        localStorage.removeItem("rememberedEmail");
+
+        // Store new user data
         localStorage.setItem("user", JSON.stringify(data.user));
         showModal(
           "Email Verified!",
