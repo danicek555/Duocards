@@ -177,16 +177,22 @@ export default function CreateFlashcardSetForm({
     translatingRef.current.add(index);
     setTranslatingIndex(index);
 
+    // Respect user's translation mode settings
+    // The API will detect if it's a phrase and translate the whole phrase accordingly
+    const trimmedWord = word.trim();
+    const usePhraseTranslation = translateToPhrase;
+    const useWordTranslation = translateToOneWord;
+
     try {
       const response = await fetch("/api/translate-word", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          word: word.trim(),
+          word: trimmedWord,
           fromLanguage,
           toLanguage,
-          translateToOneWord,
-          translateToPhrase,
+          translateToOneWord: useWordTranslation,
+          translateToPhrase: usePhraseTranslation,
         }),
       });
 

@@ -230,25 +230,50 @@ export default function Dashboard() {
     }
   };
 
+  // Fisher-Yates shuffle algorithm
+  const shuffleArray = <T,>(array: T[]): T[] => {
+    const shuffled = [...array];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    return shuffled;
+  };
+
   const handleSetClick = async (set: FlashcardSet) => {
     // Fetch full flashcard set data including images/audio when viewing
     try {
       const response = await fetch(`/api/flashcard-sets/${set.id}`);
       if (response.ok) {
         const data = await response.json();
-        setSelectedSet(data.flashcardSet);
+        // Shuffle words before setting the selected set
+        const shuffledSet = {
+          ...data.flashcardSet,
+          words: shuffleArray(data.flashcardSet.words),
+        };
+        setSelectedSet(shuffledSet);
         setCurrentIndex(0);
         setViewMode("cards");
       } else {
         // Fallback to the set data we already have (without images/audio)
-        setSelectedSet(set);
+        // Shuffle words before setting the selected set
+        const shuffledSet = {
+          ...set,
+          words: shuffleArray(set.words),
+        };
+        setSelectedSet(shuffledSet);
         setCurrentIndex(0);
         setViewMode("cards");
       }
     } catch (error) {
       console.error("Error fetching flashcard set details:", error);
       // Fallback to the set data we already have (without images/audio)
-      setSelectedSet(set);
+      // Shuffle words before setting the selected set
+      const shuffledSet = {
+        ...set,
+        words: shuffleArray(set.words),
+      };
+      setSelectedSet(shuffledSet);
       setCurrentIndex(0);
       setViewMode("cards");
     }
