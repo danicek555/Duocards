@@ -1,0 +1,137 @@
+import { NextRequest, NextResponse } from "next/server";
+import { verifyAuthToken } from "@/lib/auth";
+import { checkCoins, deductCoins } from "@/lib/coins";
+import { COIN_COSTS } from "@/lib/coin-costs";
+
+// Initialize OpenAI client lazily to avoid build-time errors
+async function getOpenAIClient() {
+  if (!process.env.OPENAI_API_KEY) {
+    throw new Error("OPENAI_API_KEY is not configured");
+  }
+  // Lazy import OpenAI only when needed
+  const { default: OpenAI } = await import("openai");
+  return new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY,
+  });
+}
+
+interface ChatRequest {
+  message: string;
+  conversationHistory?: Array<{
+    role: "user" | "assistant";
+    content: string;
+  }>;
+}
+
+// POST - Chat with AI helper
+export async function POST(request: NextRequest) {
+  try {
+    const token = request.cookies.get("auth")?.value;
+    const payload = await verifyAuthToken(token);
+
+    if (!payload) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    // Check if OpenAI API key is configured
+    if (!process.env.OPENAI_API_KEY) {
+      return NextResponse.json(
+        {
+          error: "AI service is not configured.",
+        },
+        { status: 500 }
+      );
+    }
+
+    let body: ChatRequest;
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json(
+        { error: "Invalid request body" },
+        { status: 400 }
+      );
+    }
+
+    const { message, conversationHistory = [] } = body;
+
+    // Validate input
+    if (!message || !message.trim()) {
+      return NextResponse.json(
+        { error: "Message is required" },
+        { status: 400 }
+      );
+    }
+
+    // Check if user has enough coins
+    const coinCheck = await checkCoins(payload.userId, COIN_COSTS.AI_CHAT);
+    if (!coinCheck.hasEnough) {
+      return NextResponse.json(
+        {
+          error: `Insufficient AI coins. This operation costs ${COIN_COSTS.AI_CHAT} AI coin, but you only have ${coinCheck.currentCoins} AI coins. Please purchase more AI coins.`,
+        },
+        { status: 402 } // 402 Payment Required
+      );
+    }
+
+    // Use gpt-4o-mini for cost efficiency
+    const modelName = "gpt-4o-mini";
+
+    // Build conversation messages
+    const messages: Array<{
+      role: "system" | "user" | "assistant";
+      content: string;
+    }> = [
+      {
+        role: "system",
+        content:
+          "You are a helpful AI assistant for Duocards, a flashcard learning application. Help users with questions about language learning, flashcards, study techniques, translations, pronunciations, and any other questions related to using the app. Be friendly, concise, and helpful. If asked about features, explain them clearly. If asked about learning strategies, provide practical advice.",
+      },
+    ];
+
+    // Add conversation history
+    conversationHistory.forEach((msg) => {
+      messages.push({
+        role: msg.role,
+        content: msg.content,
+      });
+    });
+
+    // Add current message
+    messages.push({
+      role: "user",
+      content: message.trim(),
+    });
+
+    const openai = await getOpenAIClient();
+    const completion = await openai.chat.completions.create({
+      model: modelName,
+      messages,
+      temperature: 0.7,
+      max_tokens: 1000,
+    });
+
+    const response = completion.choices[0]?.message?.content?.trim();
+
+    if (!response) {
+      throw new Error("No response received from AI");
+    }
+
+    // Deduct coins after successful chat
+    const remainingCoins = await deductCoins(
+      payload.userId,
+      COIN_COSTS.AI_CHAT
+    );
+
+    return NextResponse.json({ response, remainingCoins }, { status: 200 });
+  } catch (error) {
+    console.error("Error in AI chat:", error);
+    return NextResponse.json(
+      {
+        error:
+          error instanceof Error ? error.message : "Failed to get AI response",
+      },
+      { status: 500 }
+    );
+  }
+}

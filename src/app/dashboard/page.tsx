@@ -157,6 +157,22 @@ export default function Dashboard() {
     }
   }, [router]);
 
+  // Listen for coin updates from AI chat
+  useEffect(() => {
+    const handleCoinsUpdated = (event: Event) => {
+      const customEvent = event as CustomEvent<{ coins: number }>;
+      if (customEvent.detail?.coins !== undefined) {
+        setCoins(customEvent.detail.coins);
+      }
+    };
+
+    window.addEventListener("coinsUpdated", handleCoinsUpdated);
+
+    return () => {
+      window.removeEventListener("coinsUpdated", handleCoinsUpdated);
+    };
+  }, []);
+
   // Helper function to calculate menu position
   const calculateMenuPosition = (
     setId: number,
@@ -549,10 +565,14 @@ export default function Dashboard() {
             </span>
           </div>
           <button
-            onClick={() => setShowCostsModal(true)}
+            onClick={() => {
+              setShowCostsModal(true);
+              // Close AI chat if open
+              window.dispatchEvent(new CustomEvent("closeAIChat"));
+            }}
             className="w-full mt-1 text-xs text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-400 transition-colors text-left"
           >
-            See more →
+            AI Coins Guide →
           </button>
 
           {/* Daily Reward Button */}
@@ -605,7 +625,8 @@ export default function Dashboard() {
                 Flashcard Sets
               </div>
             </button>
-            <button className="w-full text-left px-4 py-3 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors cursor-pointer active:scale-[0.98]">
+            {/* Statistics button - commented out */}
+            {/* <button className="w-full text-left px-4 py-3 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors cursor-pointer active:scale-[0.98]">
               <div className="flex items-center">
                 <svg
                   className="w-5 h-5 mr-3"
@@ -622,9 +643,13 @@ export default function Dashboard() {
                 </svg>
                 Statistics
               </div>
-            </button>
+            </button> */}
             <button
-              onClick={() => setShowJoinModal(true)}
+              onClick={() => {
+                setShowJoinModal(true);
+                // Close AI chat if open
+                window.dispatchEvent(new CustomEvent("closeAIChat"));
+              }}
               className="w-full text-left px-4 py-3 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors cursor-pointer active:scale-[0.98]"
             >
               <div className="flex items-center">

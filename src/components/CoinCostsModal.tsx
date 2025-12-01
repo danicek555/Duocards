@@ -34,7 +34,8 @@ export default function CoinCostsModal({
 
   if (!isOpen) return null;
 
-  const costs = [
+  // AI Generation Costs
+  const aiGenerationCosts = [
     {
       name: "Flashcard Generation",
       description: "Per word",
@@ -101,7 +102,6 @@ export default function CoinCostsModal({
         </svg>
       ),
     },
-
     {
       name: "Audio Generation",
       description: "Per audio (Text-to-Speech)",
@@ -145,7 +145,6 @@ export default function CoinCostsModal({
           />
         </svg>
       ),
-      highlight: true,
     },
     {
       name: "Image Generation",
@@ -168,7 +167,6 @@ export default function CoinCostsModal({
           />
         </svg>
       ),
-      highlight: true,
     },
   ];
 
@@ -204,7 +202,7 @@ export default function CoinCostsModal({
                   </svg>
                 </div>
                 <h3 className="text-xl font-bold text-gray-900 dark:text-white">
-                  AI Generation Costs
+                  AI Coins Guide
                 </h3>
               </div>
               <button
@@ -230,60 +228,65 @@ export default function CoinCostsModal({
 
           {/* Content */}
           <div className="px-6 py-6 max-h-[60vh] overflow-y-auto">
-            <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
-              Costs are based on real API usage. Image generation is expensive
-              because it uses DALL-E 3.
-            </p>
-
-            <div className="space-y-3">
-              {costs.map((item, index) => (
-                <div
-                  key={index}
-                  className={`flex items-start p-4 rounded-lg border-2 transition-colors ${
-                    item.highlight
-                      ? "bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800"
-                      : "bg-gray-50 dark:bg-gray-700/30 border-gray-200 dark:border-gray-700"
-                  }`}
-                >
-                  <div
-                    className={`p-2 rounded-lg mr-4 ${
-                      item.highlight
-                        ? "bg-yellow-100 dark:bg-yellow-900 text-yellow-600 dark:text-yellow-400"
-                        : "bg-purple-100 dark:bg-purple-900 text-purple-600 dark:text-purple-400"
-                    }`}
+            {/* Section 1: AI Generation Cost */}
+            <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 rounded-lg border-2 border-red-200 dark:border-red-800">
+              <div className="flex items-center mb-3">
+                <div className="p-2 rounded-lg bg-red-100 dark:bg-red-900 text-red-600 dark:text-red-400 mr-3">
+                  <svg
+                    className="w-6 h-6"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
                   >
-                    {item.icon}
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex items-center justify-between mb-1">
-                      <h4 className="font-semibold text-gray-900 dark:text-white">
-                        {item.name}
-                      </h4>
-                      <div className="flex items-center">
-                        <span className="text-2xl font-bold text-purple-600 dark:text-purple-400 mr-1">
-                          {item.cost}
-                        </span>
-                        <span className="text-sm text-gray-500 dark:text-gray-400">
-                          AI coins
-                        </span>
-                      </div>
-                    </div>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">
-                      {item.description}
-                    </p>
-                    {item.costPerItem && item.itemName && (
-                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                        Examples: 5 {item.itemName}s = {5 * item.cost} AI coins,
-                        10 {item.itemName}s = {10 * item.cost} AI coins
-                      </p>
-                    )}
-                  </div>
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"
+                    />
+                  </svg>
                 </div>
-              ))}
+                <h4 className="text-lg font-semibold text-gray-900 dark:text-white">
+                  AI Generation Cost
+                </h4>
+              </div>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                Costs for generating flashcards and AI-powered features.
+              </p>
+              <div className="space-y-3">
+                {aiGenerationCosts.map((item, index) => (
+                  <div
+                    key={index}
+                    className="flex items-start p-4 rounded-lg border-2 transition-colors bg-gray-50 dark:bg-gray-700/30 border-gray-200 dark:border-gray-700"
+                  >
+                    <div className="p-2 rounded-lg mr-4 bg-red-100 dark:bg-red-900 text-red-600 dark:text-red-400">
+                      {item.icon}
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between mb-1">
+                        <h5 className="font-semibold text-gray-900 dark:text-white">
+                          {item.name}
+                        </h5>
+                        <div className="flex items-center">
+                          <span className="text-2xl font-bold text-red-600 dark:text-red-400 mr-1">
+                            {item.cost}
+                          </span>
+                          <span className="text-sm text-gray-500 dark:text-gray-400">
+                            coins
+                          </span>
+                        </div>
+                      </div>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">
+                        {item.description}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
 
-            {/* Completion Rewards Section */}
-            <div className="mt-6 p-4 bg-green-50 dark:bg-green-900/20 rounded-lg border-2 border-green-200 dark:border-green-800">
+            {/* Section 2: Completion Reward */}
+            <div className="mb-6 p-4 bg-green-50 dark:bg-green-900/20 rounded-lg border-2 border-green-200 dark:border-green-800">
               <div className="flex items-center mb-3">
                 <div className="p-2 rounded-lg bg-green-100 dark:bg-green-900 text-green-600 dark:text-green-400 mr-3">
                   <svg
@@ -300,8 +303,8 @@ export default function CoinCostsModal({
                     />
                   </svg>
                 </div>
-                <h4 className="font-semibold text-gray-900 dark:text-white">
-                  Completion Rewards
+                <h4 className="text-lg font-semibold text-gray-900 dark:text-white">
+                  Completion Reward
                 </h4>
               </div>
               <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
@@ -348,41 +351,114 @@ export default function CoinCostsModal({
               </p>
             </div>
 
-            {/* Examples */}
-            <div className="mt-6 space-y-3">
-              <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-                <h4 className="font-semibold text-gray-900 dark:text-white mb-2">
-                  Examples:
+            {/* Section 3: AI Helper */}
+            <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border-2 border-blue-200 dark:border-blue-800">
+              <div className="flex items-center mb-3">
+                <div className="p-2 rounded-lg bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400 mr-3">
+                  <svg
+                    className="w-6 h-6"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"
+                    />
+                  </svg>
+                </div>
+                <h4 className="text-lg font-semibold text-gray-900 dark:text-white">
+                  AI Helper
                 </h4>
-                <div className="space-y-2 text-sm text-gray-700 dark:text-gray-300">
-                  <p>
-                    • 5 flashcards ={" "}
-                    <span className="font-bold text-blue-600 dark:text-blue-400">
-                      5 AI coins
-                    </span>{" "}
-                    (5 × 1 AI coin)
+              </div>
+              <div className="flex items-center justify-between p-3 bg-white dark:bg-gray-800 rounded border border-blue-200 dark:border-blue-700">
+                <div>
+                  <p className="font-semibold text-gray-900 dark:text-white">
+                    AI Chat Assistant
                   </p>
-                  <p>
-                    • 10 flashcards ={" "}
-                    <span className="font-bold text-blue-600 dark:text-blue-400">
-                      10 AI coins
-                    </span>{" "}
-                    (10 × 1 AI coin)
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    Get help with language learning, flashcards, and study tips
                   </p>
-                  <p>
-                    • 5 flashcards with images ={" "}
-                    <span className="font-bold text-blue-600 dark:text-blue-400">
-                      405 AI coins
-                    </span>{" "}
-                    (5 × 1 + 5 × 80)
-                  </p>
-                  <p>
-                    • 10 flashcards with images ={" "}
-                    <span className="font-bold text-blue-600 dark:text-blue-400">
-                      810 AI coins
-                    </span>{" "}
-                    (10 × 1 + 10 × 80)
-                  </p>
+                </div>
+                <div className="text-right">
+                  <span className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                    {COIN_COSTS.AI_CHAT}
+                  </span>
+                  <span className="text-sm text-gray-500 dark:text-gray-400 block">
+                    coins/message
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Section 4: Examples of Generation Cost */}
+            <div className="mb-6">
+              <div className="flex items-center mb-4">
+                <div className="p-2 rounded-lg bg-indigo-100 dark:bg-indigo-900 text-indigo-600 dark:text-indigo-400 mr-3">
+                  <svg
+                    className="w-6 h-6"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
+                    />
+                  </svg>
+                </div>
+                <h4 className="text-lg font-semibold text-gray-900 dark:text-white">
+                  Examples of Generation Cost
+                </h4>
+              </div>
+              <div className="p-4 bg-indigo-50 dark:bg-indigo-900/20 rounded-lg border border-indigo-200 dark:border-indigo-800">
+                <div className="space-y-3 text-sm text-gray-700 dark:text-gray-300">
+                  <div className="p-3 bg-white dark:bg-gray-800 rounded border border-indigo-200 dark:border-indigo-700">
+                    <p>
+                      <span className="font-semibold">5 flashcards</span> ={" "}
+                      <span className="font-bold text-indigo-600 dark:text-indigo-400">
+                        5 AI coins
+                      </span>{" "}
+                      (5 × 1 AI coin)
+                    </p>
+                  </div>
+                  <div className="p-3 bg-white dark:bg-gray-800 rounded border border-indigo-200 dark:border-indigo-700">
+                    <p>
+                      <span className="font-semibold">10 flashcards</span> ={" "}
+                      <span className="font-bold text-indigo-600 dark:text-indigo-400">
+                        10 AI coins
+                      </span>{" "}
+                      (10 × 1 AI coin)
+                    </p>
+                  </div>
+                  <div className="p-3 bg-white dark:bg-gray-800 rounded border border-indigo-200 dark:border-indigo-700">
+                    <p>
+                      <span className="font-semibold">
+                        5 flashcards with images
+                      </span>{" "}
+                      ={" "}
+                      <span className="font-bold text-indigo-600 dark:text-indigo-400">
+                        405 AI coins
+                      </span>{" "}
+                      (5 × 1 + 5 × 80)
+                    </p>
+                  </div>
+                  <div className="p-3 bg-white dark:bg-gray-800 rounded border border-indigo-200 dark:border-indigo-700">
+                    <p>
+                      <span className="font-semibold">
+                        10 flashcards with images
+                      </span>{" "}
+                      ={" "}
+                      <span className="font-bold text-indigo-600 dark:text-indigo-400">
+                        810 AI coins
+                      </span>{" "}
+                      (10 × 1 + 10 × 80)
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>
