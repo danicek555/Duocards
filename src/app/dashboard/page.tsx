@@ -9,6 +9,8 @@ import CoinCostsModal from "@/components/CoinCostsModal";
 import DailyRewardButton from "@/components/DailyRewardButton";
 import CreateFlashcardSetForm from "@/components/CreateFlashcardSetForm";
 import JoinPublicSetModal from "@/components/JoinPublicSetModal";
+import MoneyBagReward from "@/components/MoneyBagReward";
+import Notification from "@/components/Notification";
 import { getLanguageFlag } from "@/lib/flags";
 import { LANGUAGES } from "@/lib/languages";
 
@@ -100,6 +102,16 @@ export default function Dashboard() {
   const [filterToLanguage, setFilterToLanguage] = useState<string>("");
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [showJoinModal, setShowJoinModal] = useState(false);
+  const [claimedRewards, setClaimedRewards] = useState<Set<number>>(new Set());
+  const [notification, setNotification] = useState<{
+    message: string;
+    type: "success" | "error" | "warning" | "info";
+    isVisible: boolean;
+  }>({
+    message: "",
+    type: "info",
+    isVisible: false,
+  });
   const router = useRouter();
 
   const handleCreateSuccess = () => {
@@ -133,6 +145,16 @@ export default function Dashboard() {
     }
     fetchFlashcardSets();
     fetchCoins();
+
+    // Load claimed rewards from localStorage
+    const savedClaims = localStorage.getItem("claimedRewards");
+    if (savedClaims) {
+      try {
+        setClaimedRewards(new Set(JSON.parse(savedClaims)));
+      } catch (error) {
+        console.error("Error loading claimed rewards:", error);
+      }
+    }
   }, [router]);
 
   // Helper function to calculate menu position
@@ -297,6 +319,69 @@ export default function Dashboard() {
     }
   };
 
+  // Calculate reward amount based on flashcard count
+  const getRewardAmount = (flashcardCount: number): number => {
+    if (flashcardCount < 5) {
+      return 1;
+    } else if (flashcardCount < 10) {
+      return 5;
+    } else if (flashcardCount < 25) {
+      return 10;
+    } else {
+      return 25;
+    }
+  };
+
+  // Handle claiming reward for completing a flashcard set
+  const handleClaimReward = async () => {
+    if (!selectedSet) return;
+
+    const rewardAmount = getRewardAmount(selectedSet.words.length);
+
+    try {
+      const response = await fetch("/api/flashcard-sets/complete-reward", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          flashcardSetId: selectedSet.id,
+          rewardAmount,
+        }),
+      });
+
+      if (response.ok) {
+        await response.json();
+        // Mark as claimed
+        setClaimedRewards((prev) => {
+          const newSet = new Set(prev);
+          newSet.add(selectedSet.id);
+          // Save to localStorage
+          localStorage.setItem(
+            "claimedRewards",
+            JSON.stringify(Array.from(newSet))
+          );
+          return newSet;
+        });
+        // Refresh coins display
+        fetchCoins();
+      } else {
+        const errorData = await response.json();
+        console.error("Error claiming reward:", errorData.error);
+        // Show error notification
+        setNotification({
+          message: errorData.error || "Failed to claim reward",
+          type: "error",
+          isVisible: true,
+        });
+        throw new Error(errorData.error || "Failed to claim reward");
+      }
+    } catch (error) {
+      console.error("Error claiming reward:", error);
+      throw error;
+    }
+  };
+
   const handleDeleteSet = async (setId: number) => {
     setDeletingId(setId);
     try {
@@ -457,7 +542,7 @@ export default function Dashboard() {
           </div>
           <div className="flex items-center justify-between">
             <span className="text-sm font-medium text-gray-600 dark:text-gray-400">
-              Coins
+              AI Coins
             </span>
             <span className="text-xl font-semibold text-purple-600 dark:text-purple-400">
               {coins !== null ? coins : "..."}
@@ -1410,28 +1495,39 @@ export default function Dashboard() {
             </div>
 
             {/* Flashcard display */}
-            <div className="flex-1 flex items-center justify-center">
+            <div className="flex-1 flex items-center justify-center relative">
               {selectedSet && currentWord ? (
-                <Flashcard
-                  word={currentWord.word}
-                  translation={currentWord.translation}
-                  difficulty={currentWord.difficulty}
-                  pronunciation={currentWord.pronunciation}
-                  imageUrl={
-                    currentWord.imageId
-                      ? imageCache[currentWord.imageId] || null
-                      : null
-                  }
-                  audioUrl={
-                    currentWord.audioId
-                      ? audioCache[currentWord.audioId] || null
-                      : null
-                  }
-                  onNext={handleNext}
-                  onPrevious={handlePrevious}
-                  hasNext={currentIndex < selectedSet.words.length - 1}
-                  hasPrevious={currentIndex > 0}
-                />
+                <>
+                  <Flashcard
+                    word={currentWord.word}
+                    translation={currentWord.translation}
+                    difficulty={currentWord.difficulty}
+                    pronunciation={currentWord.pronunciation}
+                    imageUrl={
+                      currentWord.imageId
+                        ? imageCache[currentWord.imageId] || null
+                        : null
+                    }
+                    audioUrl={
+                      currentWord.audioId
+                        ? audioCache[currentWord.audioId] || null
+                        : null
+                    }
+                    onNext={handleNext}
+                    onPrevious={handlePrevious}
+                    hasNext={currentIndex < selectedSet.words.length - 1}
+                    hasPrevious={currentIndex > 0}
+                  />
+                  {/* Money Bag Reward - appears on last flashcard */}
+                  {currentIndex === selectedSet.words.length - 1 && (
+                    <MoneyBagReward
+                      rewardAmount={getRewardAmount(selectedSet.words.length)}
+                      onClaim={handleClaimReward}
+                      isLastCard={true}
+                      isAlreadyClaimed={claimedRewards.has(selectedSet.id)}
+                    />
+                  )}
+                </>
               ) : (
                 <div className="text-center">
                   <svg
@@ -1503,6 +1599,14 @@ export default function Dashboard() {
           }}
         />
       )}
+
+      {/* Notification */}
+      <Notification
+        message={notification.message}
+        type={notification.type}
+        isVisible={notification.isVisible}
+        onClose={() => setNotification({ ...notification, isVisible: false })}
+      />
     </div>
   );
 }

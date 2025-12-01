@@ -67,7 +67,7 @@ export async function POST(request: NextRequest) {
     if (!coinCheck.hasEnough) {
       return NextResponse.json(
         {
-          error: `Insufficient coins. This operation costs ${COIN_COSTS.OCR_EXTRACTION} coins, but you only have ${coinCheck.currentCoins} coins. Please purchase more coins.`,
+          error: `Insufficient AI coins. This operation costs ${COIN_COSTS.OCR_EXTRACTION} AI coins, but you only have ${coinCheck.currentCoins} AI coins. Please purchase more AI coins.`,
         },
         { status: 402 } // 402 Payment Required
       );

@@ -629,7 +629,7 @@ export default function InlineAIGenerateForm({
             </div>
             <div className="text-right">
               <div className="text-2xl font-extrabold text-purple-700 dark:text-purple-300">
-                {totalCost} coin{totalCost !== 1 ? "s" : ""}
+                {totalCost} AI coin{totalCost !== 1 ? "s" : ""}
               </div>
             </div>
           </div>
@@ -639,28 +639,28 @@ export default function InlineAIGenerateForm({
             </div>
             <div className="space-y-1">
               <div className="font-medium">
-                {wordCount} word{wordCount !== 1 ? "s" : ""} × 1 coin ={" "}
+                {wordCount} word{wordCount !== 1 ? "s" : ""} × 1 AI coin ={" "}
                 <span className="text-purple-600 dark:text-purple-400 font-bold">
-                  {wordCount * COIN_COSTS.WORD_TRANSLATION} coin
+                  {wordCount * COIN_COSTS.WORD_TRANSLATION} AI coin
                   {wordCount * COIN_COSTS.WORD_TRANSLATION !== 1 ? "s" : ""}
                 </span>
               </div>
               {includeImage && (
                 <div className="font-medium">
                   + {wordCount} image{wordCount !== 1 ? "s" : ""} ×{" "}
-                  {COIN_COSTS.IMAGE_GENERATION} coins ={" "}
+                  {COIN_COSTS.IMAGE_GENERATION} AI coins ={" "}
                   <span className="text-purple-600 dark:text-purple-400 font-bold">
-                    {wordCount * COIN_COSTS.IMAGE_GENERATION} coins
+                    {wordCount * COIN_COSTS.IMAGE_GENERATION} AI coins
                   </span>
                 </div>
               )}
               {includePronunciation && (
                 <div className="font-medium">
                   + {wordCount} pronunciation{wordCount !== 1 ? "s" : ""} ×{" "}
-                  {COIN_COSTS.PRONUNCIATION_GENERATION} coin
+                  {COIN_COSTS.PRONUNCIATION_GENERATION} AI coin
                   {COIN_COSTS.PRONUNCIATION_GENERATION !== 1 ? "s" : ""} ={" "}
                   <span className="text-purple-600 dark:text-purple-400 font-bold">
-                    {wordCount * COIN_COSTS.PRONUNCIATION_GENERATION} coin
+                    {wordCount * COIN_COSTS.PRONUNCIATION_GENERATION} AI coin
                     {wordCount * COIN_COSTS.PRONUNCIATION_GENERATION !== 1
                       ? "s"
                       : ""}
@@ -670,9 +670,9 @@ export default function InlineAIGenerateForm({
               {includeVoice && (
                 <div className="font-medium">
                   + {wordCount} audio{wordCount !== 1 ? "s" : ""} ×{" "}
-                  {COIN_COSTS.AUDIO_GENERATION} coins ={" "}
+                  {COIN_COSTS.AUDIO_GENERATION} AI coins ={" "}
                   <span className="text-purple-600 dark:text-purple-400 font-bold">
-                    {wordCount * COIN_COSTS.AUDIO_GENERATION} coins
+                    {wordCount * COIN_COSTS.AUDIO_GENERATION} AI coins
                   </span>
                 </div>
               )}

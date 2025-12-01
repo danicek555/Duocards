@@ -264,7 +264,7 @@ export default function CoinCostsModal({
                           {item.cost}
                         </span>
                         <span className="text-sm text-gray-500 dark:text-gray-400">
-                          coins
+                          AI coins
                         </span>
                       </div>
                     </div>
@@ -273,13 +273,79 @@ export default function CoinCostsModal({
                     </p>
                     {item.costPerItem && item.itemName && (
                       <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                        Examples: 5 {item.itemName}s = {5 * item.cost} coins, 10{" "}
-                        {item.itemName}s = {10 * item.cost} coins
+                        Examples: 5 {item.itemName}s = {5 * item.cost} AI coins,
+                        10 {item.itemName}s = {10 * item.cost} AI coins
                       </p>
                     )}
                   </div>
                 </div>
               ))}
+            </div>
+
+            {/* Completion Rewards Section */}
+            <div className="mt-6 p-4 bg-green-50 dark:bg-green-900/20 rounded-lg border-2 border-green-200 dark:border-green-800">
+              <div className="flex items-center mb-3">
+                <div className="p-2 rounded-lg bg-green-100 dark:bg-green-900 text-green-600 dark:text-green-400 mr-3">
+                  <svg
+                    className="w-6 h-6"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                    />
+                  </svg>
+                </div>
+                <h4 className="font-semibold text-gray-900 dark:text-white">
+                  Completion Rewards
+                </h4>
+              </div>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+                Earn AI coins by completing flashcard sets! The reward depends
+                on the number of flashcards in the set.
+              </p>
+              <div className="space-y-2 text-sm">
+                <div className="flex items-center justify-between p-2 bg-white dark:bg-gray-800 rounded border border-green-200 dark:border-green-700">
+                  <span className="text-gray-700 dark:text-gray-300">
+                    Less than 5 flashcards
+                  </span>
+                  <span className="font-bold text-green-600 dark:text-green-400">
+                    1 AI coin
+                  </span>
+                </div>
+                <div className="flex items-center justify-between p-2 bg-white dark:bg-gray-800 rounded border border-green-200 dark:border-green-700">
+                  <span className="text-gray-700 dark:text-gray-300">
+                    5-9 flashcards
+                  </span>
+                  <span className="font-bold text-green-600 dark:text-green-400">
+                    5 AI coins
+                  </span>
+                </div>
+                <div className="flex items-center justify-between p-2 bg-white dark:bg-gray-800 rounded border border-green-200 dark:border-green-700">
+                  <span className="text-gray-700 dark:text-gray-300">
+                    10-24 flashcards
+                  </span>
+                  <span className="font-bold text-green-600 dark:text-green-400">
+                    10 AI coins
+                  </span>
+                </div>
+                <div className="flex items-center justify-between p-2 bg-white dark:bg-gray-800 rounded border border-green-200 dark:border-green-700">
+                  <span className="text-gray-700 dark:text-gray-300">
+                    25 or more flashcards
+                  </span>
+                  <span className="font-bold text-green-600 dark:text-green-400">
+                    25 AI coins
+                  </span>
+                </div>
+              </div>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-3">
+                💡 Complete a flashcard set by viewing all cards to claim your
+                reward!
+              </p>
             </div>
 
             {/* Examples */}
@@ -292,28 +358,28 @@ export default function CoinCostsModal({
                   <p>
                     • 5 flashcards ={" "}
                     <span className="font-bold text-blue-600 dark:text-blue-400">
-                      5 coins
+                      5 AI coins
                     </span>{" "}
-                    (5 × 1 coin)
+                    (5 × 1 AI coin)
                   </p>
                   <p>
                     • 10 flashcards ={" "}
                     <span className="font-bold text-blue-600 dark:text-blue-400">
-                      10 coins
+                      10 AI coins
                     </span>{" "}
-                    (10 × 1 coin)
+                    (10 × 1 AI coin)
                   </p>
                   <p>
                     • 5 flashcards with images ={" "}
                     <span className="font-bold text-blue-600 dark:text-blue-400">
-                      405 coins
+                      405 AI coins
                     </span>{" "}
                     (5 × 1 + 5 × 80)
                   </p>
                   <p>
                     • 10 flashcards with images ={" "}
                     <span className="font-bold text-blue-600 dark:text-blue-400">
-                      810 coins
+                      810 AI coins
                     </span>{" "}
                     (10 × 1 + 10 × 80)
                   </p>
