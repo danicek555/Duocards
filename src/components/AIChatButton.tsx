@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { usePathname } from "next/navigation";
 import AIChatModal from "./AIChatModal";
 
 interface AIChatButtonProps {
@@ -9,6 +10,70 @@ interface AIChatButtonProps {
 
 export default function AIChatButton({ onCoinsUpdate }: AIChatButtonProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
+  const [isDashboardLoading, setIsDashboardLoading] = useState(false);
+  const pathname = usePathname();
+
+  // Check if user is logged in
+  useEffect(() => {
+    setIsMounted(true);
+    const checkAuth = () => {
+      if (typeof window !== "undefined") {
+        const userData = localStorage.getItem("user");
+        setIsLoggedIn(!!userData);
+      }
+    };
+
+    // Check immediately on mount
+    checkAuth();
+
+    // Listen for auth changes (login/logout)
+    const handleStorageChange = () => {
+      checkAuth();
+    };
+
+    window.addEventListener("storage", handleStorageChange);
+
+    // Also check periodically in case localStorage is changed in the same tab
+    const interval = setInterval(checkAuth, 500);
+
+    return () => {
+      window.removeEventListener("storage", handleStorageChange);
+      clearInterval(interval);
+    };
+  }, []);
+
+  // Re-check auth when pathname changes
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const userData = localStorage.getItem("user");
+      setIsLoggedIn(!!userData);
+    }
+    // Set loading state based on pathname
+    if (pathname === "/dashboard") {
+      // Assume loading when on dashboard until we get a "not loading" event
+      setIsDashboardLoading(true);
+    } else {
+      setIsDashboardLoading(false);
+    }
+  }, [pathname]);
+
+  // Listen for dashboard loading state
+  useEffect(() => {
+    const handleDashboardLoading = (event: Event) => {
+      const customEvent = event as CustomEvent<{ loading: boolean }>;
+      if (customEvent.detail?.loading !== undefined) {
+        setIsDashboardLoading(customEvent.detail.loading);
+      }
+    };
+
+    window.addEventListener("dashboardLoading", handleDashboardLoading);
+
+    return () => {
+      window.removeEventListener("dashboardLoading", handleDashboardLoading);
+    };
+  }, []);
 
   // Listen for close events from other modals
   useEffect(() => {
@@ -22,6 +87,26 @@ export default function AIChatButton({ onCoinsUpdate }: AIChatButtonProps) {
       window.removeEventListener("closeAIChat", handleCloseAIChat);
     };
   }, []);
+
+  // Don't render until mounted (to avoid hydration issues)
+  if (!isMounted) {
+    return null;
+  }
+
+  // Don't render on login/register page or verify page
+  if (pathname === "/" || pathname === "/verify") {
+    return null;
+  }
+
+  // Don't render if user is not logged in
+  if (!isLoggedIn) {
+    return null;
+  }
+
+  // Don't render if dashboard is loading
+  if (isDashboardLoading) {
+    return null;
+  }
 
   return (
     <>

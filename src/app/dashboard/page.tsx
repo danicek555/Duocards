@@ -102,6 +102,7 @@ export default function Dashboard() {
   const [filterToLanguage, setFilterToLanguage] = useState<string>("");
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [showJoinModal, setShowJoinModal] = useState(false);
+  // Store claimed rewards as Set of flashcard set IDs (claimed today from database)
   const [claimedRewards, setClaimedRewards] = useState<Set<number>>(new Set());
   const [notification, setNotification] = useState<{
     message: string;
@@ -133,28 +134,43 @@ export default function Dashboard() {
     }
   };
 
+  const fetchClaimedRewards = async () => {
+    try {
+      const response = await fetch("/api/flashcard-sets/claimed-rewards");
+      if (response.ok) {
+        const data = await response.json();
+        setClaimedRewards(new Set(data.claimedSetIds || []));
+      } else {
+        console.error("Error fetching claimed rewards");
+        setClaimedRewards(new Set());
+      }
+    } catch (error) {
+      console.error("Error fetching claimed rewards:", error);
+      setClaimedRewards(new Set());
+    }
+  };
+
   useEffect(() => {
+    // Dispatch loading event for AI button
+    window.dispatchEvent(
+      new CustomEvent("dashboardLoading", { detail: { loading: true } })
+    );
+
     // Check if user data exists in localStorage (from login)
     const userData = localStorage.getItem("user");
     if (userData) {
       setUser(JSON.parse(userData));
     } else {
       // If no user data, redirect to home page
+      window.dispatchEvent(
+        new CustomEvent("dashboardLoading", { detail: { loading: false } })
+      );
       router.push("/");
       return;
     }
     fetchFlashcardSets();
     fetchCoins();
-
-    // Load claimed rewards from localStorage
-    const savedClaims = localStorage.getItem("claimedRewards");
-    if (savedClaims) {
-      try {
-        setClaimedRewards(new Set(JSON.parse(savedClaims)));
-      } catch (error) {
-        console.error("Error loading claimed rewards:", error);
-      }
-    }
+    fetchClaimedRewards();
   }, [router]);
 
   // Listen for coin updates from AI chat
@@ -246,6 +262,10 @@ export default function Dashboard() {
       console.error("Error fetching flashcard sets:", error);
     } finally {
       setLoading(false);
+      // Dispatch loaded event for AI button
+      window.dispatchEvent(
+        new CustomEvent("dashboardLoading", { detail: { loading: false } })
+      );
     }
   };
 
@@ -368,17 +388,8 @@ export default function Dashboard() {
 
       if (response.ok) {
         await response.json();
-        // Mark as claimed
-        setClaimedRewards((prev) => {
-          const newSet = new Set(prev);
-          newSet.add(selectedSet.id);
-          // Save to localStorage
-          localStorage.setItem(
-            "claimedRewards",
-            JSON.stringify(Array.from(newSet))
-          );
-          return newSet;
-        });
+        // Refresh claimed rewards from database
+        await fetchClaimedRewards();
         // Refresh coins display
         fetchCoins();
       } else {

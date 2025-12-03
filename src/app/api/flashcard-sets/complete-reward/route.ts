@@ -29,6 +29,32 @@ export async function POST(request: NextRequest) {
     const now = new Date();
     const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
     const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    
+    // Get start of today (midnight) for checking same-day claims
+    const startOfToday = new Date(now);
+    startOfToday.setHours(0, 0, 0, 0);
+
+    // Check if this flashcard set was already claimed today
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const todayClaimForSet = await (prisma as any).completionReward.findFirst({
+      where: {
+        userId: payload.userId,
+        flashcardSetId: flashcardSetId,
+        createdAt: {
+          gte: startOfToday,
+        },
+      },
+    });
+
+    if (todayClaimForSet) {
+      return NextResponse.json(
+        {
+          error: "You have already claimed the reward for this flashcard set today. Come back tomorrow!",
+          alreadyClaimed: true,
+        },
+        { status: 400 }
+      );
+    }
 
     // Check hourly limit
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

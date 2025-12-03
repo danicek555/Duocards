@@ -6,3 +6,5 @@ ADD COLUMN     "publicCode" TEXT;
 CREATE UNIQUE INDEX "flashcard_sets_publicCode_key" ON "flashcard_sets"("publicCode");
 
 
+
+

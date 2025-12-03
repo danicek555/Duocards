@@ -23,7 +23,7 @@ export default function AIChatModal({
     {
       role: "assistant",
       content:
-        "Hello! I'm your AI Duocard helper. I can help you with language learning, flashcards, translations, pronunciations, and study tips. How can I assist you today?",
+        "Hello! I'm your AI Duocard helper focused on language learning and vocabulary. I can help you with words, flashcards, translations, pronunciations, study techniques for language learning, and questions about using Duocards. I'm here to help you learn languages - what would you like to know?",
     },
   ]);
   const [input, setInput] = useState("");

@@ -196,7 +196,7 @@ export default function Flashcard({
                     ></div>
                   </div>
                   <h2
-                    className={`text-5xl md:text-6xl font-bold mb-6 leading-tight ${
+                    className={`text-5xl md:text-6xl font-bold mb-6 leading-tight break-words px-4 ${
                       imageUrl
                         ? "text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]"
                         : "text-gray-900 dark:text-white"
@@ -297,7 +297,7 @@ export default function Flashcard({
                   {translationData.type === "both" ? (
                     <>
                       <h2
-                        className={`text-5xl md:text-6xl font-bold mb-2 leading-tight ${
+                        className={`text-5xl md:text-6xl font-bold mb-2 leading-tight break-words px-4 ${
                           imageUrl
                             ? "text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]"
                             : "text-gray-900 dark:text-white"
@@ -317,7 +317,7 @@ export default function Flashcard({
                     </>
                   ) : translationData.type === "phrase" ? (
                     <h2
-                      className={`text-3xl md:text-4xl font-bold mb-4 leading-tight px-4 ${
+                      className={`text-3xl md:text-4xl font-bold mb-4 leading-tight break-words px-4 ${
                         imageUrl
                           ? "text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]"
                           : "text-gray-900 dark:text-white"
@@ -327,7 +327,7 @@ export default function Flashcard({
                     </h2>
                   ) : (
                     <h2
-                      className={`text-5xl md:text-6xl font-bold mb-4 leading-tight ${
+                      className={`text-5xl md:text-6xl font-bold mb-4 leading-tight break-words px-4 ${
                         imageUrl
                           ? "text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]"
                           : "text-gray-900 dark:text-white"
