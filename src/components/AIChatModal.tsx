@@ -29,6 +29,7 @@ export default function AIChatModal({
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [textareaHeight, setTextareaHeight] = useState(38);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -37,12 +38,56 @@ export default function AIChatModal({
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // Focus input when modal opens
+  // Focus input when modal opens and reset textarea height
   useEffect(() => {
     if (isOpen && inputRef.current) {
-      setTimeout(() => inputRef.current?.focus(), 100);
+      // Reset height when modal opens
+      inputRef.current.style.height = "auto";
+      setTextareaHeight(38);
+      setTimeout(() => {
+        inputRef.current?.focus();
+        // Recalculate height after focus
+        if (inputRef.current) {
+          const scrollHeight = inputRef.current.scrollHeight;
+          const maxHeight = 150;
+          const minHeight = 38;
+          const newHeight = Math.max(
+            minHeight,
+            Math.min(scrollHeight, maxHeight)
+          );
+          inputRef.current.style.height = `${newHeight}px`;
+          setTextareaHeight(newHeight);
+        }
+      }, 100);
     }
   }, [isOpen]);
+
+  // Auto-resize textarea based on content
+  useEffect(() => {
+    if (inputRef.current && isOpen) {
+      // Use double requestAnimationFrame to ensure DOM is fully updated
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          if (inputRef.current) {
+            // Reset height to get accurate scrollHeight
+            inputRef.current.style.height = "auto";
+            // Get the scrollHeight which automatically accounts for all lines
+            const scrollHeight = inputRef.current.scrollHeight;
+            // Set max height to about 6-7 lines (around 150px) to prevent it from growing too large
+            const maxHeight = 150;
+            const minHeight = 38;
+            // Use scrollHeight directly - it already accounts for line breaks
+            const newHeight = Math.max(
+              minHeight,
+              Math.min(scrollHeight, maxHeight)
+            );
+            inputRef.current.style.height = `${newHeight}px`;
+            setTextareaHeight(newHeight);
+          }
+        });
+      });
+    }
+  }, [input, isOpen]);
 
   // Handle escape key
   useEffect(() => {
@@ -67,6 +112,7 @@ export default function AIChatModal({
     const userMessage = input.trim();
     setInput("");
     setError(null);
+    // Height will be reset automatically by the useEffect when input changes
 
     // Add user message
     const newMessages: Message[] = [
@@ -232,11 +278,17 @@ export default function AIChatModal({
               className="flex-1 resize-none rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
               rows={1}
               disabled={isLoading}
+              style={{
+                minHeight: "38px",
+                maxHeight: "150px",
+                overflowY: "auto",
+              }}
             />
             <button
               onClick={handleSend}
               disabled={!input.trim() || isLoading}
-              className="px-4 py-2 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-lg transition-colors font-medium flex items-center gap-1"
+              className="px-4 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-lg transition-colors font-medium flex items-center gap-1 self-start"
+              style={{ height: `${textareaHeight}px` }}
             >
               {isLoading ? (
                 <svg
