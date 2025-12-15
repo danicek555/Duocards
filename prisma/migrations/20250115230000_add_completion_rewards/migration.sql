@@ -17,3 +17,5 @@ ALTER TABLE "completion_rewards" ADD CONSTRAINT "completion_rewards_userId_fkey"
 
 
 
+
+
