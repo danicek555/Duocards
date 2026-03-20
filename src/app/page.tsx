@@ -244,7 +244,7 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-linear-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         {/* Logo/Title */}
         <AuthHeader isLogin={isLogin} />
@@ -401,15 +401,8 @@ export default function Home() {
                     </span>
                   </label>
                   <a
-                    href="#"
+                    href="/reset-password"
                     className="text-sm text-blue-600 hover:text-blue-500 dark:text-blue-400"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      showNotification(
-                        "Password reset coming soon! This feature is under development.",
-                        "info"
-                      );
-                    }}
                   >
                     Forgot password?
                   </a>

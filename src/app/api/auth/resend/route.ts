@@ -15,6 +15,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { isValidEmail } from "@/lib/auth";
+import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 import {
   generateVerificationCode,
   sendVerificationEmail,
@@ -27,6 +28,18 @@ interface ResendRequest {
 
 export async function POST(request: NextRequest) {
   try {
+    const clientIp = getClientIp(request);
+    const ipLimit = await checkRateLimit(`resend:ip:${clientIp}`, 20, 15 * 60 * 1000);
+    if (!ipLimit.allowed) {
+      return NextResponse.json(
+        { error: "Too many requests. Please try again later." },
+        {
+          status: 429,
+          headers: { "Retry-After": String(ipLimit.retryAfterSeconds) },
+        }
+      );
+    }
+
     // Parse JSON from request body
     const body: ResendRequest = await request.json();
     const { email } = body;
@@ -41,6 +54,21 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: "Invalid email format" },
         { status: 400 }
+      );
+    }
+
+    const emailLimit = await checkRateLimit(
+      `resend:email:${email.toLowerCase()}`,
+      5,
+      10 * 60 * 1000
+    );
+    if (!emailLimit.allowed) {
+      return NextResponse.json(
+        { error: "Too many requests. Please try again later." },
+        {
+          status: 429,
+          headers: { "Retry-After": String(emailLimit.retryAfterSeconds) },
+        }
       );
     }
 

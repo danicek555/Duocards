@@ -13,6 +13,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { comparePassword, isValidEmail, createAuthToken } from "@/lib/auth";
+import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 
 // Define the expected request body structure
 interface LoginRequest {
@@ -22,6 +23,18 @@ interface LoginRequest {
 
 export async function POST(request: NextRequest) {
   try {
+    const clientIp = getClientIp(request);
+    const ipLimit = await checkRateLimit(`login:ip:${clientIp}`, 40, 15 * 60 * 1000);
+    if (!ipLimit.allowed) {
+      return NextResponse.json(
+        { error: "Too many login attempts. Please try again later." },
+        {
+          status: 429,
+          headers: { "Retry-After": String(ipLimit.retryAfterSeconds) },
+        },
+      );
+    }
+
     // Parse JSON from request body
     const body: LoginRequest = await request.json();
     const { email, password } = body;
@@ -30,7 +43,7 @@ export async function POST(request: NextRequest) {
     if (!email || !password) {
       return NextResponse.json(
         { error: "Email and password are required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -38,7 +51,7 @@ export async function POST(request: NextRequest) {
     if (!isValidEmail(email)) {
       return NextResponse.json(
         { error: "Invalid email format" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -58,7 +71,7 @@ export async function POST(request: NextRequest) {
     if (!user) {
       return NextResponse.json(
         { error: "Invalid email or password" }, // Generic message for security
-        { status: 401 } // 401 = Unauthorized
+        { status: 401 }, // 401 = Unauthorized
       );
     }
 
@@ -87,7 +100,7 @@ export async function POST(request: NextRequest) {
     if (!isPasswordValid) {
       return NextResponse.json(
         { error: "Invalid email or password" }, // Generic message for security
-        { status: 401 }
+        { status: 401 },
       );
     }
 
@@ -103,7 +116,7 @@ export async function POST(request: NextRequest) {
           createdAt: user.createdAt,
         },
       },
-      { status: 200 }
+      { status: 200 },
     );
     res.cookies.set("auth", token, {
       httpOnly: true,
@@ -118,7 +131,7 @@ export async function POST(request: NextRequest) {
 
     // Type guard for Prisma errors
     const isPrismaError = (
-      err: unknown
+      err: unknown,
     ): err is { code: string; meta?: unknown; message: string } => {
       return typeof err === "object" && err !== null && "code" in err;
     };
@@ -136,7 +149,7 @@ export async function POST(request: NextRequest) {
           error: "Database configuration error. Please contact support.",
           code: "DB_TABLE_NOT_FOUND",
         },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
@@ -147,7 +160,7 @@ export async function POST(request: NextRequest) {
           error: "Database connection failed. Please try again later.",
           code: "DB_CONNECTION_FAILED",
         },
-        { status: 503 }
+        { status: 503 },
       );
     }
 
@@ -157,7 +170,7 @@ export async function POST(request: NextRequest) {
           error: "Invalid request format",
           code: "INVALID_REQUEST_FORMAT",
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -180,7 +193,7 @@ export async function POST(request: NextRequest) {
           debug: isStandardError(error) ? error.message : "Unknown error",
         }),
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
