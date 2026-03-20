@@ -14,6 +14,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { isValidEmail, createAuthToken } from "@/lib/auth";
+import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 import {
   isValidVerificationCode,
   isVerificationCodeExpired,
@@ -27,6 +28,18 @@ interface VerifyRequest {
 
 export async function POST(request: NextRequest) {
   try {
+    const clientIp = getClientIp(request);
+    const ipLimit = await checkRateLimit(`verify:ip:${clientIp}`, 30, 15 * 60 * 1000);
+    if (!ipLimit.allowed) {
+      return NextResponse.json(
+        { error: "Too many requests. Please try again later." },
+        {
+          status: 429,
+          headers: { "Retry-After": String(ipLimit.retryAfterSeconds) },
+        }
+      );
+    }
+
     // Parse JSON from request body
     const body: VerifyRequest = await request.json();
     const { email, code } = body;

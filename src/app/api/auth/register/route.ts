@@ -15,6 +15,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { hashPassword, isValidEmail, createAuthToken } from "@/lib/auth";
 import { validatePassword } from "@/lib/passwordValidation";
+import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 import {
   generateVerificationCode,
   sendVerificationEmail,
@@ -30,6 +31,18 @@ interface RegisterRequest {
 
 export async function POST(request: NextRequest) {
   try {
+    const clientIp = getClientIp(request);
+    const ipLimit = await checkRateLimit(`register:ip:${clientIp}`, 20, 15 * 60 * 1000);
+    if (!ipLimit.allowed) {
+      return NextResponse.json(
+        { error: "Too many registration attempts. Please try again later." },
+        {
+          status: 429,
+          headers: { "Retry-After": String(ipLimit.retryAfterSeconds) },
+        }
+      );
+    }
+
     // Validate environment variables
     const envValidation = logEnvironmentStatus();
     if (!envValidation.isValid) {

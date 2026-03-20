@@ -4,6 +4,7 @@
  */
 
 import { Resend } from "resend";
+import { createHash, randomBytes } from "crypto";
 
 /**
  * Generate a random verification code
@@ -114,6 +115,116 @@ export async function sendVerificationEmail(
     return {
       success: false,
       error: "Failed to send verification email. Please try again.",
+    };
+  }
+}
+
+/**
+ * Generate a secure password reset token.
+ * Raw token is sent to user; hashed token is stored in DB.
+ */
+export function generatePasswordResetToken(): { raw: string; hashed: string } {
+  const raw = randomBytes(32).toString("hex");
+  const hashed = createHash("sha256").update(raw).digest("hex");
+  return { raw, hashed };
+}
+
+/**
+ * Hash password reset token for DB lookup.
+ */
+export function hashPasswordResetToken(token: string): string {
+  return createHash("sha256").update(token).digest("hex");
+}
+
+/**
+ * Send password reset email with reset link.
+ */
+export async function sendPasswordResetEmail(
+  email: string,
+  token: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const resend = new Resend(process.env.RESEND_API_KEY);
+
+    if (!process.env.RESEND_API_KEY) {
+      return {
+        success: false,
+        error: "Email service is not configured. Please contact support.",
+      };
+    }
+
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+    const resetUrl = `${appUrl}/reset-password?token=${encodeURIComponent(
+      token
+    )}`;
+
+    const { error } = await resend.emails.send({
+      from: process.env.FROM_EMAIL || "DuoCards <onboarding@resend.dev>",
+      to: [email],
+      subject: "Reset your DuoCards password",
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <div style="text-align: center; margin-bottom: 30px;">
+            <h1 style="color: #333; margin: 0;">DuoCards</h1>
+            <p style="color: #666; margin: 5px 0;">Password reset request</p>
+          </div>
+          
+          <div style="background: #f8f9fa; padding: 30px; border-radius: 8px;">
+            <h2 style="color: #333; margin: 0 0 20px 0;">Reset Your Password</h2>
+            <p style="color: #666; margin: 0 0 20px 0; line-height: 1.5;">
+              We received a request to reset your DuoCards password.
+              Click the button below to choose a new password.
+            </p>
+            
+            <div style="text-align: center; margin: 30px 0;">
+              <a href="${resetUrl}" style="display: inline-block; background: #007bff; color: #fff; text-decoration: none; padding: 12px 20px; border-radius: 6px; font-weight: 600;">
+                Reset Password
+              </a>
+            </div>
+            
+            <p style="color: #666; margin: 0 0 8px 0; font-size: 14px;">
+              This link expires in 30 minutes.
+            </p>
+            <p style="color: #888; margin: 0; font-size: 12px; word-break: break-all;">
+              If the button does not work, open this URL:<br/>
+              ${resetUrl}
+            </p>
+          </div>
+          
+          <div style="text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #e9ecef;">
+            <p style="color: #999; font-size: 12px; margin: 0;">
+              If you did not request this, you can ignore this email.
+            </p>
+          </div>
+        </div>
+      `,
+      text: `
+        DuoCards - Reset Your Password
+        
+        We received a request to reset your DuoCards password.
+        Open this link to choose a new password:
+        
+        ${resetUrl}
+        
+        This link expires in 30 minutes.
+        
+        If you did not request this, you can ignore this email.
+      `,
+    });
+
+    if (error) {
+      return {
+        success: false,
+        error:
+          "Failed to send password reset email. Please check your email address and try again.",
+      };
+    }
+
+    return { success: true };
+  } catch {
+    return {
+      success: false,
+      error: "Failed to send password reset email. Please try again.",
     };
   }
 }

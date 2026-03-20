@@ -28,11 +28,18 @@ const globalForPrisma = globalThis as unknown as {
 
 // Function to create Prisma client with proper configuration
 function createPrismaClient(): PrismaClient {
-  // Check if we're using Prisma Accelerate
-  const databaseUrl = process.env.PRISMA_DATABASE_URL || "";
+  // Prefer direct DB connection in development to avoid network/DNS dependency
+  // on Prisma Accelerate while developing locally.
+  const directUrl = process.env.DIRECT_DATABASE_URL || "";
+  const isDevelopment = process.env.NODE_ENV !== "production";
+  const shouldPreferDirect = isDevelopment && directUrl.length > 0;
+  const databaseUrl = shouldPreferDirect
+    ? directUrl
+    : process.env.PRISMA_DATABASE_URL || "";
   const isAccelerate =
-    databaseUrl.startsWith("prisma://") ||
-    databaseUrl.startsWith("prisma+postgres://");
+    !shouldPreferDirect &&
+    (databaseUrl.startsWith("prisma://") ||
+      databaseUrl.startsWith("prisma+postgres://"));
 
   // Prisma 7: Use accelerateUrl for Accelerate, adapter for direct connections
   if (isAccelerate) {
