@@ -101,10 +101,10 @@ export async function POST(request: NextRequest) {
     // Hash the password before storing
     const hashedPassword = await hashPassword(password);
 
-    // Check if email verification is disabled (for development)
+    // Email verification can be disabled explicitly via env flag.
+    // Do not auto-disable in development.
     const skipEmailVerification =
-      process.env.SKIP_EMAIL_VERIFICATION === "true" ||
-      process.env.NODE_ENV === "development";
+      process.env.SKIP_EMAIL_VERIFICATION === "true";
 
     if (skipEmailVerification) {
       // Create user directly without email verification
