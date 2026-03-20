@@ -17,6 +17,7 @@
     "@prisma/client": "7.0.0",
     "@prisma/extension-accelerate": "^3.0.0",
     "@sentry/nextjs": "^10.22.0",
+    "ably": "^2.21.0",
     "argon2": "^0.44.0",
     "heic2any": "^0.0.4",
     "next": "15.5.9",
