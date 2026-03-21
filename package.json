@@ -20,6 +20,7 @@
     "@vercel/analytics": "^2.0.1",
     "ably": "^2.21.0",
     "argon2": "^0.44.0",
+    "bad-words": "^4.0.0",
     "heic2any": "^0.0.4",
     "next": "15.5.9",
     "openai": "^6.7.0",

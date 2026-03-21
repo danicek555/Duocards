@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { verifyAuthToken } from "@/lib/auth";
 import { checkCoins, deductCoins } from "@/lib/coins";
 import { COIN_COSTS } from "@/lib/coin-costs";
+import { chatContainsBlockedContent } from "@/lib/chatContentFilter";
 
 // Initialize OpenAI client lazily to avoid build-time errors
 async function getOpenAIClient() {
@@ -59,6 +60,17 @@ export async function POST(request: NextRequest) {
     if (!message || !message.trim()) {
       return NextResponse.json(
         { error: "Message is required" },
+        { status: 400 }
+      );
+    }
+
+    // Local content moderation (dictionary only — no moderation AI API)
+    if (chatContainsBlockedContent(message, conversationHistory)) {
+      return NextResponse.json(
+        {
+          error:
+            "Your message does not meet our community guidelines. Please revise and try again.",
+        },
         { status: 400 }
       );
     }

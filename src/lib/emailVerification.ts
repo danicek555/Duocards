@@ -6,6 +6,20 @@
 import { Resend } from "resend";
 import { createHash, randomBytes } from "crypto";
 
+/** Default sender when FROM_EMAIL is unset (must be verified in Resend for your domain). */
+const DEFAULT_FROM_ADDRESS = "notifications@duocards.xyz";
+
+/**
+ * Resend `from` field: supports plain email in FROM_EMAIL or full "Name <email>" string.
+ */
+export function formatResendFrom(): string {
+  const raw = (process.env.FROM_EMAIL || DEFAULT_FROM_ADDRESS).trim();
+  if (raw.includes("<") && raw.includes(">")) {
+    return raw;
+  }
+  return `DuoCards <${raw}>`;
+}
+
 /**
  * Generate a random verification code
  * @returns string - 6-digit verification code
@@ -39,7 +53,7 @@ export async function sendVerificationEmail(
 
     // Send verification email
     const { error } = await resend.emails.send({
-      from: process.env.FROM_EMAIL || "DuoCards <onboarding@resend.dev>",
+      from: formatResendFrom(),
       to: [email],
       subject: "Verify your DuoCards account",
       html: `
@@ -159,7 +173,7 @@ export async function sendPasswordResetEmail(
     )}`;
 
     const { error } = await resend.emails.send({
-      from: process.env.FROM_EMAIL || "DuoCards <onboarding@resend.dev>",
+      from: formatResendFrom(),
       to: [email],
       subject: "Reset your DuoCards password",
       html: `
