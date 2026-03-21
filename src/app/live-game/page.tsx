@@ -1,6 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, Suspense } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  Suspense,
+} from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import type { Message, Realtime, RealtimeChannel } from "ably";
 import Flashcard from "@/components/Flashcard";
@@ -83,16 +89,10 @@ type LiveGameSettings = {
   practiceWords?: PracticeWord[];
 };
 
-const SESSION_DURATION_OPTIONS = [
-  { value: 0, label: "No time limit" },
-  { value: 10, label: "10 minutes" },
-  { value: 15, label: "15 minutes" },
-  { value: 30, label: "30 minutes" },
-  { value: 45, label: "45 minutes" },
-  { value: 60, label: "1 hour" },
-  { value: 90, label: "1.5 hours" },
-  { value: 120, label: "2 hours" },
-] as const;
+const SESSION_DURATION_OPTIONS = [5, 10, 15, 20, 25, 30].map((value) => ({
+  value,
+  label: `${value} minutes`,
+})) as readonly { value: number; label: string }[];
 
 function shuffleArray<T>(array: T[]): T[] {
   const shuffled = [...array];
@@ -114,10 +114,41 @@ function formatCountdown(totalSeconds: number): string {
   return `${m}:${String(s).padStart(2, "0")}`;
 }
 
+/** Parse Ably game-config payload; shared by live subscription + channel history. */
+function normalizeGameConfigPayload(
+  payload: Partial<LiveGameSettings> | undefined
+): LiveGameSettings | null {
+  if (
+    !payload ||
+    !Array.isArray(payload.flashcardSetIds) ||
+    !Array.isArray(payload.flashcardSets) ||
+    !payload.gameMode
+  ) {
+    return null;
+  }
+  return {
+    gameMode: payload.gameMode as GameModeId,
+    gameModeLabel: payload.gameModeLabel ?? String(payload.gameMode),
+    flashcardSetIds: payload.flashcardSetIds,
+    flashcardSets: payload.flashcardSets,
+    sessionDurationMinutes: payload.sessionDurationMinutes ?? 0,
+    sessionEndsAt: payload.sessionEndsAt ?? null,
+    liveChatEnabled: payload.liveChatEnabled !== false,
+    ...(Array.isArray(payload.practiceWords) && payload.practiceWords.length > 0
+      ? { practiceWords: payload.practiceWords }
+      : {}),
+  };
+}
+
 type FlashcardSetListItem = {
   id: number;
   name: string;
   words: { id: number }[];
+};
+
+type RoomMember = {
+  clientId: string;
+  nickname: string;
 };
 
 function LiveGameContent() {
@@ -128,6 +159,7 @@ function LiveGameContent() {
   const [joinInput, setJoinInput] = useState("");
   const [connectionState, setConnectionState] = useState("idle");
   const [onlineCount, setOnlineCount] = useState(0);
+  const [roomMembers, setRoomMembers] = useState<RoomMember[]>([]);
   const [messageInput, setMessageInput] = useState("");
   const [nickname, setNickname] = useState("Guest");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -157,6 +189,9 @@ function LiveGameContent() {
   const [receivedGameSettings, setReceivedGameSettings] =
     useState<LiveGameSettings | null>(null);
   const isRoomHostRef = useRef(false);
+  const [gameStarted, setGameStarted] = useState(false);
+  const gameStartedRef = useRef(false);
+  gameStartedRef.current = gameStarted;
   const [sessionDurationMinutes, setSessionDurationMinutes] =
     useState<number>(30);
   const [liveChatEnabled, setLiveChatEnabled] = useState(true);
@@ -165,6 +200,10 @@ function LiveGameContent() {
   const [sessionRemainingSec, setSessionRemainingSec] = useState<number | null>(
     null
   );
+
+  /** Latest host settings for re-publishing when joiners enter presence */
+  const liveGameSettingsRef = useRef<LiveGameSettings | null>(null);
+  liveGameSettingsRef.current = liveGameSettings;
 
   // Deep-link: /live-game?room=XXXXXX
   useEffect(() => {
@@ -176,8 +215,9 @@ function LiveGameContent() {
     if (roomCode === normalized) return;
 
     isRoomHostRef.current = false;
-    setLiveGameSettings(null);
+      setLiveGameSettings(null);
     setReceivedGameSettings(null);
+    setGameStarted(false);
     setRoomCode(normalized);
   }, [searchParams, roomCode]);
 
@@ -228,6 +268,7 @@ function LiveGameContent() {
     if (!roomCode) {
       setMessages([]);
       setOnlineCount(0);
+      setRoomMembers([]);
       setConnectionState("idle");
       channelRef.current = null;
       return;
@@ -256,11 +297,37 @@ function LiveGameContent() {
         });
         channel = client.channels.get(channelName);
 
+        const parsePresenceData = (data: unknown): { nickname?: string } => {
+          if (data && typeof data === "object" && "nickname" in data) {
+            const n = (data as { nickname?: unknown }).nickname;
+            if (typeof n === "string" && n.trim()) return { nickname: n.trim() };
+          }
+          return {};
+        };
+
         const refreshPresenceCount = async () => {
           const members = await channel!.presence.get();
           if (isMounted && !cancelled) {
             setOnlineCount(members.length);
           }
+        };
+
+        const refreshPresenceMembers = async () => {
+          const members = await channel!.presence.get();
+          if (!isMounted || cancelled) return;
+          const list: RoomMember[] = members.map((m) => {
+            const { nickname } = parsePresenceData(m.data);
+            return {
+              clientId: m.clientId ?? "",
+              nickname: nickname || "Guest",
+            };
+          });
+          list.sort((a, b) =>
+            a.nickname.localeCompare(b.nickname, undefined, {
+              sensitivity: "base",
+            })
+          );
+          setRoomMembers(list);
         };
 
         const mapAblyMessage = (message: Message): ChatMessage => {
@@ -294,9 +361,29 @@ function LiveGameContent() {
           direction: "forwards",
           limit: 200,
         });
-        const historyMessages = (history.items || []).map(mapAblyMessage);
+        const historyItems = history.items || [];
+
+        // Only merge real chat lines (game-config used separate event name)
+        const chatHistoryItems = historyItems.filter(
+          (m) => m.name === "chat-message" || m.name == null
+        );
+        const historyMessages = chatHistoryItems.map(mapAblyMessage);
         if (isMounted && !cancelled) {
           setMessages((prev) => mergeMessages(prev, historyMessages));
+        }
+
+        // Joiners: recover latest game-config from persistence (missed if host published before we subscribed)
+        if (!isHost) {
+          const configItems = historyItems.filter((m) => m.name === "game-config");
+          if (configItems.length > 0) {
+            const lastConfig = configItems[configItems.length - 1];
+            const normalized = normalizeGameConfigPayload(
+              lastConfig.data as Partial<LiveGameSettings> | undefined
+            );
+            if (normalized && isMounted && !cancelled) {
+              setReceivedGameSettings(normalized);
+            }
+          }
         }
 
         await channel.subscribe("chat-message", (message: Message) => {
@@ -307,27 +394,10 @@ function LiveGameContent() {
 
         await channel.subscribe("game-config", (message: Message) => {
           if (!isMounted || isRoomHostRef.current) return;
-          const payload = message.data as Partial<LiveGameSettings> | undefined;
-          if (
-            payload &&
-            Array.isArray(payload.flashcardSetIds) &&
-            Array.isArray(payload.flashcardSets) &&
-            payload.gameMode
-          ) {
-            const normalized: LiveGameSettings = {
-              gameMode: payload.gameMode as GameModeId,
-              gameModeLabel:
-                payload.gameModeLabel ?? String(payload.gameMode),
-              flashcardSetIds: payload.flashcardSetIds,
-              flashcardSets: payload.flashcardSets,
-              sessionDurationMinutes: payload.sessionDurationMinutes ?? 0,
-              sessionEndsAt: payload.sessionEndsAt ?? null,
-              liveChatEnabled: payload.liveChatEnabled !== false,
-              ...(Array.isArray(payload.practiceWords) &&
-              payload.practiceWords.length > 0
-                ? { practiceWords: payload.practiceWords }
-                : {}),
-            };
+          const normalized = normalizeGameConfigPayload(
+            message.data as Partial<LiveGameSettings> | undefined
+          );
+          if (normalized) {
             setReceivedGameSettings(normalized);
           }
         });
@@ -343,19 +413,34 @@ function LiveGameContent() {
           return;
         }
 
-        await activeChannel.presence.subscribe("enter", refreshPresenceCount);
-        await activeChannel.presence.subscribe("leave", refreshPresenceCount);
+        const handlePresenceChange = async () => {
+          if (isMounted && !cancelled) {
+            await refreshPresenceCount();
+            await refreshPresenceMembers();
+          }
+          // Re-send config so joiners who connected after start still get cards/sets
+          if (!isMounted || cancelled || !isRoomHostRef.current) return;
+          if (!gameStartedRef.current) return;
+          const settings = liveGameSettingsRef.current;
+          if (!settings) return;
+          try {
+            await activeChannel.publish("game-config", settings);
+          } catch (e) {
+            console.error("Failed to re-publish game-config:", e);
+          }
+        };
+
+        await activeChannel.presence.subscribe("enter", handlePresenceChange);
+        await activeChannel.presence.subscribe("leave", handlePresenceChange);
+        await activeChannel.presence.subscribe("update", handlePresenceChange);
         await activeChannel.presence.enter({ clientId, nickname });
         await refreshPresenceCount();
+        await refreshPresenceMembers();
 
         channelRef.current = {
           publish: async (name: string, data: unknown) =>
             activeChannel.publish(name, data),
         };
-
-        if (isHost && hostSettings) {
-          await activeChannel.publish("game-config", hostSettings);
-        }
       } catch (err) {
         if (isMounted) {
           setError(
@@ -452,12 +537,9 @@ function LiveGameContent() {
         practiceWords = shuffled;
       }
 
-      const sessionEndsAt =
-        sessionDurationMinutes > 0
-          ? new Date(
-              Date.now() + sessionDurationMinutes * 60 * 1000
-            ).toISOString()
-          : null;
+      const sessionEndsAt = new Date(
+        Date.now() + sessionDurationMinutes * 60 * 1000
+      ).toISOString();
 
       const settings: LiveGameSettings = {
         gameMode: createGameMode,
@@ -476,6 +558,8 @@ function LiveGameContent() {
 
       setLiveGameSettings(settings);
       isRoomHostRef.current = true;
+      setGameStarted(false);
+      gameStartedRef.current = false;
       setPracticeIndex(0);
 
       const code = generateRoomCode();
@@ -501,6 +585,8 @@ function LiveGameContent() {
     isRoomHostRef.current = false;
     setLiveGameSettings(null);
     setReceivedGameSettings(null);
+    setGameStarted(false);
+    gameStartedRef.current = false;
     setRoomCode(code);
     syncUrlToRoom(code);
     setError(null);
@@ -514,6 +600,8 @@ function LiveGameContent() {
     setError(null);
     setLiveGameSettings(null);
     setReceivedGameSettings(null);
+    setGameStarted(false);
+    gameStartedRef.current = false;
     setCreateGameMode(GAME_MODES[0].id);
     setSelectedSetIds([]);
     setPracticeIndex(0);
@@ -530,7 +618,7 @@ function LiveGameContent() {
   };
 
   const sendMessage = async () => {
-    if (!channelRef.current || !messageInput.trim() || !roomCode) return;
+    if (!messageInput.trim() || !roomCode) return;
     const settings = liveGameSettings ?? receivedGameSettings;
     if (settings?.liveChatEnabled === false) return;
 
@@ -538,50 +626,92 @@ function LiveGameContent() {
     setMessageInput("");
 
     try {
-      await channelRef.current.publish("chat-message", {
-        from: nickname,
-        text,
-        at: new Date().toISOString(),
+      const res = await fetch("/api/live-game/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          roomCode,
+          text,
+          from: nickname,
+        }),
       });
+      const data = (await res.json().catch(() => ({}))) as {
+        error?: string;
+      };
+      if (!res.ok) {
+        setMessageInput(text);
+        setError(data.error || "Failed to send message.");
+        return;
+      }
+      // Message is delivered via Ably subscription (server publish).
     } catch (err) {
+      setMessageInput(text);
       setError(
-        err instanceof Error ? err.message : "Failed to publish message."
+        err instanceof Error ? err.message : "Failed to send message."
       );
     }
   };
 
   const inLobby = !roomCode;
 
-  const displayGameSettings =
-    liveGameSettings || receivedGameSettings;
   /** Host session has local settings; joiners only have receivedGameSettings */
   const isHostUi = !!liveGameSettings;
+  /** Planned session (host has this in lobby; joiners after start) */
+  const sessionSummarySettings = liveGameSettings ?? receivedGameSettings;
+  /** Cards / playable UI only after host starts or joiner received config */
+  const activeGameSettings = isHostUi
+    ? gameStarted
+      ? liveGameSettings
+      : null
+    : receivedGameSettings;
 
-  const practiceWords = displayGameSettings?.practiceWords ?? [];
+  const startGameAsHost = async () => {
+    if (!liveGameSettings || !isRoomHostRef.current) return;
+    if (!channelRef.current) {
+      setError("Still connecting — wait a moment, then try again.");
+      return;
+    }
+    setError(null);
+    gameStartedRef.current = true;
+    setGameStarted(true);
+    try {
+      await channelRef.current.publish("game-config", liveGameSettings);
+    } catch (e) {
+      gameStartedRef.current = false;
+      setGameStarted(false);
+      setError(
+        e instanceof Error ? e.message : "Could not start the game. Try again."
+      );
+    }
+  };
+
+  const practiceWords = activeGameSettings?.practiceWords ?? [];
   const isPracticeMode =
-    displayGameSettings?.gameMode === "practice" &&
+    activeGameSettings?.gameMode === "practice" &&
     practiceWords.length > 0;
   const currentPracticeCard = isPracticeMode
     ? practiceWords[practiceIndex]
     : null;
   const sessionEnded =
-    displayGameSettings?.sessionEndsAt != null &&
+    activeGameSettings?.sessionEndsAt != null &&
     sessionRemainingSec !== null &&
     sessionRemainingSec <= 0;
   const chatEnabledForSession =
     !!roomCode &&
-    (displayGameSettings ? displayGameSettings.liveChatEnabled !== false : true);
+    (sessionSummarySettings
+      ? sessionSummarySettings.liveChatEnabled !== false
+      : true);
 
   useEffect(() => {
     setPracticeIndex(0);
   }, [
     roomCode,
-    displayGameSettings?.gameMode,
-    displayGameSettings?.practiceWords?.length,
+    activeGameSettings?.gameMode,
+    activeGameSettings?.practiceWords?.length,
   ]);
 
   useEffect(() => {
-    const endsAt = displayGameSettings?.sessionEndsAt;
+    const endsAt = activeGameSettings?.sessionEndsAt;
     if (!endsAt) {
       setSessionRemainingSec(null);
       return;
@@ -594,13 +724,15 @@ function LiveGameContent() {
     tick();
     const id = setInterval(tick, 1000);
     return () => clearInterval(id);
-  }, [displayGameSettings?.sessionEndsAt]);
+  }, [activeGameSettings?.sessionEndsAt]);
 
   return (
     <div className="min-h-screen flex flex-col bg-linear-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
       {/* Main area — grows; chat stays at bottom */}
-      <div className="flex-1 p-6 md:p-8 pb-4">
-        <div className="max-w-3xl mx-auto">
+      <div
+        className={`flex-1 flex flex-col ${inLobby ? "items-center justify-center px-4 py-10 md:py-16" : "p-6 md:p-8 pb-4"}`}
+      >
+        <div className="w-full max-w-3xl mx-auto">
           <button
             type="button"
             onClick={() => router.push("/dashboard")}
@@ -609,17 +741,21 @@ function LiveGameContent() {
             ← Back to Dashboard
           </button>
 
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+          <h1
+            className={`text-3xl font-bold text-gray-900 dark:text-white mb-2 ${inLobby ? "text-center" : ""}`}
+          >
             Live Game
           </h1>
-          <p className="text-gray-600 dark:text-gray-300 mb-8">
+          <p
+            className={`text-gray-600 dark:text-gray-300 mb-8 ${inLobby ? "text-center max-w-md mx-auto" : ""}`}
+          >
             {inLobby
               ? "Create a new session or join friends with a code."
               : "You’re in a live room. Share the code so others can join."}
           </p>
 
           {inLobby ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-2xl">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-2xl mx-auto w-full">
               <button
                 type="button"
                 onClick={openCreateModal}
@@ -677,8 +813,13 @@ function LiveGameContent() {
                   onChange={(e) =>
                     setJoinInput(e.target.value.toUpperCase().slice(0, 8))
                   }
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") handleJoinGame();
+                  }}
                   placeholder="e.g. AB12XY"
-                  className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white font-mono text-lg tracking-widest text-center mb-3"
+                  autoComplete="off"
+                  spellCheck={false}
+                  className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white font-mono text-lg tracking-widest text-center mb-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
                 <button
                   type="button"
@@ -723,6 +864,42 @@ function LiveGameContent() {
                 </div>
               )}
 
+              {roomCode && connectionState === "connected" && (
+                <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white/90 dark:bg-gray-800/90 p-4">
+                  <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">
+                    Players in this room
+                  </p>
+                  {roomMembers.length === 0 ? (
+                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                      Syncing presence…
+                    </p>
+                  ) : (
+                    <ul className="space-y-2">
+                      {roomMembers.map((m) => (
+                        <li
+                          key={m.clientId}
+                          className="flex flex-wrap items-center gap-2 text-sm text-gray-800 dark:text-gray-200"
+                        >
+                          <span className="font-medium">{m.nickname}</span>
+                          {m.clientId === clientId && (
+                            <span className="text-xs text-gray-500 dark:text-gray-400">
+                              (you)
+                            </span>
+                          )}
+                          {isHostUi &&
+                            m.clientId === clientId &&
+                            liveGameSettings && (
+                              <span className="text-xs font-medium text-blue-600 dark:text-blue-400">
+                                · Host
+                              </span>
+                            )}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              )}
+
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div className="rounded-xl border border-gray-200 dark:border-gray-700 p-4 bg-white/80 dark:bg-gray-800/80">
                   <p className="text-xs text-gray-500 dark:text-gray-400">
@@ -745,10 +922,10 @@ function LiveGameContent() {
                     Session
                   </p>
                   <p className="text-sm font-semibold text-gray-900 dark:text-white">
-                    {!displayGameSettings ? (
+                    {!sessionSummarySettings ? (
                       "…"
-                    ) : displayGameSettings.sessionDurationMinutes <= 0 ? (
-                      "No time limit"
+                    ) : sessionSummarySettings.sessionDurationMinutes <= 0 ? (
+                      "—"
                     ) : sessionRemainingSec != null ? (
                       sessionEnded ? (
                         "Ended"
@@ -758,21 +935,66 @@ function LiveGameContent() {
                         </span>
                       )
                     ) : (
-                      `${displayGameSettings.sessionDurationMinutes} min`
+                      `${sessionSummarySettings.sessionDurationMinutes} min`
                     )}
                   </p>
-                  {displayGameSettings &&
-                    displayGameSettings.sessionDurationMinutes > 0 && (
-                      <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-0.5">
-                        Live chat:{" "}
-                        {displayGameSettings.liveChatEnabled ? "On" : "Off"}
-                      </p>
-                    )}
+                  {sessionSummarySettings && (
+                    <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-0.5">
+                      Live chat:{" "}
+                      {sessionSummarySettings.liveChatEnabled ? "On" : "Off"}
+                    </p>
+                  )}
                 </div>
               </div>
 
               <div className="rounded-2xl border-2 border-dashed border-gray-300 dark:border-gray-600 bg-white/50 dark:bg-gray-800/50 min-h-[160px] p-6">
-                {displayGameSettings ? (
+                {isHostUi && liveGameSettings && !gameStarted ? (
+                  <div className="space-y-6 text-left">
+                    <div>
+                      <p className="text-xs font-medium text-blue-600 dark:text-blue-400 uppercase tracking-wide mb-1">
+                        Lobby
+                      </p>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">
+                        Share the room code so friends can join. When everyone is
+                        ready, start the game — players will get the same cards
+                        and settings.
+                      </p>
+                    </div>
+                    <div className="rounded-xl border border-gray-200 dark:border-gray-600 bg-white/80 dark:bg-gray-800/80 p-4 space-y-3">
+                      <div>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">
+                          Mode
+                        </p>
+                        <p className="text-lg font-semibold text-gray-900 dark:text-white">
+                          {liveGameSettings.gameModeLabel}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">
+                          Sets
+                        </p>
+                        <ul className="space-y-1 text-sm text-gray-800 dark:text-gray-200">
+                          {liveGameSettings.flashcardSets.map((s) => (
+                            <li key={s.id}>
+                              {s.name}{" "}
+                              <span className="text-gray-500 dark:text-gray-400">
+                                ({s.wordCount} cards)
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => void startGameAsHost()}
+                      disabled={connectionState !== "connected"}
+                      className="w-full sm:w-auto px-6 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold transition-colors"
+                    >
+                      Start game
+                    </button>
+                  </div>
+                ) : activeGameSettings ? (
                   <>
                     {isPracticeMode && currentPracticeCard ? (
                       <div className="space-y-4">
@@ -821,7 +1043,7 @@ function LiveGameContent() {
                             Sets in this session
                           </summary>
                           <ul className="mt-2 space-y-1 pl-4 list-disc">
-                            {displayGameSettings.flashcardSets.map((s) => (
+                            {activeGameSettings.flashcardSets.map((s) => (
                               <li key={s.id}>
                                 {s.name} ({s.wordCount} cards)
                               </li>
@@ -829,7 +1051,7 @@ function LiveGameContent() {
                           </ul>
                         </details>
                       </div>
-                    ) : displayGameSettings.gameMode === "practice" ? (
+                    ) : activeGameSettings.gameMode === "practice" ? (
                       <p className="text-center text-sm text-amber-700 dark:text-amber-300 py-8">
                         Practice mode was chosen but no card data arrived. Ask
                         the host to recreate the room, or reconnect.
@@ -841,10 +1063,10 @@ function LiveGameContent() {
                             Game mode
                           </p>
                           <p className="text-lg font-semibold text-gray-900 dark:text-white">
-                            {displayGameSettings.gameModeLabel}
+                            {activeGameSettings.gameModeLabel}
                           </p>
                           <p className="text-xs text-gray-500 dark:text-gray-400 font-mono">
-                            {displayGameSettings.gameMode}{" "}
+                            {activeGameSettings.gameMode}{" "}
                             {isHostUi ? "(you chose this)" : "(from host)"}
                           </p>
                         </div>
@@ -853,7 +1075,7 @@ function LiveGameContent() {
                             Flashcard sets
                           </p>
                           <ul className="space-y-2">
-                            {displayGameSettings.flashcardSets.map((s) => (
+                            {activeGameSettings.flashcardSets.map((s) => (
                               <li
                                 key={s.id}
                                 className="flex justify-between gap-2 text-sm text-gray-800 dark:text-gray-200 bg-white/80 dark:bg-gray-800/80 rounded-lg px-3 py-2 border border-gray-200 dark:border-gray-600"
@@ -870,17 +1092,17 @@ function LiveGameContent() {
                         </div>
                         <p className="text-xs text-gray-500 dark:text-gray-400">
                           Session:{" "}
-                          {displayGameSettings.sessionDurationMinutes <= 0
-                            ? "no limit"
-                            : `${displayGameSettings.sessionDurationMinutes} min`}
+                          {activeGameSettings.sessionDurationMinutes <= 0
+                            ? "—"
+                            : `${activeGameSettings.sessionDurationMinutes} min`}
                           {" · "}
                           Chat:{" "}
-                          {displayGameSettings.liveChatEnabled ? "on" : "off"}
+                          {activeGameSettings.liveChatEnabled ? "on" : "off"}
                         </p>
                         <p className="text-xs text-gray-500 dark:text-gray-400">
                           Set IDs for your game logic:{" "}
                           <span className="font-mono">
-                            {displayGameSettings.flashcardSetIds.join(", ")}
+                            {activeGameSettings.flashcardSetIds.join(", ")}
                           </span>
                         </p>
                       </div>
@@ -891,7 +1113,7 @@ function LiveGameContent() {
                     <p className="text-center text-gray-500 dark:text-gray-400 text-sm max-w-md">
                       {isHostUi
                         ? "No game config — try rejoining as host."
-                        : "Waiting for host to share game settings… If nothing appears, ask them to ensure they created the room from this app."}
+                        : "Waiting for the host to start the game… You’ll see the same mode and cards as everyone else once they press Start."}
                     </p>
                   </div>
                 )}
@@ -1085,34 +1307,23 @@ function LiveGameContent() {
         </div>
       )}
 
-      {/* Live chat — bottom (hidden when host disables chat) */}
+      {/* Live chat — only inside a room (not on create/join dashboard) */}
       {!inLobby && roomCode && !chatEnabledForSession ? (
         <div className="border-t border-gray-200 dark:border-gray-700 bg-gray-100/90 dark:bg-gray-900/95 py-3 px-4 text-center">
           <p className="text-sm text-gray-600 dark:text-gray-400">
             Live chat is off for this session (host disabled it).
           </p>
         </div>
-      ) : (
-        <div
-          className={`border-t border-gray-200 dark:border-gray-700 bg-white/95 dark:bg-gray-900/95 backdrop-blur supports-backdrop-filter:bg-white/90 shadow-[0_-4px_24px_rgba(0,0,0,0.08)] ${inLobby ? "opacity-60 pointer-events-none" : ""}`}
-        >
+      ) : !inLobby && roomCode ? (
+        <div className="border-t border-gray-200 dark:border-gray-700 bg-white/95 dark:bg-gray-900/95 backdrop-blur supports-backdrop-filter:bg-white/90 shadow-[0_-4px_24px_rgba(0,0,0,0.08)]">
           <div className="max-w-3xl mx-auto px-4 md:px-8 py-3">
             <div className="flex items-center justify-between mb-2">
               <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200">
-                Live chat {roomCode ? `· ${roomCode}` : ""}
+                Live chat · {roomCode}
               </h3>
-              {inLobby && (
-                <span className="text-xs text-gray-500 dark:text-gray-400">
-                  Join or create a game to chat
-                </span>
-              )}
             </div>
             <div className="rounded-lg border border-gray-200 dark:border-gray-700 h-40 overflow-y-auto p-3 mb-2 bg-gray-50 dark:bg-gray-800/50">
-              {!roomCode ? (
-                <p className="text-xs text-gray-500 dark:text-gray-400 py-6 text-center">
-                  Chat unlocks after you create or join a game.
-                </p>
-              ) : messages.length === 0 ? (
+              {messages.length === 0 ? (
                 <p className="text-xs text-gray-500 dark:text-gray-400">
                   No messages yet. Say hi!
                 </p>
@@ -1139,16 +1350,14 @@ function LiveGameContent() {
                     void sendMessage();
                   }
                 }}
-                placeholder={
-                  roomCode ? "Message the room..." : "Create or join to chat"
-                }
-                disabled={!roomCode || !chatEnabledForSession}
+                placeholder="Message the room..."
+                disabled={!chatEnabledForSession}
                 className="flex-1 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white disabled:opacity-50"
               />
               <button
                 type="button"
                 onClick={() => void sendMessage()}
-                disabled={!roomCode || !chatEnabledForSession}
+                disabled={!chatEnabledForSession}
                 className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
               >
                 Send
@@ -1156,7 +1365,7 @@ function LiveGameContent() {
             </div>
           </div>
         </div>
-      )}
+      ) : null}
     </div>
   );
 }

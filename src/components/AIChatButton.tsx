@@ -50,6 +50,9 @@ export default function AIChatButton({ onCoinsUpdate }: AIChatButtonProps) {
       const userData = localStorage.getItem("user");
       setIsLoggedIn(!!userData);
     }
+    if (pathname === "/live-game") {
+      setIsOpen(false);
+    }
     // Set loading state based on pathname
     if (pathname === "/dashboard") {
       // Assume loading when on dashboard until we get a "not loading" event
@@ -95,6 +98,11 @@ export default function AIChatButton({ onCoinsUpdate }: AIChatButtonProps) {
 
   // Don't render on login/register page or verify page
   if (pathname === "/" || pathname === "/verify") {
+    return null;
+  }
+
+  // Live game has its own chat; hide the floating AI helper there
+  if (pathname === "/live-game") {
     return null;
   }
 
