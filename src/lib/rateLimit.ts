@@ -98,3 +98,90 @@ export async function checkRateLimit(
   store.set(key, existing);
   return { allowed: true, retryAfterSeconds: 0 };
 }
+
+/** After profanity / blocked content on AI or live chat — block both for this window. */
+const CONTENT_VIOLATION_WINDOW_MS = 5 * 60 * 1000;
+
+const contentBlockMemory = new Map<string, number>();
+
+function contentViolationKeys(ip: string, userId: number | null): string[] {
+  const keys = [`cv:ip:${ip}`];
+  if (userId != null) keys.push(`cv:user:${userId}`);
+  return keys;
+}
+
+async function getSingleContentBlockStatus(
+  innerKey: string
+): Promise<{ blocked: boolean; retryAfterSeconds: number }> {
+  const redisKey = `content_block:${innerKey}`;
+  const redis = await getRedisClient();
+  if (redis) {
+    try {
+      const ttl = await redis.ttl(redisKey);
+      if (ttl > 0) {
+        return { blocked: true, retryAfterSeconds: ttl };
+      }
+      return { blocked: false, retryAfterSeconds: 0 };
+    } catch (error) {
+      console.error("Redis content block read failed, using memory:", error);
+    }
+  }
+
+  const until = contentBlockMemory.get(redisKey);
+  const now = nowMs();
+  if (!until || until <= now) {
+    contentBlockMemory.delete(redisKey);
+    return { blocked: false, retryAfterSeconds: 0 };
+  }
+  return {
+    blocked: true,
+    retryAfterSeconds: Math.max(1, Math.ceil((until - now) / 1000)),
+  };
+}
+
+async function setSingleContentBlock(innerKey: string, windowMs: number) {
+  const redisKey = `content_block:${innerKey}`;
+  const ttlSeconds = Math.max(1, Math.ceil(windowMs / 1000));
+  const redis = await getRedisClient();
+  if (redis) {
+    try {
+      await redis.setEx(redisKey, ttlSeconds, "1");
+      return;
+    } catch (error) {
+      console.error("Redis content block set failed, using memory:", error);
+    }
+  }
+  contentBlockMemory.set(redisKey, nowMs() + windowMs);
+}
+
+/**
+ * True if this IP or user is in the post-violation cooldown (AI + live chat).
+ */
+export async function isContentViolationBlocked(
+  request: NextRequest,
+  userId: number | null
+): Promise<{ blocked: boolean; retryAfterSeconds: number }> {
+  const ip = getClientIp(request);
+  let maxRetry = 0;
+  for (const inner of contentViolationKeys(ip, userId)) {
+    const s = await getSingleContentBlockStatus(inner);
+    if (s.blocked && s.retryAfterSeconds > maxRetry) {
+      maxRetry = s.retryAfterSeconds;
+    }
+  }
+  if (maxRetry > 0) {
+    return { blocked: true, retryAfterSeconds: maxRetry };
+  }
+  return { blocked: false, retryAfterSeconds: 0 };
+}
+
+/** Call when a message fails the profanity filter (starts 5-minute cooldown). */
+export async function setContentViolationBlock(
+  request: NextRequest,
+  userId: number | null
+): Promise<void> {
+  const ip = getClientIp(request);
+  for (const inner of contentViolationKeys(ip, userId)) {
+    await setSingleContentBlock(inner, CONTENT_VIOLATION_WINDOW_MS);
+  }
+}
