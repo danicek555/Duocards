@@ -1,7 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Rest } from "ably";
-import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
+import {
+  checkRateLimit,
+  getClientIp,
+  isContentViolationBlocked,
+  setContentViolationBlock,
+} from "@/lib/rateLimit";
 import { chatContainsBlockedContent } from "@/lib/chatContentFilter";
+import { verifyAuthToken } from "@/lib/auth";
 
 const ABLY_API_KEY = process.env.ABLY_API_KEY;
 const MAX_MESSAGE_LENGTH = 200;
@@ -62,6 +68,26 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const authToken = request.cookies.get("auth")?.value;
+    const authPayload = await verifyAuthToken(authToken);
+    const userId = authPayload?.userId ?? null;
+
+    const violation = await isContentViolationBlocked(request, userId);
+    if (violation.blocked) {
+      return NextResponse.json(
+        {
+          error:
+            "Live chat and the AI helper are paused for a few minutes after a blocked message. Please try again later.",
+        },
+        {
+          status: 429,
+          headers: {
+            "Retry-After": String(violation.retryAfterSeconds),
+          },
+        },
+      );
+    }
+
     if (text.length > MAX_MESSAGE_LENGTH) {
       return NextResponse.json(
         {
@@ -72,10 +98,11 @@ export async function POST(request: NextRequest) {
     }
 
     if (chatContainsBlockedContent(text, [])) {
+      await setContentViolationBlock(request, userId);
       return NextResponse.json(
         {
           error:
-            "Your message does not meet our community guidelines. Please revise and try again.",
+            "Your message does not meet our community guidelines. Live chat and the AI helper are unavailable for 5 minutes.",
         },
         { status: 400 },
       );

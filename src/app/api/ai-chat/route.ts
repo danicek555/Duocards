@@ -3,6 +3,10 @@ import { verifyAuthToken } from "@/lib/auth";
 import { checkCoins, deductCoins } from "@/lib/coins";
 import { COIN_COSTS } from "@/lib/coin-costs";
 import { chatContainsBlockedContent } from "@/lib/chatContentFilter";
+import {
+  isContentViolationBlocked,
+  setContentViolationBlock,
+} from "@/lib/rateLimit";
 
 // Initialize OpenAI client lazily to avoid build-time errors
 async function getOpenAIClient() {
@@ -32,6 +36,25 @@ export async function POST(request: NextRequest) {
 
     if (!payload) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const violation = await isContentViolationBlocked(
+      request,
+      payload.userId
+    );
+    if (violation.blocked) {
+      return NextResponse.json(
+        {
+          error:
+            "Live chat and the AI helper are paused for a few minutes after a blocked message. Please try again later.",
+        },
+        {
+          status: 429,
+          headers: {
+            "Retry-After": String(violation.retryAfterSeconds),
+          },
+        }
+      );
     }
 
     // Check if OpenAI API key is configured
@@ -66,10 +89,11 @@ export async function POST(request: NextRequest) {
 
     // Local content moderation (dictionary only — no moderation AI API)
     if (chatContainsBlockedContent(message, conversationHistory)) {
+      await setContentViolationBlock(request, payload.userId);
       return NextResponse.json(
         {
           error:
-            "Your message does not meet our community guidelines. Please revise and try again.",
+            "Your message does not meet our community guidelines. Live chat and the AI helper are unavailable for 5 minutes.",
         },
         { status: 400 }
       );
