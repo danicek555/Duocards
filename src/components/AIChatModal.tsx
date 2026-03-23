@@ -1,6 +1,12 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import {
+  useState,
+  useEffect,
+  useRef,
+  type ChangeEvent,
+  type KeyboardEvent,
+} from "react";
 import { COIN_COSTS } from "@/lib/coin-costs";
 
 interface Message {
@@ -13,6 +19,8 @@ interface AIChatModalProps {
   onClose: () => void;
   onCoinsUpdate?: (coins: number) => void;
 }
+
+const MAX_PROMPT_LENGTH = 250;
 
 export default function AIChatModal({
   isOpen,
@@ -175,7 +183,12 @@ export default function AIChatModal({
     }
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+  const handleInputChange = (event: ChangeEvent<HTMLTextAreaElement>) => {
+    const nextValue = event.target.value;
+    setInput(nextValue.slice(0, MAX_PROMPT_LENGTH));
+  };
+
+  const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSend();
@@ -272,7 +285,7 @@ export default function AIChatModal({
             <textarea
               ref={inputRef}
               value={input}
-              onChange={(e) => setInput(e.target.value)}
+              onChange={handleInputChange}
               onKeyDown={handleKeyDown}
               placeholder="Type your message..."
               className="flex-1 resize-none rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
@@ -283,6 +296,7 @@ export default function AIChatModal({
                 maxHeight: "150px",
                 overflowY: "auto",
               }}
+              maxLength={MAX_PROMPT_LENGTH}
             />
             <button
               onClick={handleSend}
@@ -327,6 +341,10 @@ export default function AIChatModal({
                 </svg>
               )}
             </button>
+          </div>
+          <div className="flex items-center justify-between text-[11px] text-gray-500 dark:text-gray-400 mt-1">
+            <p>{input.length}/{MAX_PROMPT_LENGTH} characters</p>
+            <p>max 250</p>
           </div>
           <p className="text-xs text-gray-500 dark:text-gray-400 mt-1.5">
             {COIN_COSTS.AI_CHAT} AI coins per message
