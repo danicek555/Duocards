@@ -5,7 +5,7 @@ import {
   useEffect,
   useRef,
   type ChangeEvent,
-  type KeyboardEvent,
+  type KeyboardEvent as ReactKeyboardEvent,
 } from "react";
 import { COIN_COSTS } from "@/lib/coin-costs";
 
@@ -61,7 +61,7 @@ export default function AIChatModal({
           const minHeight = 38;
           const newHeight = Math.max(
             minHeight,
-            Math.min(scrollHeight, maxHeight)
+            Math.min(scrollHeight, maxHeight),
           );
           inputRef.current.style.height = `${newHeight}px`;
           setTextareaHeight(newHeight);
@@ -87,7 +87,7 @@ export default function AIChatModal({
             // Use scrollHeight directly - it already accounts for line breaks
             const newHeight = Math.max(
               minHeight,
-              Math.min(scrollHeight, maxHeight)
+              Math.min(scrollHeight, maxHeight),
             );
             inputRef.current.style.height = `${newHeight}px`;
             setTextareaHeight(newHeight);
@@ -99,7 +99,7 @@ export default function AIChatModal({
 
   // Handle escape key
   useEffect(() => {
-    const handleEscape = (e: KeyboardEvent) => {
+    const handleEscape = (e: globalThis.KeyboardEvent) => {
       if (e.key === "Escape" && isOpen) {
         onClose();
       }
@@ -170,7 +170,7 @@ export default function AIChatModal({
         window.dispatchEvent(
           new CustomEvent("coinsUpdated", {
             detail: { coins: data.remainingCoins },
-          })
+          }),
         );
       }
     } catch (err) {
@@ -188,7 +188,7 @@ export default function AIChatModal({
     setInput(nextValue.slice(0, MAX_PROMPT_LENGTH));
   };
 
-  const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+  const handleKeyDown = (e: ReactKeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSend();
@@ -343,7 +343,9 @@ export default function AIChatModal({
             </button>
           </div>
           <div className="flex items-center justify-between text-[11px] text-gray-500 dark:text-gray-400 mt-1">
-            <p>{input.length}/{MAX_PROMPT_LENGTH} characters</p>
+            <p>
+              {input.length}/{MAX_PROMPT_LENGTH} characters
+            </p>
             <p>max 250</p>
           </div>
           <p className="text-xs text-gray-500 dark:text-gray-400 mt-1.5">
