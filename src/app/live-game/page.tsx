@@ -151,6 +151,14 @@ type RoomMember = {
   nickname: string;
 };
 
+type GameEndSummary = {
+  players: number;
+  durationSec: number | null;
+  plannedMinutes: number | null;
+  modeLabel: string;
+  endedAt: string;
+};
+
 function LiveGameContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -200,6 +208,12 @@ function LiveGameContent() {
   const [sessionRemainingSec, setSessionRemainingSec] = useState<number | null>(
     null
   );
+  const [sessionStartedAt, setSessionStartedAt] = useState<number | null>(null);
+  const [gameEndDetails, setGameEndDetails] = useState<GameEndSummary | null>(
+    null
+  );
+  const [showGameEndedModal, setShowGameEndedModal] = useState(false);
+  const preventAutoJoinRef = useRef(false);
 
   /** Latest host settings for re-publishing when joiners enter presence */
   const liveGameSettingsRef = useRef<LiveGameSettings | null>(null);
@@ -208,7 +222,15 @@ function LiveGameContent() {
   // Deep-link: /live-game?room=XXXXXX
   useEffect(() => {
     const fromUrl = searchParams.get("room");
-    if (!fromUrl) return;
+    if (!fromUrl) {
+      if (preventAutoJoinRef.current) {
+        preventAutoJoinRef.current = false;
+      }
+      return;
+    }
+    if (preventAutoJoinRef.current) {
+      return;
+    }
     const normalized = normalizeCode(fromUrl);
     if (normalized.length < 4) return;
     // Host just created this room and updated the URL — don’t wipe host state.
@@ -563,6 +585,7 @@ function LiveGameContent() {
       setPracticeIndex(0);
 
       const code = generateRoomCode();
+      preventAutoJoinRef.current = false;
       setRoomCode(code);
       syncUrlToRoom(code);
       setJoinInput("");
@@ -576,6 +599,12 @@ function LiveGameContent() {
     }
   };
 
+  const closeGameEndedModal = () => {
+    setShowGameEndedModal(false);
+    setGameEndDetails(null);
+    syncUrlToRoom(null);
+  };
+
   const handleJoinGame = () => {
     const code = normalizeCode(joinInput);
     if (code.length < 4) {
@@ -587,15 +616,31 @@ function LiveGameContent() {
     setReceivedGameSettings(null);
     setGameStarted(false);
     gameStartedRef.current = false;
+    preventAutoJoinRef.current = false;
     setRoomCode(code);
     syncUrlToRoom(code);
     setError(null);
   };
 
   const handleLeaveGame = () => {
+    preventAutoJoinRef.current = true;
+    const settings = liveGameSettings ?? receivedGameSettings;
+    const players = Math.max(1, roomMembers.length, onlineCount);
+    const elapsedSec =
+      sessionStartedAt != null
+        ? Math.max(0, Math.floor((Date.now() - sessionStartedAt) / 1000))
+        : null;
+    setGameEndDetails({
+      players,
+      durationSec: elapsedSec,
+      plannedMinutes: settings?.sessionDurationMinutes ?? null,
+      modeLabel: settings?.gameModeLabel ?? "Live game",
+      endedAt: new Date().toISOString(),
+    });
+    setShowGameEndedModal(true);
+
     isRoomHostRef.current = false;
     setRoomCode(null);
-    syncUrlToRoom(null);
     setJoinInput("");
     setError(null);
     setLiveGameSettings(null);
@@ -606,6 +651,7 @@ function LiveGameContent() {
     setSelectedSetIds([]);
     setPracticeIndex(0);
     setSessionRemainingSec(null);
+    setSessionStartedAt(null);
   };
 
   const copyRoomCode = async () => {
@@ -676,9 +722,11 @@ function LiveGameContent() {
     setGameStarted(true);
     try {
       await channelRef.current.publish("game-config", liveGameSettings);
+      setSessionStartedAt(Date.now());
     } catch (e) {
       gameStartedRef.current = false;
       setGameStarted(false);
+      setSessionStartedAt(null);
       setError(
         e instanceof Error ? e.message : "Could not start the game. Try again."
       );
@@ -703,6 +751,12 @@ function LiveGameContent() {
       : true);
 
   useEffect(() => {
+    if (!isHostUi && receivedGameSettings && sessionStartedAt === null) {
+      setSessionStartedAt(Date.now());
+    }
+  }, [isHostUi, receivedGameSettings, sessionStartedAt]);
+
+  useEffect(() => {
     setPracticeIndex(0);
   }, [
     roomCode,
@@ -725,6 +779,22 @@ function LiveGameContent() {
     const id = setInterval(tick, 1000);
     return () => clearInterval(id);
   }, [activeGameSettings?.sessionEndsAt]);
+
+  useEffect(() => {
+    if (roomCode && showGameEndedModal) {
+      setShowGameEndedModal(false);
+      setGameEndDetails(null);
+    }
+  }, [roomCode, showGameEndedModal]);
+
+  useEffect(() => {
+    if (!showGameEndedModal) return;
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = originalOverflow;
+    };
+  }, [showGameEndedModal]);
 
   return (
     <div className="min-h-screen flex flex-col bg-linear-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
@@ -1301,6 +1371,86 @@ function LiveGameContent() {
                 className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium"
               >
                 {creatingRoom ? "Preparing room…" : "Create room"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Game ended modal */}
+      {showGameEndedModal && gameEndDetails && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="game-ended-title"
+        >
+          <div className="w-full max-w-md rounded-3xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-2xl p-6 space-y-4">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-gray-500 dark:text-gray-400">
+                  Game ended
+                </p>
+                <h2
+                  id="game-ended-title"
+                  className="text-2xl font-bold text-gray-900 dark:text-white"
+                >
+                  Thanks for playing
+                </h2>
+              </div>
+              <span className="text-xs text-gray-500 dark:text-gray-400">
+                {new Date(gameEndDetails.endedAt).toLocaleTimeString([], {
+                  hour: "numeric",
+                  minute: "2-digit",
+                })}
+              </span>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="rounded-2xl border border-gray-200 dark:border-gray-700 p-4 text-center">
+                <p className="text-[10px] uppercase tracking-[0.2em] text-gray-500 dark:text-gray-400 mb-1">
+                  Players
+                </p>
+                <p className="text-3xl font-semibold text-gray-900 dark:text-white">
+                  {gameEndDetails.players}
+                </p>
+              </div>
+              <div className="rounded-2xl border border-gray-200 dark:border-gray-700 p-4 text-center">
+                <p className="text-[10px] uppercase tracking-[0.2em] text-gray-500 dark:text-gray-400 mb-1">
+                  Duration
+                </p>
+                <p className="text-3xl font-semibold text-gray-900 dark:text-white">
+                  {gameEndDetails.durationSec != null
+                    ? formatCountdown(gameEndDetails.durationSec)
+                    : gameEndDetails.plannedMinutes &&
+                      gameEndDetails.plannedMinutes > 0
+                    ? `${gameEndDetails.plannedMinutes} min planned`
+                    : "—"}
+                </p>
+              </div>
+            </div>
+            <p className="text-sm text-gray-600 dark:text-gray-300">
+              Mode:{" "}
+              <span className="font-semibold text-gray-900 dark:text-white">
+                {gameEndDetails.modeLabel}
+              </span>
+            </p>
+            <div className="flex justify-end gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => closeGameEndedModal()}
+                className="px-4 py-2 rounded-xl border border-gray-200 dark:border-gray-700 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/60 transition-colors"
+              >
+                Close
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  closeGameEndedModal();
+                  router.push("/dashboard");
+                }}
+                className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-sm font-semibold text-white"
+              >
+                Go to dashboard
               </button>
             </div>
           </div>
