@@ -10,6 +10,8 @@ import {
 import { useRouter, useSearchParams } from "next/navigation";
 import type { Message, Realtime, RealtimeChannel } from "ably";
 import Flashcard from "@/components/Flashcard";
+import { useLiveGameJoinOnly } from "@/contexts/LiveGameJoinOnlyContext";
+import { isLiveSubdomainHostname } from "@/lib/liveGameHost";
 
 type ChatMessage = {
   id: string;
@@ -162,6 +164,8 @@ type GameEndSummary = {
 function LiveGameContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const joinOnly = useLiveGameJoinOnly();
+  const mainAppUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 
   const [roomCode, setRoomCode] = useState<string | null>(null);
   const [joinInput, setJoinInput] = useState("");
@@ -219,7 +223,7 @@ function LiveGameContent() {
   const liveGameSettingsRef = useRef<LiveGameSettings | null>(null);
   liveGameSettingsRef.current = liveGameSettings;
 
-  // Deep-link: /live-game?room=XXXXXX
+  // Deep-link: /live-game?room= or /?room= on live.* guest host
   useEffect(() => {
     const fromUrl = searchParams.get("room");
     if (!fromUrl) {
@@ -268,6 +272,7 @@ function LiveGameContent() {
   };
 
   useEffect(() => {
+    if (joinOnly) return;
     try {
       const userData = localStorage.getItem("user");
       if (!userData) return;
@@ -278,7 +283,19 @@ function LiveGameContent() {
     } catch {
       // Keep fallback nickname
     }
-  }, []);
+  }, [joinOnly]);
+
+  useEffect(() => {
+    if (!joinOnly) return;
+    try {
+      const saved = sessionStorage.getItem("live_game_guest_nickname");
+      if (saved?.trim()) {
+        setNickname(saved.trim());
+      }
+    } catch {
+      // ignore
+    }
+  }, [joinOnly]);
 
   useEffect(() => {
     if (showCreateModal) {
@@ -491,6 +508,29 @@ function LiveGameContent() {
   }, [roomCode, clientId, nickname, liveGameSettings]);
 
   const syncUrlToRoom = (code: string | null) => {
+    if (joinOnly) {
+      const onSubdomain =
+        typeof window !== "undefined" &&
+        isLiveSubdomainHostname(window.location.hostname);
+      if (onSubdomain) {
+        if (code) {
+          router.replace(`/?room=${encodeURIComponent(code)}`, {
+            scroll: false,
+          });
+        } else {
+          router.replace("/", { scroll: false });
+        }
+      } else {
+        if (code) {
+          router.replace(`/live-game?room=${encodeURIComponent(code)}`, {
+            scroll: false,
+          });
+        } else {
+          router.replace("/live-game", { scroll: false });
+        }
+      }
+      return;
+    }
     if (code) {
       router.replace(`/live-game?room=${encodeURIComponent(code)}`, {
         scroll: false,
@@ -507,6 +547,7 @@ function LiveGameContent() {
   };
 
   const openCreateModal = () => {
+    if (joinOnly) return;
     setCreateGameMode(GAME_MODES[0].id);
     setSelectedSetIds([]);
     setSessionDurationMinutes(30);
@@ -516,6 +557,7 @@ function LiveGameContent() {
   };
 
   const confirmCreateGame = async () => {
+    if (joinOnly) return;
     if (selectedSetIds.length === 0) {
       setError("Choose at least one flashcard set for this live game.");
       return;
@@ -803,103 +845,192 @@ function LiveGameContent() {
         className={`flex-1 flex flex-col ${inLobby ? "items-center justify-center px-4 py-10 md:py-16" : "p-6 md:p-8 pb-4"}`}
       >
         <div className="w-full max-w-3xl mx-auto">
-          <button
-            type="button"
-            onClick={() => router.push("/dashboard")}
-            className="mb-4 text-sm text-blue-600 dark:text-blue-400 hover:underline"
-          >
-            ← Back to Dashboard
-          </button>
+          {joinOnly ? (
+            <a
+              href={mainAppUrl}
+              className="mb-4 inline-block text-sm text-blue-600 dark:text-blue-400 hover:underline"
+            >
+              ← Full DuoCards (sign in & host games)
+            </a>
+          ) : (
+            <button
+              type="button"
+              onClick={() => router.push("/dashboard")}
+              className="mb-4 text-sm text-blue-600 dark:text-blue-400 hover:underline"
+            >
+              ← Back to Dashboard
+            </button>
+          )}
 
           <h1
             className={`text-3xl font-bold text-gray-900 dark:text-white mb-2 ${inLobby ? "text-center" : ""}`}
           >
-            Live Game
+            {joinOnly ? "Join a live game" : "Live Game"}
           </h1>
           <p
             className={`text-gray-600 dark:text-gray-300 mb-8 ${inLobby ? "text-center max-w-md mx-auto" : ""}`}
           >
             {inLobby
-              ? "Create a new session or join friends with a code."
+              ? joinOnly
+                ? "Enter the code from your host. Hosting is available only on the main site when signed in."
+                : "Create a new session or join friends with a code."
               : "You’re in a live room. Share the code so others can join."}
           </p>
 
           {inLobby ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-2xl mx-auto w-full">
-              <button
-                type="button"
-                onClick={openCreateModal}
-                className="rounded-2xl border-2 border-blue-500/40 bg-white dark:bg-gray-800 shadow-lg p-8 text-left hover:border-blue-500 hover:shadow-xl transition-all active:scale-[0.99] cursor-pointer"
-              >
-                <div className="w-12 h-12 rounded-xl bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center mb-4">
-                  <svg
-                    className="w-6 h-6 text-blue-600 dark:text-blue-400"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
+            joinOnly ? (
+              <div className="max-w-md mx-auto w-full space-y-6">
+                <div>
+                  <label
+                    htmlFor="guest-nickname"
+                    className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
                   >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M12 4v16m8-8H4"
-                    />
-                  </svg>
+                    Your name in the room
+                  </label>
+                  <input
+                    id="guest-nickname"
+                    type="text"
+                    value={nickname}
+                    onChange={(e) =>
+                      setNickname(e.target.value.slice(0, 40))}
+                    onBlur={() => {
+                      try {
+                        sessionStorage.setItem(
+                          "live_game_guest_nickname",
+                          nickname.trim(),
+                        );
+                      } catch {
+                        /* ignore */
+                      }
+                    }}
+                    maxLength={40}
+                    placeholder="Guest"
+                    autoComplete="off"
+                    className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
                 </div>
-                <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
-                  Create a live game
-                </h2>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  Get a room code you can share. Everyone with the code joins the
-                  same room and chat.
-                </p>
-              </button>
-
-              <div className="rounded-2xl border-2 border-indigo-500/40 bg-white dark:bg-gray-800 shadow-lg p-8 flex flex-col">
-                <div className="w-12 h-12 rounded-xl bg-indigo-100 dark:bg-indigo-900/40 flex items-center justify-center mb-4">
-                  <svg
-                    className="w-6 h-6 text-indigo-600 dark:text-indigo-400"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
+                <div className="rounded-2xl border-2 border-indigo-500/40 bg-white dark:bg-gray-800 shadow-lg p-8 flex flex-col">
+                  <div className="w-12 h-12 rounded-xl bg-indigo-100 dark:bg-indigo-900/40 flex items-center justify-center mb-4">
+                    <svg
+                      className="w-6 h-6 text-indigo-600 dark:text-indigo-400"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"
+                      />
+                    </svg>
+                  </div>
+                  <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
+                    Join with a code
+                  </h2>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                    Enter the code from the host (signed in on DuoCards).
+                  </p>
+                  <input
+                    type="text"
+                    value={joinInput}
+                    onChange={(e) =>
+                      setJoinInput(e.target.value.toUpperCase().slice(0, 8))
+                    }
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") handleJoinGame();
+                    }}
+                    placeholder="e.g. AB12XY"
+                    autoComplete="off"
+                    spellCheck={false}
+                    className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white font-mono text-lg tracking-widest text-center mb-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleJoinGame}
+                    className="w-full py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold transition-colors cursor-pointer"
                   >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"
-                    />
-                  </svg>
+                    Join with code
+                  </button>
                 </div>
-                <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
-                  Join a live game
-                </h2>
-                <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                  Enter the 6-character code from your host.
-                </p>
-                <input
-                  type="text"
-                  value={joinInput}
-                  onChange={(e) =>
-                    setJoinInput(e.target.value.toUpperCase().slice(0, 8))
-                  }
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") handleJoinGame();
-                  }}
-                  placeholder="e.g. AB12XY"
-                  autoComplete="off"
-                  spellCheck={false}
-                  className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white font-mono text-lg tracking-widest text-center mb-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-2xl mx-auto w-full">
                 <button
                   type="button"
-                  onClick={handleJoinGame}
-                  className="w-full py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold transition-colors cursor-pointer"
+                  onClick={openCreateModal}
+                  className="rounded-2xl border-2 border-blue-500/40 bg-white dark:bg-gray-800 shadow-lg p-8 text-left hover:border-blue-500 hover:shadow-xl transition-all active:scale-[0.99] cursor-pointer"
                 >
-                  Join with code
+                  <div className="w-12 h-12 rounded-xl bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center mb-4">
+                    <svg
+                      className="w-6 h-6 text-blue-600 dark:text-blue-400"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M12 4v16m8-8H4"
+                      />
+                    </svg>
+                  </div>
+                  <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
+                    Create a live game
+                  </h2>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    Get a room code you can share. Everyone with the code joins
+                    the same room and chat.
+                  </p>
                 </button>
+
+                <div className="rounded-2xl border-2 border-indigo-500/40 bg-white dark:bg-gray-800 shadow-lg p-8 flex flex-col">
+                  <div className="w-12 h-12 rounded-xl bg-indigo-100 dark:bg-indigo-900/40 flex items-center justify-center mb-4">
+                    <svg
+                      className="w-6 h-6 text-indigo-600 dark:text-indigo-400"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"
+                      />
+                    </svg>
+                  </div>
+                  <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
+                    Join a live game
+                  </h2>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                    Enter the 6-character code from your host.
+                  </p>
+                  <input
+                    type="text"
+                    value={joinInput}
+                    onChange={(e) =>
+                      setJoinInput(e.target.value.toUpperCase().slice(0, 8))
+                    }
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") handleJoinGame();
+                    }}
+                    placeholder="e.g. AB12XY"
+                    autoComplete="off"
+                    spellCheck={false}
+                    className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white font-mono text-lg tracking-widest text-center mb-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleJoinGame}
+                    className="w-full py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold transition-colors cursor-pointer"
+                  >
+                    Join with code
+                  </button>
+                </div>
               </div>
-            </div>
+            )
           ) : (
             <div className="space-y-6">
               <div className="flex flex-wrap items-center gap-3">
@@ -1434,7 +1565,7 @@ function LiveGameContent() {
                 {gameEndDetails.modeLabel}
               </span>
             </p>
-            <div className="flex justify-end gap-3 pt-2">
+            <div className="flex justify-end gap-3 pt-2 flex-wrap">
               <button
                 type="button"
                 onClick={() => closeGameEndedModal()}
@@ -1442,16 +1573,25 @@ function LiveGameContent() {
               >
                 Close
               </button>
-              <button
-                type="button"
-                onClick={() => {
-                  closeGameEndedModal();
-                  router.push("/dashboard");
-                }}
-                className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-sm font-semibold text-white"
-              >
-                Go to dashboard
-              </button>
+              {joinOnly ? (
+                <a
+                  href={mainAppUrl}
+                  className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-sm font-semibold text-white inline-flex items-center justify-center"
+                >
+                  Open full DuoCards
+                </a>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => {
+                    closeGameEndedModal();
+                    router.push("/dashboard");
+                  }}
+                  className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-sm font-semibold text-white"
+                >
+                  Go to dashboard
+                </button>
+              )}
             </div>
           </div>
         </div>

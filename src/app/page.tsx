@@ -9,7 +9,6 @@ import AuthToggle from "@/components/AuthToggle";
 import PasswordInput from "@/components/PasswordInput";
 import PasswordRequirements from "@/components/PasswordRequirements";
 import SocialLoginButtons from "@/components/SocialLoginButtons";
-
 export default function Home() {
   const [isLogin, setIsLogin] = useState(true);
   const [formData, setFormData] = useState({

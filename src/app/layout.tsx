@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 import AIChatButtonWrapper from "@/components/AIChatButtonWrapper";
+import MobileNotSupportedOverlay from "@/components/MobileNotSupportedOverlay";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -87,6 +88,7 @@ export default function RootLayout({
       >
         {children}
         <AIChatButtonWrapper />
+        <MobileNotSupportedOverlay />
         <Analytics />
       </body>
     </html>
