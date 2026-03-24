@@ -4,6 +4,17 @@ import {
   isLiveSubdomainHostname,
 } from "@/lib/liveGameHost";
 
+function requestHostname(req: NextRequest): string {
+  const forwarded = req.headers.get("x-forwarded-host");
+  if (forwarded) {
+    const first = forwarded.split(",")[0]?.trim();
+    if (first) {
+      return first.split(":")[0]!.toLowerCase();
+    }
+  }
+  return req.nextUrl.hostname.toLowerCase();
+}
+
 async function verify(token: string | undefined): Promise<boolean> {
   if (!token) return false;
   try {
@@ -40,7 +51,7 @@ async function verify(token: string | undefined): Promise<boolean> {
 }
 
 export async function middleware(req: NextRequest) {
-  const hostname = req.nextUrl.hostname;
+  const hostname = requestHostname(req);
   const pathname = req.nextUrl.pathname;
 
   const requestHeaders = new Headers(req.headers);
@@ -62,12 +73,11 @@ export async function middleware(req: NextRequest) {
       }
     }
 
+    // Never serve the main app (login) on the guest host — always land on join UI.
     if (pathname === "/" || pathname === "") {
       const url = req.nextUrl.clone();
       url.pathname = "/live-game";
-      return NextResponse.rewrite(url, {
-        request: { headers: requestHeaders },
-      });
+      return NextResponse.redirect(url, 307);
     }
   }
 
@@ -88,9 +98,14 @@ export async function middleware(req: NextRequest) {
 
 export const config = {
   matcher: [
+    /*
+     * "/" must be listed explicitly — the catch-all below often does not run middleware
+     * on the root path, so the live subdomain would incorrectly show the login page.
+     */
+    "/",
     "/dashboard/:path*",
     /*
-     * All non-static routes: live subdomain rewrite, join-only header, dashboard auth.
+     * All non-static routes: live subdomain, join-only header, dashboard auth.
      */
     "/((?!api|_next/static|_next/image|monitoring|.*\\..*).*)",
   ],
