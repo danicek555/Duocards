@@ -13,6 +13,7 @@ import MoneyBagReward from "@/components/MoneyBagReward";
 import Notification from "@/components/Notification";
 import { getLanguageFlag } from "@/lib/flags";
 import { LANGUAGES } from "@/lib/languages";
+import { getGuestLiveGameBaseUrl } from "@/lib/liveGameHost";
 
 interface User {
   id: number;
@@ -690,7 +691,7 @@ export default function Dashboard() {
             >
               <div className="flex items-center">
                 <svg
-                  className="w-5 h-5 mr-3"
+                  className="w-5 h-5 mr-3 shrink-0"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -708,9 +709,45 @@ export default function Dashboard() {
                     d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
                   />
                 </svg>
-                Live Game
+                <span>
+                  <span className="block font-medium">Live game</span>
+                  <span className="block text-xs text-gray-500 dark:text-gray-400 font-normal">
+                    Host or join with your account
+                  </span>
+                </span>
               </div>
             </button>
+            <a
+              href={getGuestLiveGameBaseUrl()}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={() =>
+                window.dispatchEvent(new CustomEvent("closeAIChat"))
+              }
+              className="w-full text-left px-4 py-3 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors cursor-pointer active:scale-[0.98] block"
+            >
+              <div className="flex items-center">
+                <svg
+                  className="w-5 h-5 mr-3 shrink-0"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"
+                  />
+                </svg>
+                <span>
+                  <span className="block font-medium">Join as guest</span>
+                  <span className="block text-xs text-gray-500 dark:text-gray-400 font-normal">
+                    Code only — opens live subdomain
+                  </span>
+                </span>
+              </div>
+            </a>
           </nav>
         </div>
 

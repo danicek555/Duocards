@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import AIChatModal from "./AIChatModal";
+import { isJoinOnlyLiveBrowser } from "@/lib/liveGameHost";
 
 interface AIChatButtonProps {
   onCoinsUpdate?: (coins: number) => void;
@@ -93,6 +94,10 @@ export default function AIChatButton({ onCoinsUpdate }: AIChatButtonProps) {
 
   // Don't render until mounted (to avoid hydration issues)
   if (!isMounted) {
+    return null;
+  }
+
+  if (isJoinOnlyLiveBrowser()) {
     return null;
   }
 
