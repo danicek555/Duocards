@@ -4,13 +4,27 @@ import {
   isLiveSubdomainHostname,
 } from "@/lib/liveGameHost";
 
+/**
+ * The hostname the user actually requested.
+ * Prefer `Host` — on Vercel with multiple domains on one project, `x-forwarded-host`
+ * is often the primary domain first (e.g. duocards.xyz), which would break live.* routing.
+ */
 function requestHostname(req: NextRequest): string {
+  const hostHeader = req.headers.get("host");
+  if (hostHeader) {
+    return hostHeader.split(":")[0]!.toLowerCase();
+  }
   const forwarded = req.headers.get("x-forwarded-host");
   if (forwarded) {
-    const first = forwarded.split(",")[0]?.trim();
-    if (first) {
-      return first.split(":")[0]!.toLowerCase();
-    }
+    const candidates = forwarded.split(",").map((p) =>
+      p.trim().split(":")[0]!.toLowerCase(),
+    );
+    const liveFirst = candidates.find(
+      (h) => h.length > 0 && h.split(".")[0] === "live",
+    );
+    if (liveFirst) return liveFirst;
+    const first = candidates[0];
+    if (first) return first;
   }
   return req.nextUrl.hostname.toLowerCase();
 }
@@ -75,9 +89,11 @@ export async function middleware(req: NextRequest) {
 
     // Never serve the main app (login) on the guest host — always land on join UI.
     if (pathname === "/" || pathname === "") {
-      const url = req.nextUrl.clone();
-      url.pathname = "/live-game";
-      return NextResponse.redirect(url, 307);
+      const dest = new URL(req.url);
+      dest.hostname = hostname;
+      dest.pathname = "/live-game";
+      dest.search = req.nextUrl.search;
+      return NextResponse.redirect(dest, 307);
     }
   }
 
