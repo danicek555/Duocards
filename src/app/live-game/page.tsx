@@ -11,6 +11,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import type { Message, Realtime, RealtimeChannel } from "ably";
 import Flashcard from "@/components/Flashcard";
 import { useLiveGameJoinOnly } from "@/contexts/LiveGameJoinOnlyContext";
+import { isLiveSubdomainHostname } from "@/lib/liveGameHost";
 
 type ChatMessage = {
   id: string;
@@ -222,7 +223,7 @@ function LiveGameContent() {
   const liveGameSettingsRef = useRef<LiveGameSettings | null>(null);
   liveGameSettingsRef.current = liveGameSettings;
 
-  // Deep-link: /live-game?room= (guest host redirects / → /live-game)
+  // Deep-link: ?room= on guest host (rewritten to /live) or /live-game?room= on main app
   useEffect(() => {
     const fromUrl = searchParams.get("room");
     if (!fromUrl) {
@@ -508,12 +509,25 @@ function LiveGameContent() {
 
   const syncUrlToRoom = (code: string | null) => {
     if (joinOnly) {
-      if (code) {
-        router.replace(`/live-game?room=${encodeURIComponent(code)}`, {
-          scroll: false,
-        });
+      const onGuestHost =
+        typeof window !== "undefined" &&
+        isLiveSubdomainHostname(window.location.hostname);
+      if (onGuestHost) {
+        if (code) {
+          router.replace(`/?room=${encodeURIComponent(code)}`, {
+            scroll: false,
+          });
+        } else {
+          router.replace("/", { scroll: false });
+        }
       } else {
-        router.replace("/live-game", { scroll: false });
+        if (code) {
+          router.replace(`/live?room=${encodeURIComponent(code)}`, {
+            scroll: false,
+          });
+        } else {
+          router.replace("/live", { scroll: false });
+        }
       }
       return;
     }

@@ -87,14 +87,50 @@ export async function middleware(req: NextRequest) {
       }
     }
 
-    // Never serve the main app (login) on the guest host — always land on join UI.
+    /*
+     * Guest host: never run app/page.tsx (login). Rewrite in-place to /live so the
+     * URL bar can stay https://live.* / while Next serves app/live/page.tsx.
+     * (Vercel-recommended hostname → path rewrite pattern.)
+     */
     if (pathname === "/" || pathname === "") {
-      const dest = new URL(req.url);
-      dest.hostname = hostname;
-      dest.pathname = "/live-game";
-      dest.search = req.nextUrl.search;
-      return NextResponse.redirect(dest, 307);
+      const url = req.nextUrl.clone();
+      url.pathname = "/live";
+      return NextResponse.rewrite(url, {
+        request: { headers: requestHeaders },
+      });
     }
+
+    if (pathname === "/live-game" || pathname.startsWith("/live-game/")) {
+      const url = req.nextUrl.clone();
+      const suffix =
+        pathname === "/live-game" ? "" : pathname.slice("/live-game".length);
+      url.pathname = "/live" + suffix;
+      if (url.pathname === "" || url.pathname === "/") {
+        url.pathname = "/live";
+      }
+      return NextResponse.rewrite(url, {
+        request: { headers: requestHeaders },
+      });
+    }
+  }
+
+  /*
+   * /live is only for the guest rewrite above (or dev LIVE_JOIN_ONLY). On the main
+   * domain, sending users to /live-game avoids exposing an alternate URL.
+   */
+  const allowInternalLivePath =
+    isLiveSubdomainHostname(hostname) ||
+    process.env.NEXT_PUBLIC_LIVE_JOIN_ONLY === "true";
+  if (
+    !allowInternalLivePath &&
+    (pathname === "/live" || pathname.startsWith("/live/"))
+  ) {
+    const url = req.nextUrl.clone();
+    url.pathname =
+      pathname === "/live"
+        ? "/live-game"
+        : "/live-game" + pathname.slice("/live".length);
+    return NextResponse.redirect(url, 307);
   }
 
   if (pathname.startsWith("/dashboard")) {
@@ -119,6 +155,8 @@ export const config = {
      * on the root path, so the live subdomain would incorrectly show the login page.
      */
     "/",
+    "/live",
+    "/live/:path*",
     "/dashboard/:path*",
     /*
      * All non-static routes: live subdomain, join-only header, dashboard auth.
