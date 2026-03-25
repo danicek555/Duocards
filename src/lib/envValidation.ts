@@ -40,7 +40,9 @@ export function validateEnvironment(): EnvironmentValidation {
 
   // Check optional but recommended variables
   if (!process.env.NEXT_PUBLIC_APP_URL) {
-    warnings.push("NEXT_PUBLIC_APP_URL not set, using localhost fallback");
+    warnings.push(
+      "NEXT_PUBLIC_APP_URL not set — metadata, email links, and guest→main redirects need it",
+    );
   }
 
   if (!process.env.NEXT_PUBLIC_API_BASE_URL) {

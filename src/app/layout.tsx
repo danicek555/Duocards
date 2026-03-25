@@ -4,6 +4,7 @@ import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 import AIChatButtonWrapper from "@/components/AIChatButtonWrapper";
 import MobileNotSupportedOverlay from "@/components/MobileNotSupportedOverlay";
+import { getPublicAppUrl } from "@/lib/publicUrls";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -15,10 +16,10 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const appUrl = getPublicAppUrl();
+
 export const metadata: Metadata = {
-  metadataBase: new URL(
-    process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
-  ),
+  ...(appUrl ? { metadataBase: new URL(appUrl) } : {}),
   title: {
     default: "Duocards",
     template: "%s | Duocards",
@@ -29,7 +30,7 @@ export const metadata: Metadata = {
   authors: [
     {
       name: "Your Name",
-      url: process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000",
+      ...(appUrl ? { url: appUrl } : {}),
     },
   ], // Customize with your name and website
   keywords: [
@@ -47,7 +48,7 @@ export const metadata: Metadata = {
     title: "Duocards - Master Your Knowledge with Flashcards",
     description:
       "Create, organize, and learn effectively with Duocards, the interactive flashcard web app.",
-    url: process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000", // Customize with your application's URL
+    ...(appUrl ? { url: appUrl } : {}),
     siteName: "Duocards",
     images: [
       {
