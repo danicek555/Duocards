@@ -51,7 +51,7 @@ export default function AIChatButton({ onCoinsUpdate }: AIChatButtonProps) {
       const userData = localStorage.getItem("user");
       setIsLoggedIn(!!userData);
     }
-    if (pathname === "/live-game") {
+    if (pathname === "/live-game" || pathname === "/live") {
       setIsOpen(false);
     }
     // Set loading state based on pathname
@@ -107,7 +107,7 @@ export default function AIChatButton({ onCoinsUpdate }: AIChatButtonProps) {
   }
 
   // Live game has its own chat; hide the floating AI helper there
-  if (pathname === "/live-game") {
+  if (pathname === "/live-game" || pathname === "/live") {
     return null;
   }
 
