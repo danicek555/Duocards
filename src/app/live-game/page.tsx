@@ -11,7 +11,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import type { Message, Realtime, RealtimeChannel } from "ably";
 import Flashcard from "@/components/Flashcard";
 import { useLiveGameJoinOnly } from "@/contexts/LiveGameJoinOnlyContext";
-import { isLiveSubdomainHostname } from "@/lib/liveGameHost";
+import { isGuestLiveHostname } from "@/lib/liveGameHost";
+import { getPublicAppUrl } from "@/lib/publicUrls";
 
 type ChatMessage = {
   id: string;
@@ -165,7 +166,7 @@ function LiveGameContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const joinOnly = useLiveGameJoinOnly();
-  const mainAppUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+  const mainAppUrl = getPublicAppUrl();
 
   const [roomCode, setRoomCode] = useState<string | null>(null);
   const [joinInput, setJoinInput] = useState("");
@@ -511,7 +512,7 @@ function LiveGameContent() {
     if (joinOnly) {
       const onGuestHost =
         typeof window !== "undefined" &&
-        isLiveSubdomainHostname(window.location.hostname);
+        isGuestLiveHostname(window.location.hostname);
       if (onGuestHost) {
         if (code) {
           router.replace(`/?room=${encodeURIComponent(code)}`, {
@@ -846,12 +847,14 @@ function LiveGameContent() {
       >
         <div className="w-full max-w-3xl mx-auto">
           {joinOnly ? (
-            <a
-              href={mainAppUrl}
-              className="mb-4 inline-block text-sm text-blue-600 dark:text-blue-400 hover:underline"
-            >
-              ← Full DuoCards (sign in & host games)
-            </a>
+            mainAppUrl ? (
+              <a
+                href={mainAppUrl}
+                className="mb-4 inline-block text-sm text-blue-600 dark:text-blue-400 hover:underline"
+              >
+                ← Full DuoCards (sign in & host games)
+              </a>
+            ) : null
           ) : (
             <button
               type="button"
@@ -1574,12 +1577,14 @@ function LiveGameContent() {
                 Close
               </button>
               {joinOnly ? (
-                <a
-                  href={mainAppUrl}
-                  className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-sm font-semibold text-white inline-flex items-center justify-center"
-                >
-                  Open full DuoCards
-                </a>
+                mainAppUrl ? (
+                  <a
+                    href={mainAppUrl}
+                    className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-sm font-semibold text-white inline-flex items-center justify-center"
+                  >
+                    Open full DuoCards
+                  </a>
+                ) : null
               ) : (
                 <button
                   type="button"

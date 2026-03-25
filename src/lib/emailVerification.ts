@@ -5,6 +5,7 @@
 
 import { Resend } from "resend";
 import { createHash, randomBytes } from "crypto";
+import { getPublicAppUrl } from "@/lib/publicUrls";
 
 /** Default sender when FROM_EMAIL is unset (must be verified in Resend for your domain). */
 const DEFAULT_FROM_ADDRESS = "notifications@duocards.xyz";
@@ -167,7 +168,13 @@ export async function sendPasswordResetEmail(
       };
     }
 
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+    const appUrl = getPublicAppUrl();
+    if (!appUrl) {
+      return {
+        success: false,
+        error: "Application URL is not configured (NEXT_PUBLIC_APP_URL).",
+      };
+    }
     const resetUrl = `${appUrl}/reset-password?token=${encodeURIComponent(
       token
     )}`;
