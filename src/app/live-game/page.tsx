@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  useCallback,
   useEffect,
   useMemo,
   useRef,
@@ -12,7 +13,7 @@ import type { Message, Realtime, RealtimeChannel } from "ably";
 import Flashcard from "@/components/Flashcard";
 import { useLiveGameJoinOnly } from "@/contexts/LiveGameJoinOnlyContext";
 import { isGuestLiveHostname } from "@/lib/liveGameHost";
-import { getPublicAppUrl } from "@/lib/publicUrls";
+import { getPublicAppUrlForUi } from "@/lib/publicUrls";
 
 type ChatMessage = {
   id: string;
@@ -162,11 +163,13 @@ type GameEndSummary = {
   endedAt: string;
 };
 
+type SessionEndedMessage = GameEndSummary & { endedByClientId: string };
+
 function LiveGameContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const joinOnly = useLiveGameJoinOnly();
-  const mainAppUrl = getPublicAppUrl();
+  const mainAppUrl = getPublicAppUrlForUi();
 
   const [roomCode, setRoomCode] = useState<string | null>(null);
   const [joinInput, setJoinInput] = useState("");
@@ -223,6 +226,32 @@ function LiveGameContent() {
   /** Latest host settings for re-publishing when joiners enter presence */
   const liveGameSettingsRef = useRef<LiveGameSettings | null>(null);
   liveGameSettingsRef.current = liveGameSettings;
+
+  const clearRoomAfterLeave = useCallback(() => {
+    isRoomHostRef.current = false;
+    setRoomCode(null);
+    setJoinInput("");
+    setError(null);
+    setLiveGameSettings(null);
+    setReceivedGameSettings(null);
+    setGameStarted(false);
+    gameStartedRef.current = false;
+    setCreateGameMode(GAME_MODES[0].id);
+    setSelectedSetIds([]);
+    setPracticeIndex(0);
+    setSessionRemainingSec(null);
+    setSessionStartedAt(null);
+  }, []);
+
+  const onRemoteSessionEndedRef = useRef<(details: GameEndSummary) => void>(
+    () => {}
+  );
+  onRemoteSessionEndedRef.current = (details: GameEndSummary) => {
+    preventAutoJoinRef.current = true;
+    setGameEndDetails(details);
+    setShowGameEndedModal(true);
+    clearRoomAfterLeave();
+  };
 
   // Deep-link: ?room= on guest host (rewritten to /live) or /live-game?room= on main app
   useEffect(() => {
@@ -440,6 +469,33 @@ function LiveGameContent() {
           if (normalized) {
             setReceivedGameSettings(normalized);
           }
+        });
+
+        await channel.subscribe("session-ended", (message: Message) => {
+          if (!isMounted || cancelled) return;
+          const raw = message.data as Partial<SessionEndedMessage> | undefined;
+          if (!raw || typeof raw.endedByClientId !== "string") return;
+          if (raw.endedByClientId === clientId) return;
+          if (!raw.endedAt || typeof raw.endedAt !== "string") return;
+          const details: GameEndSummary = {
+            players: typeof raw.players === "number" ? raw.players : 1,
+            durationSec:
+              typeof raw.durationSec === "number"
+                ? raw.durationSec
+                : raw.durationSec === null
+                  ? null
+                  : null,
+            plannedMinutes:
+              typeof raw.plannedMinutes === "number"
+                ? raw.plannedMinutes
+                : raw.plannedMinutes === null
+                  ? null
+                  : null,
+            modeLabel:
+              typeof raw.modeLabel === "string" ? raw.modeLabel : "Live game",
+            endedAt: raw.endedAt,
+          };
+          onRemoteSessionEndedRef.current(details);
         });
 
         if (cancelled) {
@@ -665,7 +721,7 @@ function LiveGameContent() {
     setError(null);
   };
 
-  const handleLeaveGame = () => {
+  const handleLeaveGame = async () => {
     preventAutoJoinRef.current = true;
     const settings = liveGameSettings ?? receivedGameSettings;
     const players = Math.max(1, roomMembers.length, onlineCount);
@@ -673,28 +729,28 @@ function LiveGameContent() {
       sessionStartedAt != null
         ? Math.max(0, Math.floor((Date.now() - sessionStartedAt) / 1000))
         : null;
-    setGameEndDetails({
+    const details: GameEndSummary = {
       players,
       durationSec: elapsedSec,
       plannedMinutes: settings?.sessionDurationMinutes ?? null,
       modeLabel: settings?.gameModeLabel ?? "Live game",
       endedAt: new Date().toISOString(),
-    });
-    setShowGameEndedModal(true);
+    };
 
-    isRoomHostRef.current = false;
-    setRoomCode(null);
-    setJoinInput("");
-    setError(null);
-    setLiveGameSettings(null);
-    setReceivedGameSettings(null);
-    setGameStarted(false);
-    gameStartedRef.current = false;
-    setCreateGameMode(GAME_MODES[0].id);
-    setSelectedSetIds([]);
-    setPracticeIndex(0);
-    setSessionRemainingSec(null);
-    setSessionStartedAt(null);
+    if (isRoomHostRef.current && channelRef.current) {
+      try {
+        await channelRef.current.publish("session-ended", {
+          ...details,
+          endedByClientId: clientId,
+        });
+      } catch (e) {
+        console.error("Failed to notify players that the session ended:", e);
+      }
+    }
+
+    setGameEndDetails(details);
+    setShowGameEndedModal(true);
+    clearRoomAfterLeave();
   };
 
   const copyRoomCode = async () => {
