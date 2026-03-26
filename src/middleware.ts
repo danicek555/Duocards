@@ -6,6 +6,30 @@ import {
 } from "@/lib/liveGameHost";
 import { getPublicAppUrl } from "@/lib/publicUrls";
 
+/**
+ * Leaving guest host for /dashboard etc.: on live.localhost stay on this machine (localhost:port),
+ * not NEXT_PUBLIC_APP_URL (often https://…vercel.app).
+ */
+function mainOriginWhenLeavingGuestHost(
+  req: NextRequest,
+  guestHostname: string,
+): string {
+  const h = guestHostname.toLowerCase();
+  if (h === "live.localhost" || h === "live.127.0.0.1") {
+    const hostHeader = req.headers.get("host") ?? "";
+    const hostParts = hostHeader.split(":");
+    const port =
+      hostParts.length > 1 ? hostParts[hostParts.length - 1]! : "";
+    let proto = req.headers.get("x-forwarded-proto") ?? "";
+    if (!proto) {
+      proto = req.nextUrl.protocol.replace(":", "") || "http";
+    }
+    const base = port ? `${proto}://localhost:${port}` : `${proto}://localhost`;
+    return base.replace(/\/$/, "");
+  }
+  return getPublicAppUrl();
+}
+
 function requestHostname(req: NextRequest): string {
   const fromHeaders = hostnameFromRequestHeaders(req.headers);
   if (fromHeaders) return fromHeaders;
@@ -56,15 +80,14 @@ export async function middleware(req: NextRequest) {
     requestHeaders.set("x-duocards-live-join-only", "1");
   }
 
-  const mainAppOrigin = getPublicAppUrl();
-
   if (isGuestLiveHostname(hostname)) {
     const blocked = ["/dashboard", "/verify", "/reset-password"];
+    const exitOrigin = mainOriginWhenLeavingGuestHost(req, hostname);
     for (const p of blocked) {
       if (pathname === p || pathname.startsWith(`${p}/`)) {
-        if (mainAppOrigin) {
+        if (exitOrigin) {
           return NextResponse.redirect(
-            new URL(`${p}${req.nextUrl.search}`, mainAppOrigin),
+            new URL(`${p}${req.nextUrl.search}`, exitOrigin),
           );
         }
       }
