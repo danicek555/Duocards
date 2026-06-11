@@ -11,7 +11,15 @@ let redisClient: ReturnType<typeof createClient> | null = null;
 let redisInitAttempted = false;
 
 function getRedisUrl(): string | null {
-  return process.env.REDIS_URL || null;
+  const raw = process.env.REDIS_URL?.trim();
+  if (!raw) return null;
+  // Next.js does not override env vars already set in the shell; a stale rediss:// export
+  // wins over redis:// in .env and causes ERR_SSL_PACKET_LENGTH_TOO_LONG on plain-TLS ports.
+  const tlsEnv = process.env.REDIS_USE_TLS?.toLowerCase();
+  if (tlsEnv === "false" || tlsEnv === "0") {
+    return raw.replace(/^rediss:\/\//i, "redis://");
+  }
+  return raw;
 }
 
 async function getRedisClient(): Promise<ReturnType<typeof createClient> | null> {

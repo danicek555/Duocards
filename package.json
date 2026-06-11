@@ -10,7 +10,9 @@
     "start": "next start",
     "lint": "eslint",
     "delete-users": "npx tsx scripts/delete-users.ts",
-    "check-users": "npx tsx scripts/check-users.ts"
+    "check-users": "npx tsx scripts/check-users.ts",
+    "check-ai-health": "npx tsx scripts/check-ai-health.ts",
+    "check-ai-health:skip-image": "SKIP_AI_IMAGE_CHECK=1 npx tsx scripts/check-ai-health.ts"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.0.0",
