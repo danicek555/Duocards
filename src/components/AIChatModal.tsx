@@ -8,6 +8,10 @@ import {
   type KeyboardEvent as ReactKeyboardEvent,
 } from "react";
 import { COIN_COSTS } from "@/lib/coin-costs";
+import {
+  getContentViolationRetrySeconds,
+  isContentViolationError,
+} from "@/lib/contentViolationClient";
 
 interface Message {
   role: "user" | "assistant";
@@ -37,9 +41,24 @@ export default function AIChatModal({
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [chatBlockedUntil, setChatBlockedUntil] = useState<number | null>(null);
   const [textareaHeight, setTextareaHeight] = useState(38);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  const isChatBlocked =
+    chatBlockedUntil !== null && Date.now() < chatBlockedUntil;
+
+  useEffect(() => {
+    if (!chatBlockedUntil) return;
+    const remainingMs = chatBlockedUntil - Date.now();
+    if (remainingMs <= 0) {
+      setChatBlockedUntil(null);
+      return;
+    }
+    const timer = setTimeout(() => setChatBlockedUntil(null), remainingMs);
+    return () => clearTimeout(timer);
+  }, [chatBlockedUntil]);
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -48,7 +67,7 @@ export default function AIChatModal({
 
   // Focus input when modal opens and reset textarea height
   useEffect(() => {
-    if (isOpen && inputRef.current) {
+    if (isOpen && inputRef.current && !isChatBlocked) {
       // Reset height when modal opens
       inputRef.current.style.height = "auto";
       setTextareaHeight(38);
@@ -68,7 +87,7 @@ export default function AIChatModal({
         }
       }, 100);
     }
-  }, [isOpen]);
+  }, [isOpen, isChatBlocked]);
 
   // Auto-resize textarea based on content
   useEffect(() => {
@@ -115,7 +134,7 @@ export default function AIChatModal({
   }, [isOpen, onClose]);
 
   const handleSend = async () => {
-    if (!input.trim() || isLoading) return;
+    if (!input.trim() || isLoading || isChatBlocked) return;
 
     const userMessage = input.trim();
     setInput("");
@@ -151,7 +170,14 @@ export default function AIChatModal({
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || "Failed to get AI response");
+        const errorMessage = data.error || "Failed to get AI response";
+        if (isContentViolationError(errorMessage)) {
+          setChatBlockedUntil(
+            Date.now() +
+              getContentViolationRetrySeconds(response) * 1000
+          );
+        }
+        throw new Error(errorMessage);
       }
 
       // Add assistant response
@@ -287,10 +313,14 @@ export default function AIChatModal({
               value={input}
               onChange={handleInputChange}
               onKeyDown={handleKeyDown}
-              placeholder="Type your message..."
-              className="flex-1 resize-none rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+              placeholder={
+                isChatBlocked
+                  ? "Chat is paused — try again in a few minutes"
+                  : "Type your message..."
+              }
+              className="flex-1 resize-none rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:cursor-not-allowed disabled:opacity-60"
               rows={1}
-              disabled={isLoading}
+              disabled={isLoading || isChatBlocked}
               style={{
                 minHeight: "38px",
                 maxHeight: "150px",
@@ -300,7 +330,7 @@ export default function AIChatModal({
             />
             <button
               onClick={handleSend}
-              disabled={!input.trim() || isLoading}
+              disabled={!input.trim() || isLoading || isChatBlocked}
               className="px-4 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-lg transition-colors font-medium flex items-center gap-1 self-start"
               style={{ height: `${textareaHeight}px` }}
             >

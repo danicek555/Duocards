@@ -4,6 +4,14 @@ import { verifyAuthToken } from "@/lib/auth";
 import { checkCoins } from "@/lib/coins";
 import { COIN_COSTS } from "@/lib/coin-costs";
 import { generatePublicCode } from "@/lib/public-code";
+import {
+  OPENAI_CHAT_MODEL,
+  OPENAI_IMAGE_MODEL,
+  OPENAI_TTS_MODEL,
+  OPENAI_TTS_VOICE,
+  chatCompletionSupportsTemperature,
+} from "@/lib/openaiModels";
+import { generateFlashcardImage } from "@/lib/openaiImage";
 
 // Initialize OpenAI client lazily to avoid build-time errors
 async function getOpenAIClient() {
@@ -245,9 +253,7 @@ Requirements:
     prompt += `\n- Return only valid JSON, no additional text or markdown formatting
 - Include exactly ${wordCount} flashcards`;
 
-    // Determine which model to use based on available models
-    // Use gpt-4o-mini as it supports temperature and is cost-effective
-    const modelName = process.env.OPENAI_MODEL || "gpt-4o-mini";
+    const modelName = OPENAI_CHAT_MODEL;
 
     // Some models don't support custom temperature (only default value of 1)
     // Check if we should include temperature parameter
@@ -277,9 +283,7 @@ Requirements:
       response_format: { type: "json_object" }, // Force JSON mode
     };
 
-    // Only add temperature if the model supports it (most models do, but some like gpt-5-nano don't)
-    // gpt-4o-mini supports temperature, so we include it
-    if (!modelName.includes("gpt-5-nano") && !modelName.includes("gpt-5")) {
+    if (chatCompletionSupportsTemperature(modelName)) {
       modelConfig.temperature = 0.7;
     }
 
@@ -366,30 +370,11 @@ Requirements:
         // Generate image if requested
         if (includeImage) {
           try {
-            const imageResponse = await openai.images.generate({
-              model: "dall-e-3",
-              prompt: `A simple, clear illustration representing the word "${wordPair.translation}" in ${toLanguage}. The image should be educational and suitable for language learning flashcards. CRITICAL: The image must contain absolutely NO text, NO letters, NO words, NO characters, NO symbols that could be read as text, NO written language, NO numbers, and NO typography whatsoever. The image must be purely visual - only illustrations, drawings, or photographs without any written elements.`,
-              n: 1,
-              size: "1024x1024",
-            });
-            const tempImageUrl = imageResponse.data?.[0]?.url || null;
-
-            // Download and convert image to base64 data URL to avoid expiration
-            if (tempImageUrl) {
-              try {
-                const imageFetch = await fetch(tempImageUrl);
-                const imageBuffer = await imageFetch.arrayBuffer();
-                const imageBase64 = Buffer.from(imageBuffer).toString("base64");
-                const imageMimeType =
-                  imageFetch.headers.get("content-type") || "image/png";
-                // Store as data URL so it never expires
-                imageUrl = `data:${imageMimeType};base64,${imageBase64}`;
-              } catch (downloadError) {
-                console.error("Error downloading image:", downloadError);
-                // Fallback to temporary URL if download fails
-                imageUrl = tempImageUrl;
-              }
-            }
+            imageUrl = await generateFlashcardImage(
+              openai,
+              OPENAI_IMAGE_MODEL,
+              `A simple, clear illustration representing the word "${wordPair.translation}" in ${toLanguage}. The image should be educational and suitable for language learning flashcards. CRITICAL: The image must contain absolutely NO text, NO letters, NO words, NO characters, NO symbols that could be read as text, NO written language, NO numbers, and NO typography whatsoever. The image must be purely visual - only illustrations, drawings, or photographs without any written elements.`
+            );
           } catch (imageError) {
             console.error("Error generating image:", imageError);
             // Continue without image if generation fails
@@ -406,8 +391,8 @@ Requirements:
               );
             } else {
               const audioResponse = await openai.audio.speech.create({
-                model: "gpt-4o-mini-tts", // Higher quality model for better audio
-                voice: "alloy",
+                model: OPENAI_TTS_MODEL,
+                voice: OPENAI_TTS_VOICE,
                 input: translationText,
               });
 

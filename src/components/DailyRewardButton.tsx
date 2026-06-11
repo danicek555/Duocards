@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
+import { secondsUntilNextLocalMidnight } from "@/lib/dailyReward";
 
 interface DailyRewardButtonProps {
   onCoinsUpdate?: () => void;
@@ -14,79 +15,42 @@ export default function DailyRewardButton({
   const [loading, setLoading] = useState(true);
   const [claiming, setClaiming] = useState(false);
 
-  // Calculate time until next local midnight
-  const calculateTimeUntilLocalMidnight = (
-    lastClaimed: string | null
-  ): number => {
-    if (!lastClaimed) return 0;
+  const timezoneOffset = useMemo(
+    () => new Date().getTimezoneOffset(),
+    []
+  );
 
-    const now = new Date();
-    const lastClaim = new Date(lastClaimed);
-
-    // Get local midnight for today
-    const todayMidnight = new Date(
-      now.getFullYear(),
-      now.getMonth(),
-      now.getDate(),
-      0,
-      0,
-      0,
-      0
-    );
-
-    // Get local midnight for the day after last claim
-    const lastClaimLocalMidnight = new Date(
-      lastClaim.getFullYear(),
-      lastClaim.getMonth(),
-      lastClaim.getDate(),
-      0,
-      0,
-      0,
-      0
-    );
-
-    // Check if it's a new day (local time)
-    const isNewDay =
-      now.getTime() >= lastClaimLocalMidnight.getTime() + 24 * 60 * 60 * 1000;
-
-    if (isNewDay) {
-      return 0; // Can claim now
-    }
-
-    // Calculate next local midnight
-    const nextMidnight = new Date(todayMidnight);
-    nextMidnight.setDate(nextMidnight.getDate() + 1);
-
-    return Math.max(
-      0,
-      Math.floor((nextMidnight.getTime() - now.getTime()) / 1000)
-    );
-  };
+  const rewardHeaders = useMemo(
+    () => ({
+      "X-Timezone-Offset": String(timezoneOffset),
+    }),
+    [timezoneOffset]
+  );
 
   const fetchRewardStatus = useCallback(async () => {
     try {
-      const response = await fetch("/api/user/daily-reward");
+      const response = await fetch("/api/user/daily-reward", {
+        headers: rewardHeaders,
+      });
       if (response.ok) {
         const data = await response.json();
-
-        // Calculate based on local timezone
-        const timeUntilNext = calculateTimeUntilLocalMidnight(data.lastClaimed);
-        const canClaimLocal = !data.lastClaimed || timeUntilNext === 0;
-
-        setCanClaim(canClaimLocal);
-        setTimeUntilNextReward(timeUntilNext);
+        setCanClaim(Boolean(data.canClaim));
+        setTimeUntilNextReward(
+          typeof data.timeUntilNextReward === "number"
+            ? data.timeUntilNextReward
+            : 0
+        );
       }
     } catch (error) {
       console.error("Error fetching reward status:", error);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [rewardHeaders]);
 
   useEffect(() => {
     fetchRewardStatus();
 
-    // Update timer every second
     const interval = setInterval(() => {
       setTimeUntilNextReward((prev) => {
         if (prev > 0) {
@@ -111,18 +75,23 @@ export default function DailyRewardButton({
     try {
       const response = await fetch("/api/user/daily-reward", {
         method: "POST",
+        headers: rewardHeaders,
       });
 
       if (response.ok) {
-        // Refetch status to get accurate time until next reward
         await fetchRewardStatus();
-        if (onCoinsUpdate) {
-          onCoinsUpdate();
-        }
+        onCoinsUpdate?.();
       } else {
         const errorData = await response.json();
         if (errorData.timeUntilNextReward !== undefined) {
           setTimeUntilNextReward(errorData.timeUntilNextReward);
+          setCanClaim(false);
+        } else {
+          const seconds = secondsUntilNextLocalMidnight(
+            new Date(),
+            timezoneOffset
+          );
+          setTimeUntilNextReward(seconds);
           setCanClaim(false);
         }
         console.error("Failed to claim reward:", errorData.error);

@@ -1,8 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyAuthToken } from "@/lib/auth";
+import {
+  isNewLocalDay,
+  parseTimezoneOffsetHeader,
+  secondsUntilNextLocalMidnight,
+} from "@/lib/dailyReward";
 import { prisma } from "@/lib/prisma";
 
 const DAILY_REWARD_COINS = 100;
+
+function getTimezoneOffset(request: NextRequest): number {
+  return parseTimezoneOffsetHeader(
+    request.headers.get("X-Timezone-Offset")
+  );
+}
 
 // GET - Check if user can claim daily reward and get time until next reward
 export async function GET(request: NextRequest) {
@@ -24,17 +35,14 @@ export async function GET(request: NextRequest) {
     }
 
     const now = new Date();
+    const tzOffset = getTimezoneOffset(request);
     const canClaim =
-      !user.lastDailyReward || isNewDay(user.lastDailyReward, now);
+      !user.lastDailyReward ||
+      isNewLocalDay(user.lastDailyReward, now, tzOffset);
 
-    let timeUntilNextReward = 0;
-    if (!canClaim && user.lastDailyReward) {
-      const nextRewardTime = getNextRewardTime(user.lastDailyReward);
-      timeUntilNextReward = Math.max(
-        0,
-        Math.floor((nextRewardTime.getTime() - now.getTime()) / 1000)
-      );
-    }
+    const timeUntilNextReward = canClaim
+      ? 0
+      : secondsUntilNextLocalMidnight(now, tzOffset);
 
     return NextResponse.json(
       {
@@ -78,15 +86,13 @@ export async function POST(request: NextRequest) {
     }
 
     const now = new Date();
+    const tzOffset = getTimezoneOffset(request);
     const canClaim =
-      !user.lastDailyReward || isNewDay(user.lastDailyReward, now);
+      !user.lastDailyReward ||
+      isNewLocalDay(user.lastDailyReward, now, tzOffset);
 
     if (!canClaim) {
-      const nextRewardTime = getNextRewardTime(user.lastDailyReward!);
-      const timeUntilNextReward = Math.max(
-        0,
-        Math.floor((nextRewardTime.getTime() - now.getTime()) / 1000)
-      );
+      const timeUntilNextReward = secondsUntilNextLocalMidnight(now, tzOffset);
 
       return NextResponse.json(
         {
@@ -97,7 +103,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Update user with new coins and lastDailyReward timestamp
     const updatedUser = await prisma.user.update({
       where: { id: payload.userId },
       data: {
@@ -133,21 +138,4 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
-}
-
-// Helper function to check if it's a new day
-// Note: Client-side will calculate based on user's local timezone for display
-// Server just checks if enough time has passed (24 hours minimum)
-function isNewDay(lastClaim: Date, now: Date): boolean {
-  // Check if at least 24 hours have passed
-  const hoursSinceLastClaim =
-    (now.getTime() - lastClaim.getTime()) / (1000 * 60 * 60);
-  return hoursSinceLastClaim >= 24;
-}
-
-// Helper function to get next reward time
-// Note: Client will calculate based on local midnight for accurate display
-function getNextRewardTime(lastClaim: Date): Date {
-  // Return 24 hours after last claim (client will calculate local midnight)
-  return new Date(lastClaim.getTime() + 24 * 60 * 60 * 1000);
 }
