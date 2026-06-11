@@ -382,7 +382,6 @@ function LiveGameContent() {
         if (cancelled) return;
 
         const channelName = channelNameForRoom(roomCode);
-        const hostSettings = liveGameSettings;
         const isHost = isRoomHostRef.current;
 
         client = new Realtime({

@@ -524,19 +524,22 @@ export default function Dashboard() {
       return;
     }
 
+    const imageTotal = imageIds.length;
+    const audioTotal = audioIds.length;
+
     setMediaLoading(true);
     setMediaLoadProgress({
       loaded: 0,
       total,
-      imageTotal: imageIds.length,
-      audioTotal: audioIds.length,
+      imageTotal,
+      audioTotal,
     });
 
     let loaded = 0;
     const markLoaded = () => {
       if (cancelled) return;
       loaded += 1;
-      setMediaLoadProgress({ loaded, total });
+      setMediaLoadProgress({ loaded, total, imageTotal, audioTotal });
       if (loaded >= total) setMediaLoading(false);
     };
 
