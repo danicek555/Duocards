@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Flashcard from "@/components/Flashcard";
 import InlineCreateFlashcardSetForm from "@/components/InlineCreateFlashcardSetForm";
@@ -86,6 +86,17 @@ export default function Dashboard() {
   // Cache for fetched images and audio
   const [imageCache, setImageCache] = useState<Record<number, string>>({});
   const [audioCache, setAudioCache] = useState<Record<number, string>>({});
+  const imageCacheRef = useRef(imageCache);
+  const audioCacheRef = useRef(audioCache);
+  imageCacheRef.current = imageCache;
+  audioCacheRef.current = audioCache;
+  const [mediaLoading, setMediaLoading] = useState(false);
+  const [mediaLoadProgress, setMediaLoadProgress] = useState({
+    loaded: 0,
+    total: 0,
+    imageTotal: 0,
+    audioTotal: 0,
+  });
   const [openSettingsId, setOpenSettingsId] = useState<number | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
   const [settingsMenuPosition, setSettingsMenuPosition] = useState<
@@ -300,41 +311,37 @@ export default function Dashboard() {
   };
 
   const handleSetClick = async (set: FlashcardSet) => {
-    // Fetch full flashcard set data including images/audio when viewing
+    // Open cards immediately; images/audio load in the background via prefetch
+    const shuffledSet = {
+      ...set,
+      words: shuffleArray(set.words),
+    };
+    setSelectedSet(shuffledSet);
+    setCurrentIndex(0);
+    setViewMode("cards");
+
     try {
       const response = await fetch(`/api/flashcard-sets/${set.id}`);
       if (response.ok) {
         const data = await response.json();
-        // Shuffle words before setting the selected set
-        const shuffledSet = {
-          ...data.flashcardSet,
-          words: shuffleArray(data.flashcardSet.words),
-        };
-        setSelectedSet(shuffledSet);
-        setCurrentIndex(0);
-        setViewMode("cards");
-      } else {
-        // Fallback to the set data we already have (without images/audio)
-        // Shuffle words before setting the selected set
-        const shuffledSet = {
-          ...set,
-          words: shuffleArray(set.words),
-        };
-        setSelectedSet(shuffledSet);
-        setCurrentIndex(0);
-        setViewMode("cards");
+        setSelectedSet((prev) => {
+          if (!prev || prev.id !== set.id) {
+            return {
+              ...data.flashcardSet,
+              words: shuffleArray(data.flashcardSet.words),
+            };
+          }
+          const wordById = new Map(
+            data.flashcardSet.words.map((w: Word) => [w.id, w])
+          );
+          return {
+            ...data.flashcardSet,
+            words: prev.words.map((w) => wordById.get(w.id) ?? w),
+          };
+        });
       }
     } catch (error) {
       console.error("Error fetching flashcard set details:", error);
-      // Fallback to the set data we already have (without images/audio)
-      // Shuffle words before setting the selected set
-      const shuffledSet = {
-        ...set,
-        words: shuffleArray(set.words),
-      };
-      setSelectedSet(shuffledSet);
-      setCurrentIndex(0);
-      setViewMode("cards");
     }
   };
 
@@ -474,52 +481,116 @@ export default function Dashboard() {
   );
   const currentWord = selectedSet?.words[currentIndex];
 
-  // Fetch image/audio for current word if not already cached
+  // Prefetch all images and audio for the open set (stored separately from word records)
   useEffect(() => {
-    if (!currentWord) return;
+    if (!selectedSet || viewMode !== "cards") {
+      setMediaLoading(false);
+      return;
+    }
 
-    const fetchImage = async () => {
-      if (currentWord.imageId && !imageCache[currentWord.imageId]) {
-        try {
-          const response = await fetch(
-            `/api/word-images/${currentWord.imageId}`
-          );
-          if (response.ok) {
-            const data = await response.json();
-            setImageCache((prev) => ({
-              ...prev,
-              [currentWord.imageId!]: data.image.dataUrl,
-            }));
+    const abort = new AbortController();
+    let cancelled = false;
+
+    const imageIds = [
+      ...new Set(
+        selectedSet.words
+          .map((w) => w.imageId)
+          .filter(
+            (id): id is number =>
+              id != null && !imageCacheRef.current[id]
+          )
+      ),
+    ];
+    const audioIds = [
+      ...new Set(
+        selectedSet.words
+          .map((w) => w.audioId)
+          .filter(
+            (id): id is number =>
+              id != null && !audioCacheRef.current[id]
+          )
+      ),
+    ];
+
+    const total = imageIds.length + audioIds.length;
+    if (total === 0) {
+      setMediaLoading(false);
+      setMediaLoadProgress({
+        loaded: 0,
+        total: 0,
+        imageTotal: 0,
+        audioTotal: 0,
+      });
+      return;
+    }
+
+    setMediaLoading(true);
+    setMediaLoadProgress({
+      loaded: 0,
+      total,
+      imageTotal: imageIds.length,
+      audioTotal: audioIds.length,
+    });
+
+    let loaded = 0;
+    const markLoaded = () => {
+      if (cancelled) return;
+      loaded += 1;
+      setMediaLoadProgress({ loaded, total });
+      if (loaded >= total) setMediaLoading(false);
+    };
+
+    const fetchImage = async (id: number) => {
+      try {
+        const response = await fetch(`/api/word-images/${id}`, {
+          signal: abort.signal,
+        });
+        if (response.ok) {
+          const data = await response.json();
+          if (data?.image?.dataUrl) {
+            setImageCache((prev) => ({ ...prev, [id]: data.image.dataUrl }));
+            imageCacheRef.current[id] = data.image.dataUrl;
           }
-        } catch (error) {
+        }
+      } catch (error) {
+        if ((error as Error).name !== "AbortError") {
           console.error("Error fetching image:", error);
         }
+      } finally {
+        markLoaded();
       }
     };
 
-    const fetchAudio = async () => {
-      if (currentWord.audioId && !audioCache[currentWord.audioId]) {
-        try {
-          const response = await fetch(
-            `/api/word-audio/${currentWord.audioId}`
-          );
-          if (response.ok) {
-            const data = await response.json();
-            setAudioCache((prev) => ({
-              ...prev,
-              [currentWord.audioId!]: data.audio.dataUrl,
-            }));
+    const fetchAudio = async (id: number) => {
+      try {
+        const response = await fetch(`/api/word-audio/${id}`, {
+          signal: abort.signal,
+        });
+        if (response.ok) {
+          const data = await response.json();
+          if (data?.audio?.dataUrl) {
+            setAudioCache((prev) => ({ ...prev, [id]: data.audio.dataUrl }));
+            audioCacheRef.current[id] = data.audio.dataUrl;
           }
-        } catch (error) {
+        }
+      } catch (error) {
+        if ((error as Error).name !== "AbortError") {
           console.error("Error fetching audio:", error);
         }
+      } finally {
+        markLoaded();
       }
     };
 
-    fetchImage();
-    fetchAudio();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentWord?.id, currentWord?.imageId, currentWord?.audioId]);
+    imageIds.forEach((id) => void fetchImage(id));
+    audioIds.forEach((id) => void fetchAudio(id));
+
+    return () => {
+      cancelled = true;
+      abort.abort();
+      setMediaLoading(false);
+    };
+  }, [selectedSet?.id, viewMode]);
 
   if (loading) {
     return (
@@ -1602,6 +1673,48 @@ export default function Dashboard() {
 
             {/* Flashcard display */}
             <div className="flex-1 flex items-center justify-center relative">
+              {mediaLoading && (
+                <div
+                  className="absolute top-0 right-0 z-20 flex items-center gap-2 rounded-lg bg-white/95 dark:bg-gray-800/95 backdrop-blur px-3 py-2 shadow-md border border-gray-200 dark:border-gray-600"
+                  role="status"
+                  aria-live="polite"
+                >
+                  <svg
+                    className="animate-spin h-4 w-4 text-blue-600 dark:text-blue-400 shrink-0"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    />
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                    />
+                  </svg>
+                  <span className="text-xs text-gray-600 dark:text-gray-300 whitespace-nowrap">
+                    {mediaLoadProgress.imageTotal > 0 &&
+                    mediaLoadProgress.audioTotal > 0
+                      ? "Loading images & audio"
+                      : mediaLoadProgress.imageTotal > 0
+                        ? "Loading images"
+                        : mediaLoadProgress.audioTotal > 0
+                          ? "Loading audio"
+                          : "Loading…"}
+                    {mediaLoadProgress.total > 0
+                      ? ` (${mediaLoadProgress.loaded}/${mediaLoadProgress.total})`
+                      : ""}
+                  </span>
+                </div>
+              )}
               {selectedSet && currentWord ? (
                 <>
                   <Flashcard
@@ -1618,6 +1731,10 @@ export default function Dashboard() {
                       currentWord.audioId
                         ? audioCache[currentWord.audioId] || null
                         : null
+                    }
+                    imageLoading={
+                      !!currentWord.imageId &&
+                      !imageCache[currentWord.imageId]
                     }
                     onNext={handleNext}
                     onPrevious={handlePrevious}

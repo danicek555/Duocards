@@ -14,6 +14,10 @@ import Flashcard from "@/components/Flashcard";
 import { useLiveGameJoinOnly } from "@/contexts/LiveGameJoinOnlyContext";
 import { isGuestLiveHostname } from "@/lib/liveGameHost";
 import { getPublicAppUrlForUi } from "@/lib/publicUrls";
+import {
+  getContentViolationRetrySeconds,
+  isContentViolationError,
+} from "@/lib/contentViolationClient";
 
 type ChatMessage = {
   id: string;
@@ -180,6 +184,8 @@ function LiveGameContent() {
   const [nickname, setNickname] = useState("Guest");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [chatBlockedUntil, setChatBlockedUntil] = useState<number | null>(null);
+  const [chatBlockError, setChatBlockError] = useState<string | null>(null);
   const channelRef = useRef<{
     publish: (name: string, data: unknown) => Promise<unknown>;
   } | null>(null);
@@ -187,6 +193,24 @@ function LiveGameContent() {
     () => `duocards-${Math.random().toString(36).slice(2, 8)}`,
     []
   );
+
+  const isChatBlocked =
+    chatBlockedUntil !== null && Date.now() < chatBlockedUntil;
+
+  useEffect(() => {
+    if (!chatBlockedUntil) return;
+    const remainingMs = chatBlockedUntil - Date.now();
+    if (remainingMs <= 0) {
+      setChatBlockedUntil(null);
+      setChatBlockError(null);
+      return;
+    }
+    const timer = setTimeout(() => {
+      setChatBlockedUntil(null);
+      setChatBlockError(null);
+    }, remainingMs);
+    return () => clearTimeout(timer);
+  }, [chatBlockedUntil]);
 
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [createGameMode, setCreateGameMode] = useState<GameModeId>(
@@ -763,7 +787,7 @@ function LiveGameContent() {
   };
 
   const sendMessage = async () => {
-    if (!messageInput.trim() || !roomCode) return;
+    if (!messageInput.trim() || !roomCode || isChatBlocked) return;
     const settings = liveGameSettings ?? receivedGameSettings;
     if (settings?.liveChatEnabled === false) return;
 
@@ -784,8 +808,16 @@ function LiveGameContent() {
         error?: string;
       };
       if (!res.ok) {
-        setMessageInput(text);
-        setError(data.error || "Failed to send message.");
+        const errMsg = data.error || "Failed to send message.";
+        if (isContentViolationError(errMsg)) {
+          setChatBlockError(errMsg);
+          setChatBlockedUntil(
+            Date.now() + getContentViolationRetrySeconds(res) * 1000
+          );
+        } else {
+          setMessageInput(text);
+          setError(errMsg);
+        }
         return;
       }
       // Message is delivered via Ably subscription (server publish).
@@ -1692,23 +1724,39 @@ function LiveGameContent() {
                 ))
               )}
             </div>
+            {chatBlockError && (
+              <div className="mb-2 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 px-3 py-2">
+                <p className="text-xs text-red-600 dark:text-red-400">
+                  {chatBlockError}
+                </p>
+              </div>
+            )}
             <div className="flex gap-2">
               <input
                 value={messageInput}
                 onChange={(e) => setMessageInput(e.target.value)}
                 onKeyDown={(e) => {
-                  if (e.key === "Enter" && roomCode && chatEnabledForSession) {
+                  if (
+                    e.key === "Enter" &&
+                    roomCode &&
+                    chatEnabledForSession &&
+                    !isChatBlocked
+                  ) {
                     void sendMessage();
                   }
                 }}
-                placeholder="Message the room..."
-                disabled={!chatEnabledForSession}
-                className="flex-1 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white disabled:opacity-50"
+                placeholder={
+                  isChatBlocked
+                    ? "Chat is paused — try again in a few minutes"
+                    : "Message the room..."
+                }
+                disabled={!chatEnabledForSession || isChatBlocked}
+                className="flex-1 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed"
               />
               <button
                 type="button"
                 onClick={() => void sendMessage()}
-                disabled={!chatEnabledForSession}
+                disabled={!chatEnabledForSession || isChatBlocked}
                 className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
               >
                 Send
