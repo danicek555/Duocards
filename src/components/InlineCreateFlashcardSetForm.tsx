@@ -281,7 +281,7 @@ export default function InlineCreateFlashcardSetForm({
           return prev;
         });
         debounceTimers.current.delete(index);
-      }, 500); // Wait 0.5 seconds after user stops typing
+      }, 1500); // Wait 1.5 seconds after user stops typing
 
       debounceTimers.current.set(index, timer);
     } else if (field === "word" && !autoTranslateEnabled) {
