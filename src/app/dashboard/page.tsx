@@ -168,21 +168,39 @@ export default function Dashboard() {
       new CustomEvent("dashboardLoading", { detail: { loading: true } })
     );
 
-    // Check if user data exists in localStorage (from login)
-    const userData = localStorage.getItem("user");
-    if (userData) {
-      setUser(JSON.parse(userData));
-    } else {
-      // If no user data, redirect to home page
-      window.dispatchEvent(
-        new CustomEvent("dashboardLoading", { detail: { loading: false } })
-      );
-      router.push("/");
-      return;
-    }
-    fetchFlashcardSets();
-    fetchCoins();
-    fetchClaimedRewards();
+    const loadSession = async () => {
+      const userData = localStorage.getItem("user");
+      if (userData) {
+        setUser(JSON.parse(userData));
+        fetchFlashcardSets();
+        fetchCoins();
+        fetchClaimedRewards();
+        return;
+      }
+
+      // OAuth / cookie-only session (e.g. Google login)
+      try {
+        const response = await fetch(
+          `${process.env.NEXT_PUBLIC_API_BASE_URL || "/api"}/auth/me`
+        );
+        if (!response.ok) {
+          throw new Error("Unauthorized");
+        }
+        const data = await response.json();
+        localStorage.setItem("user", JSON.stringify(data.user));
+        setUser(data.user);
+        fetchFlashcardSets();
+        fetchCoins();
+        fetchClaimedRewards();
+      } catch {
+        window.dispatchEvent(
+          new CustomEvent("dashboardLoading", { detail: { loading: false } })
+        );
+        router.push("/");
+      }
+    };
+
+    loadSession();
   }, [router]);
 
   // Listen for coin updates from AI chat
@@ -597,7 +615,7 @@ export default function Dashboard() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center">
+      <div className="h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
           <p className="text-gray-600 dark:text-gray-400">Loading...</p>
@@ -611,21 +629,44 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 flex">
-      {/* Left Sidebar */}
-      <div className="w-80 bg-white dark:bg-gray-800 shadow-xl border-r border-gray-200 dark:border-gray-700 flex flex-col">
+    <div className="h-screen overflow-hidden bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 flex">
+      {/* Left Sidebar — fixed full height, no scroll */}
+      <div className="w-80 shrink-0 h-screen bg-white dark:bg-gray-800 shadow-xl border-r border-gray-200 dark:border-gray-700 flex flex-col overflow-hidden">
         {/* Sidebar Header */}
-        <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
-            DuoCards
-          </h1>
-          <p className="text-sm text-gray-600 dark:text-gray-400">
-            Welcome back, {user.nickname}!
-          </p>
+        <div className="p-4 border-b border-gray-200 dark:border-gray-700 shrink-0">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-1">
+                DuoCards
+              </h1>
+              <p className="text-sm text-gray-600 dark:text-gray-400 truncate">
+                Welcome back, {user.nickname}!
+              </p>
+            </div>
+            <button
+              onClick={handleLogout}
+              className="shrink-0 p-2 text-gray-500 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors cursor-pointer active:scale-[0.98]"
+              title="Logout"
+            >
+              <svg
+                className="w-5 h-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
+                />
+              </svg>
+            </button>
+          </div>
         </div>
 
         {/* Stats Section */}
-        <div className="p-6 space-y-4 border-b border-gray-200 dark:border-gray-700">
+        <div className="p-4 space-y-3 border-b border-gray-200 dark:border-gray-700 shrink-0">
           <div className="flex items-center justify-between">
             <span className="text-sm font-medium text-gray-600 dark:text-gray-400">
               Flashcard Sets
@@ -662,7 +703,7 @@ export default function Dashboard() {
           </button>
 
           {/* Daily Reward Button */}
-          <div className="mt-4">
+          <div className="mt-2">
             <DailyRewardButton onCoinsUpdate={fetchCoins} />
           </div>
 
@@ -681,8 +722,8 @@ export default function Dashboard() {
         </div>
 
         {/* Navigation Links */}
-        <div className="flex-1 p-6">
-          <nav className="space-y-2">
+        <div className="p-4 shrink-0">
+          <nav className="space-y-1">
             <button
               onClick={() => {
                 setViewMode("sets");
@@ -826,35 +867,12 @@ export default function Dashboard() {
             ) : null}
           </nav>
         </div>
-
-        {/* Logout Button */}
-        <div className="p-6 border-t border-gray-200 dark:border-gray-700">
-          <button
-            onClick={handleLogout}
-            className="w-full bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition-colors flex items-center justify-center cursor-pointer active:scale-[0.98]"
-          >
-            <svg
-              className="w-5 h-5 mr-2"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
-              />
-            </svg>
-            Logout
-          </button>
-        </div>
       </div>
 
       {/* Right Content Area */}
-      <div className="flex-1 p-8 overflow-y-auto">
+      <div className="flex-1 min-w-0 h-screen flex flex-col overflow-hidden">
         {viewMode === "sets" ? (
-          <div>
+          <div className="flex-1 overflow-y-auto p-8">
             <div className="mb-6">
               <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
                 Your Flashcard Sets
@@ -1644,15 +1662,15 @@ export default function Dashboard() {
             )}
           </div>
         ) : (
-          <div className="h-full flex flex-col">
-            {/* Back button and set name */}
-            <div className="mb-6">
+          <div className="flex-1 min-h-0 flex flex-col overflow-hidden px-6 py-4">
+            {/* Header: back, set name, loading status */}
+            <div className="shrink-0 grid grid-cols-[auto_1fr_auto] gap-x-3 gap-y-0.5 mb-3 items-center">
               <button
                 onClick={handleBackToSets}
-                className="mb-4 flex items-center text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors cursor-pointer active:scale-[0.98]"
+                className="row-span-2 self-center flex items-center text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors cursor-pointer active:scale-[0.98] shrink-0"
               >
                 <svg
-                  className="w-5 h-5 mr-2"
+                  className="w-5 h-5 mr-1"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -1664,26 +1682,19 @@ export default function Dashboard() {
                     d="M15 19l-7-7 7-7"
                   />
                 </svg>
-                Back to Flashcard Sets
+                Back
               </button>
-              <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+              <h2 className="col-start-2 text-lg font-semibold text-gray-900 dark:text-white truncate leading-tight">
                 {selectedSet?.name}
               </h2>
-              <p className="text-gray-600 dark:text-gray-400">
-                {selectedSet?.words.length || 0} cards in this set
-              </p>
-            </div>
-
-            {/* Flashcard display */}
-            <div className="flex-1 flex items-center justify-center relative">
               {mediaLoading && (
                 <div
-                  className="absolute top-0 right-0 z-20 flex items-center gap-2 rounded-lg bg-white/95 dark:bg-gray-800/95 backdrop-blur px-3 py-2 shadow-md border border-gray-200 dark:border-gray-600"
+                  className="col-start-3 row-start-1 flex items-center gap-1.5 rounded-md bg-white/95 dark:bg-gray-800/95 backdrop-blur px-2.5 py-1 border border-gray-200 dark:border-gray-600"
                   role="status"
                   aria-live="polite"
                 >
                   <svg
-                    className="animate-spin h-4 w-4 text-blue-600 dark:text-blue-400 shrink-0"
+                    className="animate-spin h-3.5 w-3.5 text-blue-600 dark:text-blue-400 shrink-0"
                     xmlns="http://www.w3.org/2000/svg"
                     fill="none"
                     viewBox="0 0 24 24"
@@ -1703,7 +1714,7 @@ export default function Dashboard() {
                       d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                     />
                   </svg>
-                  <span className="text-xs text-gray-600 dark:text-gray-300 whitespace-nowrap">
+                  <span className="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">
                     {mediaLoadProgress.imageTotal > 0 &&
                     mediaLoadProgress.audioTotal > 0
                       ? "Loading images & audio"
@@ -1718,6 +1729,14 @@ export default function Dashboard() {
                   </span>
                 </div>
               )}
+              <p className="col-start-2 row-start-2 text-xs text-gray-500 dark:text-gray-500">
+                {selectedSet?.words.length || 0}{" "}
+                {(selectedSet?.words.length || 0) === 1 ? "card" : "cards"}
+              </p>
+            </div>
+
+            {/* Flashcard display — fills remaining viewport height */}
+            <div className="flex-1 min-h-0 flex items-center justify-center relative">
               {selectedSet && currentWord ? (
                 <>
                   <Flashcard
@@ -1734,10 +1753,6 @@ export default function Dashboard() {
                       currentWord.audioId
                         ? audioCache[currentWord.audioId] || null
                         : null
-                    }
-                    imageLoading={
-                      !!currentWord.imageId &&
-                      !imageCache[currentWord.imageId]
                     }
                     onNext={handleNext}
                     onPrevious={handlePrevious}

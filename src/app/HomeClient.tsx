@@ -80,6 +80,30 @@ export default function HomeClient() {
       setFormData((prev) => ({ ...prev, email: rememberedEmail }));
       setRememberMe(true);
     }
+
+    const params = new URLSearchParams(window.location.search);
+    const authError = params.get("error");
+    if (authError) {
+      const messages: Record<string, string> = {
+        google_not_configured:
+          "Google sign-in is not configured yet. Add GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET to your environment.",
+        google_auth_failed: "Google sign-in failed. Please try again.",
+        google_auth_cancelled: "Google sign-in was cancelled.",
+        google_email_not_verified:
+          "Your Google account email is not verified. Please verify it and try again.",
+        facebook_not_configured:
+          "Facebook sign-in is not configured yet. Add FACEBOOK_APP_ID and FACEBOOK_APP_SECRET to your environment.",
+        facebook_auth_failed: "Facebook sign-in failed. Please try again.",
+        facebook_auth_cancelled: "Facebook sign-in was cancelled.",
+        facebook_email_not_available:
+          "Facebook did not share an email address. Use email sign-in or allow email access on Facebook.",
+      };
+      showNotification(
+        messages[authError] || "Sign-in failed. Please try again.",
+        "error",
+      );
+      window.history.replaceState({}, "", window.location.pathname);
+    }
   }, []);
 
   // Check if passwords match
@@ -90,17 +114,11 @@ export default function HomeClient() {
 
   // Social login handlers
   const handleGoogleLogin = () => {
-    showNotification(
-      "Google login coming soon! This feature is under development.",
-      "info",
-    );
+    window.location.href = `${process.env.NEXT_PUBLIC_API_BASE_URL || "/api"}/auth/google`;
   };
 
   const handleFacebookLogin = () => {
-    showNotification(
-      "Facebook login coming soon! This feature is under development.",
-      "info",
-    );
+    window.location.href = `${process.env.NEXT_PUBLIC_API_BASE_URL || "/api"}/auth/facebook`;
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
