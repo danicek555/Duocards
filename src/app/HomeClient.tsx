@@ -97,6 +97,8 @@ export default function HomeClient() {
         facebook_auth_cancelled: "Facebook sign-in was cancelled.",
         facebook_email_not_available:
           "Facebook did not share an email address. Use email sign-in or allow email access on Facebook.",
+        facebook_email_scope_not_enabled:
+          "Facebook email permission is not enabled for your app. In Meta Developer Console go to Use cases → Authentication and account creation → Permissions, and add email (Ready for testing).",
       };
       showNotification(
         messages[authError] || "Sign-in failed. Please try again.",
