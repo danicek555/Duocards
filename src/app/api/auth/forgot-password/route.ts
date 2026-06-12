@@ -12,7 +12,7 @@ interface ForgotPasswordRequest {
 }
 
 const GENERIC_SUCCESS_MESSAGE =
-  "If an account with this email exists, we sent a password reset link.";
+  "If an account with this email exists, we sent a password reset link. Please check your spam or junk folder too.";
 
 export async function POST(request: NextRequest) {
   try {

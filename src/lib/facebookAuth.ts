@@ -30,7 +30,7 @@ export function buildFacebookAuthUrl(state: string, redirectUri: string): string
     client_id: process.env.FACEBOOK_APP_ID!,
     redirect_uri: redirectUri,
     state,
-    scope: "email,public_profile",
+    scope: "public_profile,email",
     response_type: "code",
   });
   return `https://www.facebook.com/${FACEBOOK_API_VERSION}/dialog/oauth?${params.toString()}`;

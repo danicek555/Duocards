@@ -26,8 +26,18 @@ export async function GET(request: NextRequest) {
   const state = searchParams.get("state");
   const storedState = request.cookies.get("facebook_oauth_state")?.value;
   const oauthError = searchParams.get("error");
+  const oauthErrorDetail =
+    searchParams.get("error_description") ||
+    searchParams.get("error_message") ||
+    "";
 
   if (oauthError) {
+    if (
+      oauthErrorDetail.toLowerCase().includes("invalid scopes") &&
+      oauthErrorDetail.toLowerCase().includes("email")
+    ) {
+      return redirectWithError(request, "facebook_email_scope_not_enabled");
+    }
     return redirectWithError(request, "facebook_auth_cancelled");
   }
 

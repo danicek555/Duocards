@@ -206,6 +206,9 @@ export async function sendPasswordResetEmail(
             <p style="color: #666; margin: 0 0 8px 0; font-size: 14px;">
               This link expires in 30 minutes.
             </p>
+            <p style="color: #666; margin: 0 0 20px 0; font-size: 14px;">
+              If you do not see this email in your inbox, please check your spam or junk folder.
+            </p>
             <p style="color: #888; margin: 0; font-size: 12px; word-break: break-all;">
               If the button does not work, open this URL:<br/>
               ${resetUrl}
