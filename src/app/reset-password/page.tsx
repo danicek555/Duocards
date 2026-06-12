@@ -59,7 +59,8 @@ function ResetPasswordContent() {
       const data = await response.json();
       if (response.ok) {
         showNotification(
-          data.message || "If your account exists, reset email was sent.",
+          data.message ||
+            "If your account exists, we sent a reset link. Please check your spam or junk folder too.",
           "success"
         );
       } else {
@@ -130,7 +131,7 @@ function ResetPasswordContent() {
           <p className="text-gray-600 dark:text-gray-400">
             {hasToken
               ? "Enter your new password below."
-              : "Enter your email and we will send you a reset link."}
+              : "Enter your email and we will send you a reset link. If you do not see it, check your spam or junk folder."}
           </p>
         </div>
 
