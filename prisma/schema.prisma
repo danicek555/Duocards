@@ -25,6 +25,7 @@ model User {
   words             Word[]
   completionRewards CompletionReward[]
   passwordResets    PasswordResetToken[]
+  liveGames         LiveGame[]
 
   @@map("users")
 }
@@ -135,4 +136,35 @@ model CompletionReward {
 
   @@index([userId, createdAt])
   @@map("completion_rewards")
+}
+
+model LiveGame {
+  id           Int              @id @default(autoincrement())
+  hostUserId   Int
+  roomCode     String
+  setName      String?
+  totalPlayers Int              @default(0)
+  winnerName   String?
+  startedAt    DateTime?
+  endedAt      DateTime         @default(now())
+  createdAt    DateTime         @default(now())
+  host         User             @relation(fields: [hostUserId], references: [id], onDelete: Cascade)
+  players      LiveGamePlayer[]
+
+  @@index([hostUserId, createdAt])
+  @@map("live_games")
+}
+
+model LiveGamePlayer {
+  id         Int      @id @default(autoincrement())
+  liveGameId Int
+  name       String
+  score      Int      @default(0)
+  correct    Int      @default(0)
+  total      Int      @default(0)
+  isWinner   Boolean  @default(false)
+  liveGame   LiveGame @relation(fields: [liveGameId], references: [id], onDelete: Cascade)
+
+  @@index([liveGameId])
+  @@map("live_game_players")
 }
