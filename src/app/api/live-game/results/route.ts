@@ -23,9 +23,10 @@ function toInt(value: unknown, fallback = 0): number {
 //   players: { name: string, score?: number, correct?: number, total?: number }[]
 // }
 //
-// The winner is derived as the player with the highest score (ties resolved by
-// the first such player). Only the authenticated host can save a game; the
-// game is always attributed to the caller.
+// The winner is the player with the highest positive score. If no player has a
+// score above zero (e.g. game modes that don't track scores yet), no winner is
+// recorded. Only the authenticated host can save a game; it is always
+// attributed to the caller.
 export async function POST(request: NextRequest) {
   try {
     const token = request.cookies.get("auth")?.value;
@@ -81,7 +82,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Normalize players and find the winner (highest score).
+    // Normalize players and find the winner (highest positive score).
     const players = (body.players as IncomingPlayer[]).map((p) => ({
       name:
         typeof p.name === "string" && p.name.trim()
@@ -92,13 +93,15 @@ export async function POST(request: NextRequest) {
       total: toInt(p.total),
     }));
 
-    let winnerIndex = 0;
-    for (let i = 1; i < players.length; i++) {
-      if (players[i].score > players[winnerIndex].score) {
+    let winnerIndex = -1;
+    let bestScore = 0;
+    for (let i = 0; i < players.length; i++) {
+      if (players[i].score > bestScore) {
+        bestScore = players[i].score;
         winnerIndex = i;
       }
     }
-    const winnerName = players[winnerIndex]?.name ?? null;
+    const winnerName = winnerIndex >= 0 ? players[winnerIndex].name : null;
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const created = await (prisma as any).liveGame.create({
