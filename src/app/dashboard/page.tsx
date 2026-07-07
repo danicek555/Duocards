@@ -10,6 +10,8 @@ import DailyRewardButton from "@/components/DailyRewardButton";
 import CreateFlashcardSetForm from "@/components/CreateFlashcardSetForm";
 import JoinPublicSetModal from "@/components/JoinPublicSetModal";
 import MoneyBagReward from "@/components/MoneyBagReward";
+import PublicLibraryPanel from "@/components/PublicLibraryPanel";
+import LiveGameHistoryPanel from "@/components/LiveGameHistoryPanel";
 import Notification from "@/components/Notification";
 import { getLanguageFlag } from "@/lib/flags";
 import { LANGUAGES } from "@/lib/languages";
@@ -70,7 +72,7 @@ interface FlashcardSet {
   words: Word[];
 }
 
-type ViewMode = "sets" | "cards";
+type ViewMode = "sets" | "cards" | "library" | "liveHistory";
 
 export default function Dashboard() {
   const [user, setUser] = useState<User | null>(null);
@@ -81,6 +83,17 @@ export default function Dashboard() {
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [showAIGenerateForm, setShowAIGenerateForm] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>("sets");
+
+  // Deep-link support: /dashboard?view=library or ?view=live-history opens
+  // the corresponding panel (used by the /library and /live-game/history
+  // redirect routes).
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const view = params.get("view");
+    if (view === "library") setViewMode("library");
+    else if (view === "live-history") setViewMode("liveHistory");
+    if (view) window.history.replaceState({}, "", "/dashboard");
+  }, []);
   const [coins, setCoins] = useState<number | null>(null);
   const [showCostsModal, setShowCostsModal] = useState(false);
   // Cache for fetched images and audio
@@ -832,6 +845,62 @@ export default function Dashboard() {
                 </span>
               </div>
             </button>
+            <button
+              onClick={() => {
+                window.dispatchEvent(new CustomEvent("closeAIChat"));
+                setViewMode("library");
+              }}
+              className={`w-full text-left px-4 py-3 rounded-lg font-medium transition-colors cursor-pointer active:scale-[0.98] ${
+                viewMode === "library"
+                  ? "bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400"
+                  : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+              }`}
+            >
+              <div className="flex items-center">
+                <svg
+                  className="w-5 h-5 mr-3 shrink-0"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
+                  />
+                </svg>
+                Public Library
+              </div>
+            </button>
+            <button
+              onClick={() => {
+                window.dispatchEvent(new CustomEvent("closeAIChat"));
+                setViewMode("liveHistory");
+              }}
+              className={`w-full text-left px-4 py-3 rounded-lg font-medium transition-colors cursor-pointer active:scale-[0.98] ${
+                viewMode === "liveHistory"
+                  ? "bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400"
+                  : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+              }`}
+            >
+              <div className="flex items-center">
+                <svg
+                  className="w-5 h-5 mr-3 shrink-0"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
+                </svg>
+                Live Game History
+              </div>
+            </button>
             {getGuestLiveGameBaseUrl() ? (
               <a
                 href={getGuestLiveGameBaseUrl()}
@@ -871,7 +940,11 @@ export default function Dashboard() {
 
       {/* Right Content Area */}
       <div className="flex-1 min-w-0 h-screen flex flex-col overflow-hidden">
-        {viewMode === "sets" ? (
+        {viewMode === "library" ? (
+          <PublicLibraryPanel />
+        ) : viewMode === "liveHistory" ? (
+          <LiveGameHistoryPanel />
+        ) : viewMode === "sets" ? (
           <div className="flex-1 overflow-y-auto p-8">
             <div className="mb-6">
               <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
