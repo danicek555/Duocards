@@ -26,11 +26,39 @@ interface PublicSetsResponse {
   totalPages: number;
 }
 
+interface PreviewWord {
+  id: number;
+  word: string;
+  translation: string;
+  pronunciation: string | null;
+  hasImage: boolean;
+  hasAudio: boolean;
+}
+
+interface PreviewResponse {
+  set: {
+    id: number;
+    name: string;
+    fromLanguage: string | null;
+    toLanguage: string | null;
+    publicCode: string | null;
+    ownerNickname: string;
+  };
+  words: PreviewWord[];
+}
+
+interface PublicLibraryPanelProps {
+  /** Called after a set is successfully added so the parent can refresh its data. */
+  onSetAdded?: () => void;
+}
+
 /**
  * Embeddable public catalog panel. Rendered inside the dashboard's right
  * content area so the dashboard sidebar stays visible on the left.
  */
-export default function PublicLibraryPanel() {
+export default function PublicLibraryPanel({
+  onSetAdded,
+}: PublicLibraryPanelProps) {
   const router = useRouter();
 
   const [query, setQuery] = useState("");
@@ -45,6 +73,12 @@ export default function PublicLibraryPanel() {
   const [joiningId, setJoiningId] = useState<number | null>(null);
   const [joinedCodes, setJoinedCodes] = useState<Set<string>>(new Set());
   const [actionError, setActionError] = useState("");
+
+  // Word preview modal
+  const [previewSet, setPreviewSet] = useState<PublicSet | null>(null);
+  const [previewData, setPreviewData] = useState<PreviewResponse | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewError, setPreviewError] = useState("");
 
   const fetchSets = useCallback(async () => {
     setLoading(true);
@@ -91,6 +125,16 @@ export default function PublicLibraryPanel() {
     return () => clearTimeout(timeout);
   }, [fetchSets]);
 
+  // Close the preview modal with Escape.
+  useEffect(() => {
+    if (!previewSet) return;
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setPreviewSet(null);
+    };
+    document.addEventListener("keydown", handleEscape);
+    return () => document.removeEventListener("keydown", handleEscape);
+  }, [previewSet]);
+
   const handleFilterChange = (setter: (value: string) => void) => {
     return (value: string) => {
       setter(value);
@@ -117,12 +161,37 @@ export default function PublicLibraryPanel() {
       }
 
       setJoinedCodes((prev) => new Set(prev).add(set.publicCode as string));
+      // Let the parent (dashboard) refetch flashcard sets so the new set is
+      // visible without a page refresh.
+      onSetAdded?.();
     } catch (err) {
       setActionError(
         err instanceof Error ? err.message : "Failed to add flashcard set"
       );
     } finally {
       setJoiningId(null);
+    }
+  };
+
+  const openPreview = async (set: PublicSet) => {
+    setPreviewSet(set);
+    setPreviewData(null);
+    setPreviewError("");
+    setPreviewLoading(true);
+
+    try {
+      const response = await fetch(`/api/flashcard-sets/public/${set.id}`);
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(body.error || "Failed to load words");
+      }
+      setPreviewData(body as PreviewResponse);
+    } catch (err) {
+      setPreviewError(
+        err instanceof Error ? err.message : "Failed to load words"
+      );
+    } finally {
+      setPreviewLoading(false);
     }
   };
 
@@ -219,20 +288,38 @@ export default function PublicLibraryPanel() {
                         ))}
                       </div>
                     )}
+                    {set.publicCode && (
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                        Code:{" "}
+                        <span className="font-mono font-semibold text-green-600 dark:text-green-400">
+                          {set.publicCode}
+                        </span>
+                      </p>
+                    )}
                   </div>
-                  <button
-                    onClick={() => handleAdd(set)}
-                    disabled={joiningId === set.id || haveIt || !set.publicCode}
-                    className="mt-4 w-full px-3 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                  >
-                    {set.ownedByMe
-                      ? "Your set"
-                      : haveIt
-                      ? "Already added"
-                      : joiningId === set.id
-                      ? "Adding..."
-                      : "Add to my sets"}
-                  </button>
+                  <div className="mt-4 flex gap-2">
+                    <button
+                      onClick={() => openPreview(set)}
+                      className="flex-1 px-3 py-2 text-sm bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+                    >
+                      View words
+                    </button>
+                    <button
+                      onClick={() => handleAdd(set)}
+                      disabled={
+                        joiningId === set.id || haveIt || !set.publicCode
+                      }
+                      className="flex-1 px-3 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                      {set.ownedByMe
+                        ? "Your set"
+                        : haveIt
+                        ? "Already added"
+                        : joiningId === set.id
+                        ? "Adding..."
+                        : "Add to my sets"}
+                    </button>
+                  </div>
                 </div>
               );
             })}
@@ -261,6 +348,90 @@ export default function PublicLibraryPanel() {
             </div>
           )}
         </>
+      )}
+
+      {/* Word preview modal */}
+      {previewSet && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ backgroundColor: "rgba(0, 0, 0, 0.7)" }}
+          onClick={() => setPreviewSet(null)}
+        >
+          <div
+            className="bg-white dark:bg-gray-800 rounded-lg shadow-2xl max-w-lg w-full max-h-[80vh] flex flex-col border border-gray-200 dark:border-gray-700"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <h3 className="text-lg font-bold text-gray-900 dark:text-white truncate">
+                    {previewSet.name}
+                  </h3>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                    by {previewSet.ownerNickname} · {previewSet.wordCount}{" "}
+                    {previewSet.wordCount === 1 ? "word" : "words"}
+                  </p>
+                </div>
+                <button
+                  onClick={() => setPreviewSet(null)}
+                  className="shrink-0 px-2 py-1 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-4">
+              {previewLoading ? (
+                <p className="text-sm text-gray-500 dark:text-gray-400 py-6 text-center">
+                  Loading words...
+                </p>
+              ) : previewError ? (
+                <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-red-600 dark:text-red-400 text-sm">
+                  {previewError}
+                </div>
+              ) : previewData && previewData.words.length > 0 ? (
+                <ul className="divide-y divide-gray-100 dark:divide-gray-700">
+                  {previewData.words.map((w) => (
+                    <li key={w.id} className="py-2 flex items-start gap-3">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm text-gray-900 dark:text-white">
+                          <span className="font-semibold">{w.word}</span>
+                          <span className="text-gray-400 dark:text-gray-500">
+                            {" "}
+                            —{" "}
+                          </span>
+                          {w.translation}
+                        </p>
+                        {w.pronunciation && (
+                          <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                            {w.pronunciation}
+                          </p>
+                        )}
+                      </div>
+                      <div className="shrink-0 flex gap-1">
+                        {w.hasImage && (
+                          <span className="px-1.5 py-0.5 text-[10px] uppercase tracking-wide bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded">
+                            image
+                          </span>
+                        )}
+                        {w.hasAudio && (
+                          <span className="px-1.5 py-0.5 text-[10px] uppercase tracking-wide bg-teal-100 dark:bg-teal-900/30 text-teal-700 dark:text-teal-300 rounded">
+                            audio
+                          </span>
+                        )}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-sm text-gray-500 dark:text-gray-400 py-6 text-center">
+                  This set has no words.
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
