@@ -848,34 +848,6 @@ export default function Dashboard() {
             <button
               onClick={() => {
                 window.dispatchEvent(new CustomEvent("closeAIChat"));
-                setViewMode("library");
-              }}
-              className={`w-full text-left px-4 py-3 rounded-lg font-medium transition-colors cursor-pointer active:scale-[0.98] ${
-                viewMode === "library"
-                  ? "bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400"
-                  : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-              }`}
-            >
-              <div className="flex items-center">
-                <svg
-                  className="w-5 h-5 mr-3 shrink-0"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
-                  />
-                </svg>
-                Public Library
-              </div>
-            </button>
-            <button
-              onClick={() => {
-                window.dispatchEvent(new CustomEvent("closeAIChat"));
                 setViewMode("liveHistory");
               }}
               className={`w-full text-left px-4 py-3 rounded-lg font-medium transition-colors cursor-pointer active:scale-[0.98] ${
@@ -899,6 +871,34 @@ export default function Dashboard() {
                   />
                 </svg>
                 Live Game History
+              </div>
+            </button>
+            <button
+              onClick={() => {
+                window.dispatchEvent(new CustomEvent("closeAIChat"));
+                setViewMode("library");
+              }}
+              className={`w-full text-left px-4 py-3 rounded-lg font-medium transition-colors cursor-pointer active:scale-[0.98] ${
+                viewMode === "library"
+                  ? "bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400"
+                  : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+              }`}
+            >
+              <div className="flex items-center">
+                <svg
+                  className="w-5 h-5 mr-3 shrink-0"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
+                  />
+                </svg>
+                Public Library
               </div>
             </button>
             {getGuestLiveGameBaseUrl() ? (
@@ -941,7 +941,7 @@ export default function Dashboard() {
       {/* Right Content Area */}
       <div className="flex-1 min-w-0 h-screen flex flex-col overflow-hidden">
         {viewMode === "library" ? (
-          <PublicLibraryPanel />
+          <PublicLibraryPanel onSetAdded={fetchFlashcardSets} />
         ) : viewMode === "liveHistory" ? (
           <LiveGameHistoryPanel />
         ) : viewMode === "sets" ? (
@@ -1485,6 +1485,15 @@ export default function Dashboard() {
                                   </svg>
                                 </span>
                               </div>
+                            )}
+                            {/* Joined sets: show the origin public code so it's easy to find without searching the library */}
+                            {!set.isPublic && set.joinedFromCode && (
+                              <p className="text-xs text-gray-500 dark:text-gray-400">
+                                Public code:{" "}
+                                <span className="font-mono font-semibold text-purple-600 dark:text-purple-400">
+                                  {set.joinedFromCode}
+                                </span>
+                              </p>
                             )}
                           </div>
                         </button>
