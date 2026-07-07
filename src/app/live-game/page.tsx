@@ -769,6 +769,35 @@ function LiveGameContent() {
       } catch (e) {
         console.error("Failed to notify players that the session ended:", e);
       }
+
+      // Persist the finished game so the host can review it later in the
+      // history (/live-game/history). Scores are not tracked by the current
+      // game modes, so only the participant names and summary are stored.
+      try {
+        const participants =
+          roomMembers.length > 0
+            ? roomMembers.map((m) => ({ name: m.nickname }))
+            : [{ name: nickname }];
+        const setName =
+          settings?.flashcardSets && settings.flashcardSets.length > 0
+            ? settings.flashcardSets.map((s) => s.name).join(", ")
+            : null;
+        await fetch("/api/live-game/results", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            roomCode: roomCode ?? "",
+            setName,
+            startedAt:
+              sessionStartedAt != null
+                ? new Date(sessionStartedAt).toISOString()
+                : null,
+            players: participants,
+          }),
+        });
+      } catch (e) {
+        console.error("Failed to save live game results:", e);
+      }
     }
 
     setGameEndDetails(details);
