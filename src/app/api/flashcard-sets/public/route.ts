@@ -14,6 +14,11 @@ import { verifyAuthToken } from "@/lib/auth";
 // intentionally omitted to keep the response small; the catalog shows metadata
 // plus a word count. Adding a set to the account is done via the existing
 // /api/flashcard-sets/join endpoint using the returned publicCode.
+//
+// Each item carries two ownership flags for the caller:
+//   ownedByMe    - the caller is the author of the set
+//   alreadyAdded - the caller previously joined this set (matched via the
+//                  joinedFromCode stored on their copy)
 export async function GET(request: NextRequest) {
   try {
     const token = request.cookies.get("auth")?.value;
@@ -61,6 +66,20 @@ export async function GET(request: NextRequest) {
       where.tags = { hasSome: tags };
     }
 
+    // Codes of public sets the caller has already joined (their copies keep
+    // the original code in joinedFromCode).
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const mySets = await (prisma.flashcardSet.findMany as any)({
+      where: { userId: payload.userId },
+      select: { joinedFromCode: true },
+    });
+    const joinedCodes = new Set<string>(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (mySets as any[])
+        .map((s) => s.joinedFromCode)
+        .filter((c): c is string => typeof c === "string" && c.length > 0)
+    );
+
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const [total, sets] = await Promise.all([
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -71,6 +90,7 @@ export async function GET(request: NextRequest) {
         select: {
           id: true,
           name: true,
+          userId: true,
           fromLanguage: true,
           toLanguage: true,
           tags: true,
@@ -99,6 +119,8 @@ export async function GET(request: NextRequest) {
       createdAt: set.createdAt,
       ownerNickname: set.user?.nickname ?? "User",
       wordCount: set._count?.words ?? 0,
+      ownedByMe: set.userId === payload.userId,
+      alreadyAdded: set.publicCode ? joinedCodes.has(set.publicCode) : false,
     }));
 
     return NextResponse.json({
