@@ -786,6 +786,34 @@ export default function Dashboard() {
             </button> */}
             <button
               onClick={() => {
+                window.dispatchEvent(new CustomEvent("closeAIChat"));
+                setViewMode("library");
+              }}
+              className={`w-full text-left px-4 py-3 rounded-lg font-medium transition-colors cursor-pointer active:scale-[0.98] ${
+                viewMode === "library"
+                  ? "bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400"
+                  : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+              }`}
+            >
+              <div className="flex items-center">
+                <svg
+                  className="w-5 h-5 mr-3 shrink-0"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
+                  />
+                </svg>
+                Public Library
+              </div>
+            </button>
+            <button
+              onClick={() => {
                 setShowJoinModal(true);
                 // Close AI chat if open
                 window.dispatchEvent(new CustomEvent("closeAIChat"));
@@ -871,34 +899,6 @@ export default function Dashboard() {
                   />
                 </svg>
                 Live Game History
-              </div>
-            </button>
-            <button
-              onClick={() => {
-                window.dispatchEvent(new CustomEvent("closeAIChat"));
-                setViewMode("library");
-              }}
-              className={`w-full text-left px-4 py-3 rounded-lg font-medium transition-colors cursor-pointer active:scale-[0.98] ${
-                viewMode === "library"
-                  ? "bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400"
-                  : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-              }`}
-            >
-              <div className="flex items-center">
-                <svg
-                  className="w-5 h-5 mr-3 shrink-0"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
-                  />
-                </svg>
-                Public Library
               </div>
             </button>
             {getGuestLiveGameBaseUrl() ? (
@@ -1488,12 +1488,49 @@ export default function Dashboard() {
                             )}
                             {/* Joined sets: show the origin public code so it's easy to find without searching the library */}
                             {!set.isPublic && set.joinedFromCode && (
-                              <p className="text-xs text-gray-500 dark:text-gray-400">
-                                Public code:{" "}
-                                <span className="font-mono font-semibold text-purple-600 dark:text-purple-400">
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs text-gray-500 dark:text-gray-400">
+                                  Public code:
+                                </span>
+                                <span className="text-xs font-mono font-semibold text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-900/20 px-2 py-0.5 rounded">
                                   {set.joinedFromCode}
                                 </span>
-                              </p>
+                                <span
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    navigator.clipboard.writeText(
+                                      set.joinedFromCode || ""
+                                    );
+                                  }}
+                                  className="cursor-pointer text-xs text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 transition-colors"
+                                  title="Copy code"
+                                  role="button"
+                                  tabIndex={0}
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter" || e.key === " ") {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      navigator.clipboard.writeText(
+                                        set.joinedFromCode || ""
+                                      );
+                                    }
+                                  }}
+                                >
+                                  <svg
+                                    className="w-3 h-3"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                  >
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth={2}
+                                      d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
+                                    />
+                                  </svg>
+                                </span>
+                              </div>
                             )}
                           </div>
                         </button>
