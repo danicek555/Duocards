@@ -123,6 +123,7 @@ export default function Dashboard() {
   const [loadingEditId, setLoadingEditId] = useState<number | null>(null);
   const [filtering, setFiltering] = useState(false);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [showAllTags, setShowAllTags] = useState(false);
   const [filterFromLanguage, setFilterFromLanguage] = useState<string>("");
   const [filterToLanguage, setFilterToLanguage] = useState<string>("");
   const [searchQuery, setSearchQuery] = useState<string>("");
@@ -644,12 +645,12 @@ export default function Dashboard() {
   return (
     <div className="h-screen overflow-hidden bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 flex">
       {/* Left Sidebar — fixed full height, no scroll */}
-      <div className="w-80 shrink-0 h-screen bg-white dark:bg-gray-800 shadow-xl border-r border-gray-200 dark:border-gray-700 flex flex-col overflow-hidden">
+      <div className="w-72 shrink-0 h-screen bg-white dark:bg-gray-800/80 dark:backdrop-blur shadow-xl border-r border-gray-200 dark:border-gray-700 flex flex-col overflow-hidden">
         {/* Sidebar Header */}
         <div className="p-4 border-b border-gray-200 dark:border-gray-700 shrink-0">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
-              <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-1">
+              <h1 className="text-2xl font-bold tracking-tight mb-1 bg-gradient-to-r from-blue-600 to-purple-600 dark:from-blue-400 dark:to-purple-400 bg-clip-text text-transparent">
                 DuoCards
               </h1>
               <p className="text-sm text-gray-600 dark:text-gray-400 truncate">
@@ -946,37 +947,21 @@ export default function Dashboard() {
           <LiveGameHistoryPanel />
         ) : viewMode === "sets" ? (
           <div className="flex-1 overflow-y-auto p-8">
-            <div className="mb-6">
-              <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-                Your Flashcard Sets
-              </h2>
-              <p className="text-gray-600 dark:text-gray-400 mb-1">
-                Click on a set to start practicing
-              </p>
-              <p className="text-sm text-gray-500 dark:text-gray-500 mb-4">
-                {flashcardSets.length} / 100 flashcard sets
-              </p>
-            </div>
-
-            {/* Create New Set Forms */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-              {showCreateForm ? (
-                <div className="col-span-1 md:col-span-2">
-                  <InlineCreateFlashcardSetForm
-                    onSuccess={handleCreateSuccess}
-                    onCancel={() => setShowCreateForm(false)}
-                    onCoinsUpdate={fetchCoins}
-                  />
-                </div>
-              ) : showAIGenerateForm ? (
-                <div className="col-span-1 md:col-span-2">
-                  <InlineAIGenerateForm
-                    onSuccess={handleCreateSuccess}
-                    onCancel={() => setShowAIGenerateForm(false)}
-                  />
-                </div>
-              ) : (
-                <>
+            <div className="mb-8 flex flex-wrap items-start justify-between gap-4">
+              <div>
+                <h2 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-white mb-1">
+                  Your Flashcard Sets
+                </h2>
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  Click on a set to start practicing
+                  <span className="mx-2 text-gray-300 dark:text-gray-600">
+                    ·
+                  </span>
+                  {flashcardSets.length} / 100 sets
+                </p>
+              </div>
+              {!showCreateForm && !showAIGenerateForm && (
+                <div className="flex items-center gap-3">
                   <button
                     onClick={() => {
                       if (flashcardSets.length >= 100) {
@@ -987,10 +972,10 @@ export default function Dashboard() {
                       setShowAIGenerateForm(false);
                     }}
                     disabled={flashcardSets.length >= 100}
-                    className="bg-white dark:bg-gray-800 rounded-xl shadow-lg hover:shadow-xl transition-all p-4 text-left border-2 border-dashed border-gray-300 dark:border-gray-600 hover:border-blue-500 dark:hover:border-blue-400 flex flex-col items-center justify-center min-h-[140px] cursor-pointer active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:border-gray-300 dark:disabled:hover:border-gray-600"
+                    className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white text-sm font-medium shadow-sm hover:border-blue-500 dark:hover:border-blue-400 hover:shadow-md transition-all cursor-pointer active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <svg
-                      className="w-8 h-8 text-gray-400 dark:text-gray-500 mb-2"
+                      className="w-4 h-4 text-gray-500 dark:text-gray-400"
                       fill="none"
                       stroke="currentColor"
                       viewBox="0 0 24 24"
@@ -1002,12 +987,7 @@ export default function Dashboard() {
                         d="M12 6v6m0 0v6m0-6h6m-6 0H6"
                       />
                     </svg>
-                    <h3 className="text-base font-semibold text-gray-900 dark:text-white mb-1">
-                      Create New Set
-                    </h3>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 text-center">
-                      Manually add words and translations
-                    </p>
+                    New Set
                   </button>
                   <button
                     onClick={() => {
@@ -1019,10 +999,10 @@ export default function Dashboard() {
                       setShowCreateForm(false);
                     }}
                     disabled={flashcardSets.length >= 100}
-                    className="bg-gradient-to-br from-purple-50 to-blue-50 dark:from-purple-900/20 dark:to-blue-900/20 rounded-xl shadow-lg hover:shadow-xl transition-all p-4 text-left border-2 border-dashed border-purple-300 dark:border-purple-600 hover:border-purple-500 dark:hover:border-purple-400 flex flex-col items-center justify-center min-h-[140px] cursor-pointer active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:border-purple-300 dark:disabled:hover:border-purple-600"
+                    className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-blue-600 text-white text-sm font-medium shadow-md shadow-purple-600/25 hover:shadow-lg hover:shadow-purple-600/35 hover:brightness-110 transition-all cursor-pointer active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <svg
-                      className="w-8 h-8 text-purple-600 dark:text-purple-400 mb-2"
+                      className="w-4 h-4"
                       fill="none"
                       stroke="currentColor"
                       viewBox="0 0 24 24"
@@ -1034,57 +1014,120 @@ export default function Dashboard() {
                         d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"
                       />
                     </svg>
-                    <h3 className="text-base font-semibold text-gray-900 dark:text-white mb-1">
-                      AI Generate
-                    </h3>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 text-center">
-                      Let AI create flashcards for you
-                    </p>
+                    AI Generate
                   </button>
-                </>
+                </div>
               )}
             </div>
 
-            {/* Filters */}
+            {/* Inline create / AI-generate forms */}
+            {(showCreateForm || showAIGenerateForm) && (
+              <div className="mb-6">
+                {showCreateForm ? (
+                  <InlineCreateFlashcardSetForm
+                    onSuccess={handleCreateSuccess}
+                    onCancel={() => setShowCreateForm(false)}
+                    onCoinsUpdate={fetchCoins}
+                  />
+                ) : (
+                  <InlineAIGenerateForm
+                    onSuccess={handleCreateSuccess}
+                    onCancel={() => setShowAIGenerateForm(false)}
+                  />
+                )}
+              </div>
+            )}
+
+            {/* Filters toolbar */}
             {flashcardSets.length > 0 && (
-              <div className="mb-6 space-y-3">
-                {/* Language Filters */}
-                <div className="flex flex-wrap gap-3 items-end">
-                  <div>
-                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5">
-                      From:
-                    </label>
+              <div className="mb-6 rounded-2xl bg-white/70 dark:bg-gray-800/60 backdrop-blur border border-gray-200 dark:border-gray-700 p-4 space-y-3">
+                <div className="flex flex-wrap items-center gap-3">
+                  {/* Search */}
+                  <div className="relative flex-1 min-w-[220px]">
+                    <input
+                      type="text"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      placeholder="Search sets by name..."
+                      className="w-full px-4 py-2 pl-10 text-sm border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-900/60 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                    <svg
+                      className="absolute left-3 top-2.5 w-5 h-5 text-gray-400"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                      />
+                    </svg>
+                    {searchQuery && (
+                      <button
+                        onClick={() => setSearchQuery("")}
+                        className="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                      >
+                        <svg
+                          className="w-5 h-5"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M6 18L18 6M6 6l12 12"
+                          />
+                        </svg>
+                      </button>
+                    )}
+                  </div>
+                  {/* Language pair */}
+                  <div className="flex items-center gap-2">
                     <select
                       value={filterFromLanguage}
+                      aria-label="From language"
                       onChange={(e) => {
                         setFiltering(true);
                         setFilterFromLanguage(e.target.value);
                         setTimeout(() => setFiltering(false), 300);
                       }}
-                      className="px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent cursor-pointer"
+                      className="px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-900/60 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent cursor-pointer"
                     >
-                      <option value="">All languages</option>
+                      <option value="">From: all</option>
                       {LANGUAGES.map((lang) => (
                         <option key={lang.value} value={lang.value}>
                           {lang.label}
                         </option>
                       ))}
                     </select>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5">
-                      To:
-                    </label>
+                    <svg
+                      className="w-4 h-4 text-gray-400 dark:text-gray-500 shrink-0"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M13 7l5 5m0 0l-5 5m5-5H6"
+                      />
+                    </svg>
                     <select
                       value={filterToLanguage}
+                      aria-label="To language"
                       onChange={(e) => {
                         setFiltering(true);
                         setFilterToLanguage(e.target.value);
                         setTimeout(() => setFiltering(false), 300);
                       }}
-                      className="px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent cursor-pointer"
+                      className="px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-900/60 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent cursor-pointer"
                     >
-                      <option value="">All languages</option>
+                      <option value="">To: all</option>
                       {LANGUAGES.map((lang) => (
                         <option key={lang.value} value={lang.value}>
                           {lang.label}
@@ -1104,7 +1147,7 @@ export default function Dashboard() {
                           setSelectedTags([]);
                           setTimeout(() => setFiltering(false), 300);
                         }}
-                        className="px-3 py-1.5 text-xs rounded-lg bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors"
+                        className="px-3 py-2 text-xs font-medium rounded-xl bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors"
                       >
                         Clear filters
                       </button>
@@ -1137,100 +1180,66 @@ export default function Dashboard() {
                   )}
                 </div>
 
-                {/* Search Bar and Tags Filter */}
-                <div className="space-y-4">
-                  {/* Search Bar */}
-                  <div>
-                    <p className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Search flashcard sets:
-                    </p>
-                    <div className="relative">
-                      <input
-                        type="text"
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        placeholder="Search by name..."
-                        className="w-full px-4 py-2 pl-10 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      />
-                      <svg
-                        className="absolute left-3 top-2.5 w-5 h-5 text-gray-400"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                        />
-                      </svg>
-                      {searchQuery && (
+                {/* Tags filter (capped, expandable) */}
+                {(() => {
+                  const allTags = new Set<string>();
+                  flashcardSets.forEach((set) => {
+                    if (set.isAIGenerated) allTags.add("AI Generated");
+                    set.tags?.forEach((tag) => allTags.add(tag));
+                  });
+                  const tagsArray = Array.from(allTags).sort();
+                  if (tagsArray.length === 0) return null;
+
+                  const TAG_LIMIT = 10;
+                  // Selected tags stay visible even when collapsed
+                  const visibleTags = showAllTags
+                    ? tagsArray
+                    : tagsArray
+                        .filter(
+                          (tag, idx) =>
+                            idx < TAG_LIMIT || selectedTags.includes(tag)
+                        )
+                        .slice(0, Math.max(TAG_LIMIT, selectedTags.length));
+                  const hiddenCount = tagsArray.length - visibleTags.length;
+
+                  return (
+                    <div className="flex flex-wrap items-center gap-2">
+                      {visibleTags.map((tag) => (
                         <button
-                          onClick={() => setSearchQuery("")}
-                          className="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                          key={tag}
+                          onClick={() => {
+                            setFiltering(true);
+                            setSelectedTags((prev) =>
+                              prev.includes(tag)
+                                ? prev.filter((t) => t !== tag)
+                                : [...prev, tag]
+                            );
+                            setTimeout(() => setFiltering(false), 300);
+                          }}
+                          className={`px-3 py-1 text-xs rounded-full transition-colors ${
+                            selectedTags.includes(tag)
+                              ? "bg-blue-600 text-white shadow-sm shadow-blue-600/30"
+                              : tag === "AI Generated"
+                                ? "bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 hover:bg-purple-200 dark:hover:bg-purple-900/50"
+                                : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
+                          }`}
                         >
-                          <svg
-                            className="w-5 h-5"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M6 18L18 6M6 6l12 12"
-                            />
-                          </svg>
+                          {tag}
+                        </button>
+                      ))}
+                      {(hiddenCount > 0 || showAllTags) && (
+                        <button
+                          onClick={() => setShowAllTags((prev) => !prev)}
+                          className="px-3 py-1 text-xs rounded-full text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
+                        >
+                          {showAllTags
+                            ? "Show fewer"
+                            : `+${hiddenCount} more`}
                         </button>
                       )}
                     </div>
-                  </div>
-
-                  {/* Custom Tags Filter */}
-                  {(() => {
-                    // Get all unique custom tags (excluding language tags)
-                    const allTags = new Set<string>();
-                    flashcardSets.forEach((set) => {
-                      if (set.isAIGenerated) allTags.add("AI Generated");
-                      set.tags?.forEach((tag) => allTags.add(tag));
-                    });
-                    const tagsArray = Array.from(allTags).sort();
-                    if (tagsArray.length === 0) return null;
-
-                    return (
-                      <div>
-                        <p className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">
-                          Filter by tags:
-                        </p>
-                        <div className="flex flex-wrap gap-2">
-                          {tagsArray.map((tag) => (
-                            <button
-                              key={tag}
-                              onClick={() => {
-                                setFiltering(true);
-                                setSelectedTags((prev) =>
-                                  prev.includes(tag)
-                                    ? prev.filter((t) => t !== tag)
-                                    : [...prev, tag]
-                                );
-                                setTimeout(() => setFiltering(false), 300);
-                              }}
-                              className={`px-3 py-1 text-xs rounded-full transition-colors ${
-                                selectedTags.includes(tag)
-                                  ? "bg-blue-600 text-white"
-                                  : "bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600"
-                              }`}
-                            >
-                              {tag}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    );
-                  })()}
-                </div>
+                  );
+                })()}
               </div>
             )}
 
@@ -1367,17 +1376,17 @@ export default function Dashboard() {
                     })().map((set) => (
                       <div
                         key={set.id}
-                        className="bg-white dark:bg-gray-800 rounded-xl shadow-lg hover:shadow-xl transition-all p-6 text-left border-2 border-transparent hover:border-blue-500 dark:hover:border-blue-400 relative"
+                        className="bg-white dark:bg-gray-800 rounded-2xl shadow-md hover:shadow-xl hover:-translate-y-0.5 transition-all p-6 text-left border border-gray-200 dark:border-gray-700 hover:border-blue-400 dark:hover:border-blue-500 relative"
                       >
                         <button
                           onClick={() => handleSetClick(set)}
                           className="w-full text-left"
                         >
-                          <div className="flex items-start justify-between mb-4">
-                            <h3 className="text-xl font-bold text-gray-900 dark:text-white">
+                          <div className="flex items-start justify-between gap-3 mb-4">
+                            <h3 className="text-lg font-semibold text-gray-900 dark:text-white min-w-0 break-words">
                               {set.name}
                             </h3>
-                            <div className="bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 px-5 py-2 rounded-full text-sm font-medium whitespace-nowrap">
+                            <div className="bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-300 px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap shrink-0">
                               {set.words.length}{" "}
                               {set.words.length === 1 ? "card" : "cards"}
                             </div>
@@ -1397,15 +1406,24 @@ export default function Dashboard() {
                               displayTags.push(...set.tags);
                             }
                             return displayTags.length > 0 ? (
-                              <div className="flex flex-wrap gap-1.5 mb-2">
+                              <div className="flex flex-wrap items-center gap-1.5 mb-2">
                                 {displayTags.slice(0, 5).map((tag, idx) => (
                                   <span
                                     key={idx}
-                                    className="px-2 py-0.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded text-xs"
+                                    className={`px-2 py-0.5 rounded-full text-xs ${
+                                      tag === "AI Generated"
+                                        ? "bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300"
+                                        : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300"
+                                    }`}
                                   >
                                     {tag}
                                   </span>
                                 ))}
+                                {displayTags.length > 5 && (
+                                  <span className="text-xs text-gray-400 dark:text-gray-500">
+                                    +{displayTags.length - 5}
+                                  </span>
+                                )}
                               </div>
                             ) : null;
                           })()}
@@ -1436,7 +1454,7 @@ export default function Dashboard() {
                             )}
                           </div>
                           <div className="space-y-1">
-                            <p className="text-sm text-gray-500 dark:text-gray-400">
+                            <p className="text-xs text-gray-500 dark:text-gray-400">
                               Created{" "}
                               {new Date(set.createdAt).toLocaleDateString()}
                             </p>
