@@ -86,8 +86,7 @@ export default function JoinPublicSetModal({
 
   return (
     <div
-      className="fixed inset-0 flex items-center justify-center z-50 p-4 overflow-hidden"
-      style={{ backgroundColor: "rgba(0, 0, 0, 0.7)" }}
+      className="fixed inset-0 flex items-center justify-center z-50 p-4 overflow-hidden bg-black/60 backdrop-blur-sm"
       onClick={onClose}
     >
       <div

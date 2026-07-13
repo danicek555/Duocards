@@ -174,8 +174,7 @@ export default function CoinCostsModal({
     <div className="fixed inset-0 z-50 overflow-hidden">
       {/* Backdrop - very subtle dark overlay */}
       <div
-        className="fixed inset-0 transition-opacity"
-        style={{ backgroundColor: "rgba(0, 0, 0, 0.7)" }}
+        className="fixed inset-0 transition-opacity bg-black/60 backdrop-blur-sm"
         onClick={onClose}
       />
 

@@ -956,7 +956,7 @@ function LiveGameContent() {
   }, [showGameEndedModal]);
 
   return (
-    <div className="min-h-screen flex flex-col bg-linear-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
+    <div className="min-h-screen flex flex-col bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
       {/* Main area — grows; chat stays at bottom */}
       <div
         className={`flex-1 flex flex-col ${inLobby ? "items-center justify-center px-4 py-10 md:py-16" : "p-6 md:p-8 pb-4"}`}
@@ -1452,7 +1452,7 @@ function LiveGameContent() {
       {/* Create game modal */}
       {showCreateModal && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
           role="dialog"
           aria-modal="true"
           aria-labelledby="create-live-game-title"
@@ -1630,7 +1630,7 @@ function LiveGameContent() {
       {/* Game ended modal */}
       {showGameEndedModal && gameEndDetails && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4"
           role="dialog"
           aria-modal="true"
           aria-labelledby="game-ended-title"
@@ -1801,7 +1801,7 @@ export default function LiveGamePage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen flex items-center justify-center bg-linear-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
+        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
           <p className="text-gray-600 dark:text-gray-400">Loading…</p>
         </div>
       }
