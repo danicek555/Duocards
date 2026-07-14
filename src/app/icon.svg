@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="112" fill="#e9edff"/>
+  <circle cx="105" cy="82" r="190" fill="#fff" opacity=".62"/>
+  <circle cx="474" cy="468" r="210" fill="#c7d2fe" opacity=".55"/>
+  <path d="M0 393c104-42 181-23 250 10 81 39 158 47 262-4v113H0V393Z" fill="#ddd6fe" opacity=".32"/>
+
+  <!-- The offset rear card makes the learning-card metaphor legible at favicon size. -->
+  <g transform="rotate(7 297 268)">
+    <rect x="166" y="93" width="262" height="350" rx="47" fill="#c7d2fe"/>
+    <rect x="178" y="105" width="238" height="326" rx="37" fill="#818cf8"/>
+  </g>
+
+  <!-- Front flashcard. -->
+  <rect x="84" y="61" width="286" height="374" rx="52" fill="#312e81" opacity=".14"/>
+  <rect x="76" y="53" width="286" height="374" rx="52" fill="#4f46e5"/>
+  <rect x="90" y="67" width="258" height="346" rx="40" fill="none" stroke="#818cf8" stroke-width="4"/>
+
+  <!-- A custom, optically centered D. The inner counter stays open at 48 px. -->
+  <path transform="translate(-20)" fill="#fff" fill-rule="evenodd" d="M143 130h83c75 0 117 42 117 111s-42 111-117 111h-83V130Zm61 54v114h19c38 0 58-19 58-57s-20-57-58-57h-19Z"/>
+
+  <!-- Card answer lines reinforce the flashcard rather than generic app-icon reading. -->
+  <rect x="123" y="373" width="111" height="10" rx="5" fill="#c7d2fe"/>
+  <rect x="244" y="373" width="38" height="10" rx="5" fill="#a5b4fc"/>
+</svg>
