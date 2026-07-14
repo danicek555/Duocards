@@ -2,7 +2,8 @@
 
 import { useMemo, useState, useEffect } from "react";
 import { COIN_COSTS } from "@/lib/coin-costs";
-import { LANGUAGES } from "@/lib/languages";
+import { getLanguageLabel, LANGUAGES } from "@/lib/languages";
+import { useI18n } from "@/i18n/I18nProvider";
 
 interface InlineAIGenerateFormProps {
   onSuccess: () => void;
@@ -22,6 +23,7 @@ export default function InlineAIGenerateForm({
   onSuccess,
   onCancel,
 }: InlineAIGenerateFormProps) {
+  const { t, locale } = useI18n();
   const [level, setLevel] = useState("A1");
   const [topic, setTopic] = useState("");
   const [fromLanguage, setFromLanguage] = useState("English");
@@ -118,27 +120,27 @@ export default function InlineAIGenerateForm({
     setError("");
 
     if (!topic.trim()) {
-      setError("Please enter a topic");
+      setError(t("createSet.topicRequired"));
       return;
     }
 
     if (!setName.trim()) {
-      setError("Please enter a flashcard set name");
+      setError(t("createSet.nameRequired"));
       return;
     }
 
     if (fromLanguage === toLanguage) {
-      setError("From and To languages must be different");
+      setError(t("createSet.languagesDifferent"));
       return;
     }
 
     if (wordCount < 1 || wordCount > 10) {
-      setError("Word count must be between 1 and 10");
+      setError(t("createSet.wordCountRange"));
       return;
     }
 
     if (tags.length > 5) {
-      setError("Maximum 5 tags allowed per set");
+      setError(t("createSet.maximumTags", { count: 5 }));
       return;
     }
 
@@ -245,10 +247,10 @@ export default function InlineAIGenerateForm({
             />
           </svg>
           <p className="mt-4 text-sm font-semibold text-gray-900 dark:text-white">
-            Generating flashcards with AI...
+            {t("createSet.generatingFlashcards")}
           </p>
           <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-            Please wait, this may take a moment
+            {t("createSet.pleaseWait")}
           </p>
         </div>
       )}
@@ -268,7 +270,7 @@ export default function InlineAIGenerateForm({
           />
         </svg>
         <h3 className="text-lg font-bold text-gray-900 dark:text-white">
-          AI Generate Flashcards
+          {t("createSet.aiTitle")}
         </h3>
       </div>
 
@@ -277,13 +279,13 @@ export default function InlineAIGenerateForm({
         {/* Set Name */}
         <div>
           <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5">
-            Flashcard Set Name <span className="text-red-500">*</span>
+            {t("createSet.setName")} <span className="text-red-500">*</span>
           </label>
           <input
             type="text"
             value={setName}
             onChange={(e) => setSetName(e.target.value)}
-            placeholder="e.g., Food & Cooking A1"
+            placeholder={t("createSet.aiSetNamePlaceholder")}
             maxLength={20}
             className="w-full px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent hover:border-purple-300 dark:hover:border-purple-500 transition-colors"
             required
@@ -293,13 +295,13 @@ export default function InlineAIGenerateForm({
         {/* Topic */}
         <div>
           <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5">
-            Topic <span className="text-red-500">*</span>
+            {t("createSet.topic")} <span className="text-red-500">*</span>
           </label>
           <input
             type="text"
             value={topic}
             onChange={(e) => setTopic(e.target.value)}
-            placeholder="e.g., Food & Cooking, Travel"
+            placeholder={t("createSet.topicPlaceholder")}
             maxLength={20}
             className="w-full px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent hover:border-purple-300 dark:hover:border-purple-500 transition-colors"
             required
@@ -309,7 +311,7 @@ export default function InlineAIGenerateForm({
         {/* Level */}
         <div>
           <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5">
-            CEFR Level <span className="text-red-500">*</span>
+            {t("createSet.cefrLevel")} <span className="text-red-500">*</span>
           </label>
           <select
             value={level}
@@ -329,7 +331,7 @@ export default function InlineAIGenerateForm({
         <div className="grid grid-cols-2 gap-2">
           <div>
             <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5">
-              From Language <span className="text-red-500">*</span>
+              {t("createSet.fromLanguage")} <span className="text-red-500">*</span>
             </label>
             <select
               value={fromLanguage}
@@ -339,14 +341,14 @@ export default function InlineAIGenerateForm({
             >
               {LANGUAGES.map((lang) => (
                 <option key={lang.value} value={lang.value}>
-                  {lang.label}
+                  {getLanguageLabel(lang.value, locale)}
                 </option>
               ))}
             </select>
           </div>
           <div>
             <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5">
-              To Language <span className="text-red-500">*</span>
+              {t("createSet.toLanguage")} <span className="text-red-500">*</span>
             </label>
             <select
               value={toLanguage}
@@ -356,7 +358,7 @@ export default function InlineAIGenerateForm({
             >
               {LANGUAGES.map((lang) => (
                 <option key={lang.value} value={lang.value}>
-                  {lang.label}
+                  {getLanguageLabel(lang.value, locale)}
                 </option>
               ))}
             </select>
@@ -366,11 +368,10 @@ export default function InlineAIGenerateForm({
         {/* Tags */}
         <div>
           <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5">
-            Tags (optional) - Max 5 tags per set ({tags.length}/5)
+            {t("createSet.tagsLabel", { max: 5, count: tags.length })}
           </label>
           <div className="text-xs text-gray-500 dark:text-gray-400 mb-1.5">
-            Maximum 20 different tags allowed across all sets. You currently
-            have {existingUniqueTagsCount} unique tags.
+            {t("createSet.tagsLimitHint", { count: existingUniqueTagsCount })}
           </div>
           <div className="flex flex-wrap gap-2 mb-2">
             {tags.map((tag, index) => (
@@ -406,8 +407,8 @@ export default function InlineAIGenerateForm({
               }}
               placeholder={
                 tags.length >= 5
-                  ? "Maximum 5 tags per set"
-                  : "Add a tag and press Enter"
+                  ? t("createSet.tagsMaxPlaceholder", { max: 5 })
+                  : t("createSet.tagPlaceholder")
               }
               maxLength={20}
               disabled={tags.length >= 5}
@@ -425,7 +426,7 @@ export default function InlineAIGenerateForm({
               disabled={tags.length >= 5}
               className="px-3 py-1.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-xs disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Add
+              {t("createSet.add")}
             </button>
           </div>
         </div>
@@ -433,7 +434,7 @@ export default function InlineAIGenerateForm({
         {/* Word Count */}
         <div>
           <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5">
-            Number of Flashcards <span className="text-red-500">*</span>
+            {t("createSet.numberOfFlashcards")} <span className="text-red-500">*</span>
           </label>
           <div className="flex items-center gap-2">
             <button
@@ -459,14 +460,14 @@ export default function InlineAIGenerateForm({
             </button>
           </div>
           <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 text-center">
-            Choose between 1 and 10 flashcards
+            {t("createSet.flashcardsRange")}
           </p>
         </div>
 
         {/* Additional Features */}
         <div>
           <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">
-            Additional Features
+            {t("createSet.additionalFeatures")}
           </label>
           <div className="flex flex-wrap gap-2">
             {/* Image Toggle */}
@@ -492,7 +493,7 @@ export default function InlineAIGenerateForm({
                   d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
                 />
               </svg>
-              Image
+              {t("createSet.image")}
             </button>
 
             {/* Voice Toggle */}
@@ -518,7 +519,7 @@ export default function InlineAIGenerateForm({
                   d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"
                 />
               </svg>
-              Voice
+              {t("createSet.voice")}
             </button>
 
             {/* Pronunciation Toggle */}
@@ -544,7 +545,7 @@ export default function InlineAIGenerateForm({
                   d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"
                 />
               </svg>
-              Pronunciation
+              {t("createSet.pronunciation")}
             </button>
           </div>
         </div>
@@ -554,10 +555,10 @@ export default function InlineAIGenerateForm({
           <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-900/50 rounded-lg border border-gray-200 dark:border-gray-700">
             <div className="flex-1">
               <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Make Public
+                {t("createSet.makePublic")}
               </label>
               <p className="text-xs text-gray-500 dark:text-gray-400">
-                Share this flashcard set with others using a unique code
+                {t("createSet.publicHint")}
               </p>
             </div>
             <button
@@ -598,7 +599,7 @@ export default function InlineAIGenerateForm({
                   ></path>
                 </svg>
                 <p className="text-xs text-blue-700 dark:text-blue-300">
-                  Generating public code...
+                  {t("createSet.generatingPublicCode")}
                 </p>
               </div>
             </div>
@@ -606,7 +607,7 @@ export default function InlineAIGenerateForm({
           {publicCode && !generatingCode && (
             <div className="p-3 bg-green-50 dark:bg-green-900/20 border-2 border-green-400 dark:border-green-600 rounded-lg">
               <p className="text-xs font-medium text-green-700 dark:text-green-300 mb-2">
-                Your public code:
+                {t("createSet.yourPublicCode")}
               </p>
               <div className="flex items-center gap-2">
                 <code className="flex-1 px-3 py-2 text-lg font-mono font-bold text-green-800 dark:text-green-200 bg-white dark:bg-gray-800 border-2 border-green-400 dark:border-green-600 rounded-lg text-center tracking-widest">
@@ -618,7 +619,7 @@ export default function InlineAIGenerateForm({
                     navigator.clipboard.writeText(publicCode);
                   }}
                   className="px-3 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors text-xs font-medium"
-                  title="Copy to clipboard"
+                  title={t("createSet.copyToClipboard")}
                 >
                   <svg
                     className="w-4 h-4"
@@ -636,7 +637,7 @@ export default function InlineAIGenerateForm({
                 </button>
               </div>
               <p className="text-xs text-green-600 dark:text-green-400 mt-2">
-                Share this code with others so they can join your flashcard set!
+                {t("createSet.publicCodeHint")}
               </p>
             </div>
           )}
@@ -660,61 +661,33 @@ export default function InlineAIGenerateForm({
                 />
               </svg>
               <span className="text-base font-bold text-purple-800 dark:text-purple-200">
-                Total Cost
+                {t("createSet.totalCost")}
               </span>
             </div>
             <div className="text-right">
               <div className="text-2xl font-extrabold text-purple-700 dark:text-purple-300">
-                {totalCost} AI coin{totalCost !== 1 ? "s" : ""}
+                {t("createSet.totalCoins", { count: totalCost })}
               </div>
             </div>
           </div>
           <div className="text-sm text-purple-700 dark:text-purple-300 bg-white/80 dark:bg-gray-800/80 rounded-lg px-3 py-2 border border-purple-300 dark:border-purple-700">
             <div className="font-semibold mb-1.5 text-purple-800 dark:text-purple-200">
-              Cost Breakdown:
+              {t("createSet.costBreakdown")}
             </div>
             <div className="space-y-1">
-              <div className="font-medium">
-                {wordCount} word{wordCount !== 1 ? "s" : ""} × 1 AI coin ={" "}
-                <span className="text-purple-600 dark:text-purple-400 font-bold">
-                  {wordCount * COIN_COSTS.WORD_TRANSLATION} AI coin
-                  {wordCount * COIN_COSTS.WORD_TRANSLATION !== 1 ? "s" : ""}
-                </span>
-              </div>
+              <div className="font-medium">{t("createSet.baseCostLine", { count: wordCount, unit: COIN_COSTS.WORD_TRANSLATION, total: wordCount * COIN_COSTS.WORD_TRANSLATION })}</div>
               {includeImage && (
-                <div className="font-medium">
-                  + {wordCount} image{wordCount !== 1 ? "s" : ""} ×{" "}
-                  {COIN_COSTS.IMAGE_GENERATION} AI coins ={" "}
-                  <span className="text-purple-600 dark:text-purple-400 font-bold">
-                    {wordCount * COIN_COSTS.IMAGE_GENERATION} AI coins
-                  </span>
-                </div>
+                <div className="font-medium">{t("createSet.imageCostLine", { count: wordCount, unit: COIN_COSTS.IMAGE_GENERATION, total: wordCount * COIN_COSTS.IMAGE_GENERATION })}</div>
               )}
               {includePronunciation && (
-                <div className="font-medium">
-                  + {wordCount} pronunciation{wordCount !== 1 ? "s" : ""} ×{" "}
-                  {COIN_COSTS.PRONUNCIATION_GENERATION} AI coin
-                  {COIN_COSTS.PRONUNCIATION_GENERATION !== 1 ? "s" : ""} ={" "}
-                  <span className="text-purple-600 dark:text-purple-400 font-bold">
-                    {wordCount * COIN_COSTS.PRONUNCIATION_GENERATION} AI coin
-                    {wordCount * COIN_COSTS.PRONUNCIATION_GENERATION !== 1
-                      ? "s"
-                      : ""}
-                  </span>
-                </div>
+                <div className="font-medium">{t("createSet.pronunciationCostLine", { count: wordCount, unit: COIN_COSTS.PRONUNCIATION_GENERATION, total: wordCount * COIN_COSTS.PRONUNCIATION_GENERATION })}</div>
               )}
               {includeVoice && (
-                <div className="font-medium">
-                  + {wordCount} audio{wordCount !== 1 ? "s" : ""} ×{" "}
-                  {COIN_COSTS.AUDIO_GENERATION} AI coins ={" "}
-                  <span className="text-purple-600 dark:text-purple-400 font-bold">
-                    {wordCount * COIN_COSTS.AUDIO_GENERATION} AI coins
-                  </span>
-                </div>
+                <div className="font-medium">{t("createSet.audioCostLine", { count: wordCount, unit: COIN_COSTS.AUDIO_GENERATION, total: wordCount * COIN_COSTS.AUDIO_GENERATION })}</div>
               )}
               {!includeImage && !includeVoice && !includePronunciation && (
                 <div className="text-purple-600 dark:text-purple-400 italic text-xs">
-                  No additional features selected
+                  {t("createSet.noAdditionalFeatures")}
                 </div>
               )}
             </div>
@@ -735,7 +708,7 @@ export default function InlineAIGenerateForm({
             onClick={onCancel}
             className="flex-1 px-3 py-1.5 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors text-xs cursor-pointer active:scale-[0.98] disabled:cursor-not-allowed"
           >
-            Cancel
+            {t("common.cancel")}
           </button>
           <button
             type="submit"
@@ -754,7 +727,7 @@ export default function InlineAIGenerateForm({
                 d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"
               />
             </svg>
-            Generate
+            {t("createSet.generate")}
           </button>
         </div>
         </fieldset>

@@ -249,11 +249,11 @@ export default function CoinCostsModal({
                   </svg>
                 </div>
                 <h4 className="text-lg font-semibold text-gray-900 dark:text-white">
-                  AI Generation Cost
+                  {t("coins.generationCost")}
                 </h4>
               </div>
               <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                Costs for generating flashcards and AI-powered features.
+                {t("coins.generationCostHint")}
               </p>
               <div className="space-y-3">
                 {aiGenerationCosts.map((item, index) => (
@@ -274,7 +274,7 @@ export default function CoinCostsModal({
                             {item.cost}
                           </span>
                           <span className="text-sm text-gray-500 dark:text-gray-400">
-                            coins
+                            {item.cost === 1 ? t("coins.coin") : t("coins.coins")}
                           </span>
                         </div>
                       </div>
@@ -306,50 +306,48 @@ export default function CoinCostsModal({
                   </svg>
                 </div>
                 <h4 className="text-lg font-semibold text-gray-900 dark:text-white">
-                  Completion Reward
+                  {t("coins.completionReward")}
                 </h4>
               </div>
               <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
-                Earn AI coins by completing flashcard sets! The reward depends
-                on the number of flashcards in the set.
+                {t("coins.completionRewardHint")}
               </p>
               <div className="space-y-2 text-sm">
                 <div className="flex items-center justify-between p-2 bg-white dark:bg-gray-800 rounded border border-green-200 dark:border-green-700">
                   <span className="text-gray-700 dark:text-gray-300">
-                    Less than 5 flashcards
+                    {t("coins.lessThanFive")}
                   </span>
                   <span className="font-bold text-green-600 dark:text-green-400">
-                    1 AI coin
+                    1 {t("coins.coin")}
                   </span>
                 </div>
                 <div className="flex items-center justify-between p-2 bg-white dark:bg-gray-800 rounded border border-green-200 dark:border-green-700">
                   <span className="text-gray-700 dark:text-gray-300">
-                    5-9 flashcards
+                    {t("coins.fiveToNine")}
                   </span>
                   <span className="font-bold text-green-600 dark:text-green-400">
-                    5 AI coins
+                    5 {t("coins.coins")}
                   </span>
                 </div>
                 <div className="flex items-center justify-between p-2 bg-white dark:bg-gray-800 rounded border border-green-200 dark:border-green-700">
                   <span className="text-gray-700 dark:text-gray-300">
-                    10-24 flashcards
+                    {t("coins.tenToTwentyFour")}
                   </span>
                   <span className="font-bold text-green-600 dark:text-green-400">
-                    10 AI coins
+                    10 {t("coins.coins")}
                   </span>
                 </div>
                 <div className="flex items-center justify-between p-2 bg-white dark:bg-gray-800 rounded border border-green-200 dark:border-green-700">
                   <span className="text-gray-700 dark:text-gray-300">
-                    25 or more flashcards
+                    {t("coins.twentyFiveOrMore")}
                   </span>
                   <span className="font-bold text-green-600 dark:text-green-400">
-                    25 AI coins
+                    25 {t("coins.coins")}
                   </span>
                 </div>
               </div>
               <p className="text-xs text-gray-500 dark:text-gray-400 mt-3">
-                💡 Complete a flashcard set by viewing all cards to claim your
-                reward!
+                {t("coins.completionTip")}
               </p>
             </div>
 
@@ -372,16 +370,16 @@ export default function CoinCostsModal({
                   </svg>
                 </div>
                 <h4 className="text-lg font-semibold text-gray-900 dark:text-white">
-                  AI Helper
+                  {t("coins.aiHelper")}
                 </h4>
               </div>
               <div className="flex items-center justify-between p-3 bg-white dark:bg-gray-800 rounded border border-blue-200 dark:border-blue-700">
                 <div>
                   <p className="font-semibold text-gray-900 dark:text-white">
-                    AI Chat Assistant
+                    {t("coins.aiChatAssistant")}
                   </p>
                   <p className="text-sm text-gray-600 dark:text-gray-400">
-                    Get help with language learning, flashcards, and study tips
+                    {t("coins.aiChatAssistantHint")}
                   </p>
                 </div>
                 <div className="text-right">
@@ -389,7 +387,7 @@ export default function CoinCostsModal({
                     {COIN_COSTS.AI_CHAT}
                   </span>
                   <span className="text-sm text-gray-500 dark:text-gray-400 block">
-                    coins/message
+                    {t("coins.coinsPerMessage")}
                   </span>
                 </div>
               </div>
@@ -414,37 +412,37 @@ export default function CoinCostsModal({
                   </svg>
                 </div>
                 <h4 className="text-lg font-semibold text-gray-900 dark:text-white">
-                  Examples of Generation Cost
+                  {t("coins.examples")}
                 </h4>
               </div>
               <div className="p-4 bg-indigo-50 dark:bg-indigo-900/20 rounded-lg border border-indigo-200 dark:border-indigo-800">
                 <div className="space-y-3 text-sm text-gray-700 dark:text-gray-300">
                   <div className="p-3 bg-white dark:bg-gray-800 rounded border border-indigo-200 dark:border-indigo-700">
                     <p>
-                      <span className="font-semibold">5 flashcards</span> ={" "}
+                      <span className="font-semibold">{t("coins.exampleFive")}</span> ={" "}
                       <span className="font-bold text-indigo-600 dark:text-indigo-400">
-                        5 AI coins
+                        5 {t("coins.coins")}
                       </span>{" "}
-                      (5 × 1 AI coin)
+                      (5 × 1 {t("coins.coin")})
                     </p>
                   </div>
                   <div className="p-3 bg-white dark:bg-gray-800 rounded border border-indigo-200 dark:border-indigo-700">
                     <p>
-                      <span className="font-semibold">10 flashcards</span> ={" "}
+                      <span className="font-semibold">{t("coins.exampleTen")}</span> ={" "}
                       <span className="font-bold text-indigo-600 dark:text-indigo-400">
-                        10 AI coins
+                        10 {t("coins.coins")}
                       </span>{" "}
-                      (10 × 1 AI coin)
+                      (10 × 1 {t("coins.coin")})
                     </p>
                   </div>
                   <div className="p-3 bg-white dark:bg-gray-800 rounded border border-indigo-200 dark:border-indigo-700">
                     <p>
                       <span className="font-semibold">
-                        5 flashcards with images
+                        {t("coins.exampleFiveImages")}
                       </span>{" "}
                       ={" "}
                       <span className="font-bold text-indigo-600 dark:text-indigo-400">
-                        405 AI coins
+                        405 {t("coins.coins")}
                       </span>{" "}
                       (5 × 1 + 5 × 80)
                     </p>
@@ -452,11 +450,11 @@ export default function CoinCostsModal({
                   <div className="p-3 bg-white dark:bg-gray-800 rounded border border-indigo-200 dark:border-indigo-700">
                     <p>
                       <span className="font-semibold">
-                        10 flashcards with images
+                        {t("coins.exampleTenImages")}
                       </span>{" "}
                       ={" "}
                       <span className="font-bold text-indigo-600 dark:text-indigo-400">
-                        810 AI coins
+                        810 {t("coins.coins")}
                       </span>{" "}
                       (10 × 1 + 10 × 80)
                     </p>

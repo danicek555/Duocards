@@ -1,6 +1,7 @@
 "use client";
 
-import { LANGUAGES } from "@/lib/languages";
+import { getLanguageLabel, LANGUAGES } from "@/lib/languages";
+import { useI18n } from "@/i18n/I18nProvider";
 
 interface LanguageSelectorsProps {
   fromLanguage: string;
@@ -15,11 +16,12 @@ export default function LanguageSelectors({
   onFromLanguageChange,
   onToLanguageChange,
 }: LanguageSelectorsProps) {
+  const { t, locale } = useI18n();
   return (
     <div className="grid grid-cols-2 gap-2">
       <div>
         <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5">
-          From Language
+          {t("createSet.fromLanguage")}
         </label>
         <select
           value={fromLanguage}
@@ -28,14 +30,14 @@ export default function LanguageSelectors({
         >
           {LANGUAGES.map((lang) => (
             <option key={lang.value} value={lang.value}>
-              {lang.label}
+              {getLanguageLabel(lang.value, locale)}
             </option>
           ))}
         </select>
       </div>
       <div>
         <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5">
-          To Language
+          {t("createSet.toLanguage")}
         </label>
         <select
           value={toLanguage}
@@ -44,7 +46,7 @@ export default function LanguageSelectors({
         >
           {LANGUAGES.map((lang) => (
             <option key={lang.value} value={lang.value}>
-              {lang.label}
+              {getLanguageLabel(lang.value, locale)}
             </option>
           ))}
         </select>

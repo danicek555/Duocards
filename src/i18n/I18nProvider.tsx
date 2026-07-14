@@ -10,7 +10,7 @@ import {
 } from "react";
 import { createTranslator } from "./translate";
 import { getStoredLocale, persistLocale } from "./storage";
-import { DEFAULT_LOCALE, type Locale } from "./types";
+import { DEFAULT_LOCALE, isRtlLocale, type Locale } from "./types";
 
 interface I18nContextValue {
   locale: Locale;
@@ -41,6 +41,7 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
     const stored = getStoredLocale();
     setLocaleState(stored);
     document.documentElement.lang = stored;
+    document.documentElement.dir = isRtlLocale(stored) ? "rtl" : "ltr";
     setReady(true);
   }, []);
 
@@ -53,6 +54,7 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
       const sync = options?.sync ?? true;
 
       setLocaleState(nextLocale);
+      document.documentElement.dir = isRtlLocale(nextLocale) ? "rtl" : "ltr";
       if (persist) {
         persistLocale(nextLocale);
       } else {

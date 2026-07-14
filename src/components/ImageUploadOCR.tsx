@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Image from "next/image";
 import ImageTextSelector from "./ImageTextSelector";
+import { useI18n } from "@/i18n/I18nProvider";
 
 interface WordPair {
   word: string;
@@ -30,6 +31,7 @@ export default function ImageUploadOCR({
   onCoinsUpdate,
   onError,
 }: ImageUploadOCRProps) {
+  const { t } = useI18n();
   const [imageUploadMode, setImageUploadMode] = useState(false);
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
   const [extractedText, setExtractedText] = useState<string>("");
@@ -71,7 +73,7 @@ export default function ImageUploadOCR({
       isHeic;
 
     if (!isValidType) {
-      onError?.("Only JPG, PNG, and HEIC images are allowed");
+      onError?.(t("createSet.ocrInvalidFile"));
       return;
     }
 
@@ -365,7 +367,7 @@ export default function ImageUploadOCR({
 
   const handleCreateFlashcardsFromSelectedWords = async () => {
     if (selectedWordIndices.size === 0) {
-      onError?.("Please select at least one word");
+      onError?.(t("createSet.ocrSelectWord"));
       return;
     }
 
@@ -580,7 +582,7 @@ export default function ImageUploadOCR({
             />
           </svg>
           <span className="text-xs text-gray-600 dark:text-gray-400">
-            Upload Image & Extract Text
+            {t("createSet.ocrTitle")}
           </span>
         </div>
         <button
@@ -627,7 +629,7 @@ export default function ImageUploadOCR({
                 </svg>
               </div>
               <p className="mt-4 text-sm font-semibold text-gray-700 dark:text-gray-300">
-                Processing image...
+                {t("createSet.ocrProcessing")}
               </p>
             </div>
           ) : !uploadedImage ? (
@@ -648,11 +650,11 @@ export default function ImageUploadOCR({
                     />
                   </svg>
                   <p className="mb-2 text-xs text-gray-500 dark:text-gray-400">
-                    <span className="font-semibold">Click to upload</span> or
-                    drag and drop
+                    <span className="font-semibold">{t("createSet.ocrClickUpload")}</span>{" "}
+                    {t("createSet.ocrDragDrop")}
                   </p>
                   <p className="text-xs text-gray-500 dark:text-gray-400">
-                    PNG, JPG, or HEIC up to 10MB
+                    {t("createSet.ocrFileHint")}
                   </p>
                 </div>
                 <input
@@ -675,7 +677,7 @@ export default function ImageUploadOCR({
                 <div className="relative w-full h-48 rounded-lg overflow-hidden border-2 border-gray-300 dark:border-gray-600">
                   <Image
                     src={uploadedImage}
-                    alt="Uploaded image"
+                    alt={t("createSet.ocrUploadedAlt")}
                     fill
                     className="object-contain"
                     unoptimized
@@ -720,11 +722,10 @@ export default function ImageUploadOCR({
                   </svg>
                   <div className="flex-1">
                     <h3 className="text-sm font-semibold text-yellow-800 dark:text-yellow-300 mb-1">
-                      No Text Found
+                      {t("createSet.ocrNoTextTitle")}
                     </h3>
                     <p className="text-sm text-yellow-700 dark:text-yellow-400">
-                      There is no text in the picture. Please upload an image
-                      that contains readable text.
+                      {t("createSet.ocrNoTextBody")}
                     </p>
                   </div>
                   <button
@@ -779,7 +780,7 @@ export default function ImageUploadOCR({
                           d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                         ></path>
                       </svg>
-                      Extracting text...
+                      {t("createSet.ocrExtracting")}
                     </>
                   ) : (
                     <>
@@ -796,7 +797,7 @@ export default function ImageUploadOCR({
                           d="M12 6v6m0 0v6m0-6h6m-6 0H6"
                         />
                       </svg>
-                      Extract Text from Image
+                      {t("createSet.ocrExtract")}
                     </>
                   )}
                 </button>
@@ -849,8 +850,7 @@ export default function ImageUploadOCR({
                                   d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                                 ></path>
                               </svg>
-                              Translating {flashcardCount} flashcard
-                              {flashcardCount !== 1 ? "s" : ""}...
+                              {t("createSet.ocrTranslating", { count: flashcardCount })}
                             </>
                           ) : (
                             <>
@@ -867,8 +867,7 @@ export default function ImageUploadOCR({
                                   d="M5 13l4 4L19 7"
                                 />
                               </svg>
-                              Done - Create {flashcardCount} Flashcard
-                              {flashcardCount !== 1 ? "s" : ""}
+                              {t("createSet.ocrCreate", { count: flashcardCount })}
                             </>
                           )}
                         </button>

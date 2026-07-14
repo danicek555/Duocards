@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useI18n } from "@/i18n/I18nProvider";
 
 interface MoneyBagRewardProps {
   rewardAmount: number;
@@ -22,6 +23,7 @@ export default function MoneyBagReward({
   isLastCard,
   isAlreadyClaimed = false,
 }: MoneyBagRewardProps) {
+  const { t } = useI18n();
   const [isClaiming, setIsClaiming] = useState(false);
   const [isClaimed, setIsClaimed] = useState(isAlreadyClaimed);
   const [showAnimation, setShowAnimation] = useState(false);
@@ -149,7 +151,7 @@ export default function MoneyBagReward({
         {!isClaimed && (
           <div className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none">
             <div className="bg-gray-900 dark:bg-gray-700 text-white text-xs px-2 py-1 rounded shadow-lg">
-              Click to claim {rewardAmount} AI coins!
+              {t("rewards.clickClaim", { count: rewardAmount })}
             </div>
           </div>
         )}
@@ -159,7 +161,7 @@ export default function MoneyBagReward({
       {showAnimation && (
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-50">
           <div className="animate-bounce text-4xl font-bold text-yellow-400 drop-shadow-lg">
-            +{rewardAmount} AI Coins! 🎉
+            {t("rewards.claimedAnimation", { count: rewardAmount })}
           </div>
         </div>
       )}
@@ -167,7 +169,7 @@ export default function MoneyBagReward({
       {/* Claimed state */}
       {isClaimed && !showAnimation && (
         <div className="absolute -bottom-6 left-1/2 transform -translate-x-1/2 text-[10px] text-gray-500 dark:text-gray-400 flex items-center gap-1 whitespace-nowrap">
-          <span>{rewardAmount} AI coins claimed</span>
+          <span>{t("rewards.claimed", { count: rewardAmount })}</span>
           <span>✓</span>
         </div>
       )}

@@ -13,11 +13,11 @@ import MoneyBagReward from "@/components/MoneyBagReward";
 import PublicLibraryPanel from "@/components/PublicLibraryPanel";
 import LiveGameHistoryPanel from "@/components/LiveGameHistoryPanel";
 import Notification from "@/components/Notification";
-import LanguageSwitcher from "@/components/LanguageSwitcher";
+import SettingsModal from "@/components/SettingsModal";
 import { useI18n } from "@/i18n/I18nProvider";
 import { isLocale } from "@/i18n/types";
 import { getLanguageFlag } from "@/lib/flags";
-import { LANGUAGES } from "@/lib/languages";
+import { getLanguageLabel, LANGUAGES } from "@/lib/languages";
 import { getGuestLiveGameBaseUrl } from "@/lib/publicUrls";
 
 interface User {
@@ -79,7 +79,7 @@ interface FlashcardSet {
 type ViewMode = "sets" | "cards" | "library" | "liveHistory";
 
 export default function Dashboard() {
-  const { t, setLocale } = useI18n();
+  const { t, locale, setLocale } = useI18n();
   const [user, setUser] = useState<User | null>(null);
   const [flashcardSets, setFlashcardSets] = useState<FlashcardSet[]>([]);
   const [selectedSet, setSelectedSet] = useState<FlashcardSet | null>(null);
@@ -101,6 +101,7 @@ export default function Dashboard() {
   }, []);
   const [coins, setCoins] = useState<number | null>(null);
   const [showCostsModal, setShowCostsModal] = useState(false);
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
   // Cache for fetched images and audio
   const [imageCache, setImageCache] = useState<Record<number, string>>({});
   const [audioCache, setAudioCache] = useState<Record<number, string>>({});
@@ -505,7 +506,7 @@ export default function Dashboard() {
       }
     } catch (error) {
       console.error("Error loading flashcard set:", error);
-      alert("Failed to load flashcard set for editing");
+      alert(t("dashboard.failedLoadEdit"));
     } finally {
       setLoadingEditId(null);
     }
@@ -662,21 +663,35 @@ export default function Dashboard() {
       <div className="w-72 shrink-0 h-screen bg-white dark:bg-gray-800/80 dark:backdrop-blur shadow-xl border-r border-gray-200 dark:border-gray-700 flex flex-col overflow-hidden">
         {/* Sidebar Header */}
         <div className="p-4 border-b border-gray-200 dark:border-gray-700 shrink-0">
-          <LanguageSwitcher className="mb-3" />
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <h1 className="text-2xl font-bold tracking-tight mb-1 bg-gradient-to-r from-blue-600 to-purple-600 dark:from-blue-400 dark:to-purple-400 bg-clip-text text-transparent">
                 DuoCards
               </h1>
-              <p className="text-sm text-gray-600 dark:text-gray-400 truncate">
+              <p className="text-sm text-gray-600 dark:text-gray-400 break-words">
                 {t("nav.welcomeBack", { name: user.nickname })}
               </p>
             </div>
-            <button
-              onClick={handleLogout}
-              className="shrink-0 p-2 text-gray-500 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors cursor-pointer active:scale-[0.98]"
-              title={t("nav.logout")}
-            >
+            <div className="flex shrink-0 items-center gap-2">
+              <button
+                onClick={() => {
+                  setShowSettingsModal(true);
+                  window.dispatchEvent(new CustomEvent("closeAIChat"));
+                }}
+                className="group shrink-0 rounded-lg p-2 text-gray-500 transition-colors hover:bg-blue-50 hover:text-blue-600 active:scale-[0.98] dark:text-gray-400 dark:hover:bg-blue-900/20 dark:hover:text-blue-400"
+                title={t("settings.title")}
+                aria-label={t("settings.title")}
+              >
+                <svg className="h-5 w-5 transition-transform duration-300 group-hover:rotate-45" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+              </button>
+              <button
+                onClick={handleLogout}
+                className="p-2 text-gray-500 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors cursor-pointer active:scale-[0.98]"
+                title={t("nav.logout")}
+              >
               <svg
                 className="w-5 h-5"
                 fill="none"
@@ -690,7 +705,8 @@ export default function Dashboard() {
                   d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
                 />
               </svg>
-            </button>
+              </button>
+            </div>
           </div>
         </div>
 
@@ -720,17 +736,6 @@ export default function Dashboard() {
               {coins !== null ? coins : "..."}
             </span>
           </div>
-          <button
-            onClick={() => {
-              setShowCostsModal(true);
-              // Close AI chat if open
-              window.dispatchEvent(new CustomEvent("closeAIChat"));
-            }}
-            className="w-full mt-1 text-xs text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-400 transition-colors text-left"
-          >
-            {t("nav.aiCoinsGuide")}
-          </button>
-
           {/* Daily Reward Button */}
           <div className="mt-2">
             <DailyRewardButton onCoinsUpdate={fetchCoins} />
@@ -889,34 +894,6 @@ export default function Dashboard() {
                 </span>
               </div>
             </button>
-            <button
-              onClick={() => {
-                window.dispatchEvent(new CustomEvent("closeAIChat"));
-                setViewMode("liveHistory");
-              }}
-              className={`w-full text-left px-4 py-3 rounded-lg font-medium transition-colors cursor-pointer active:scale-[0.98] ${
-                viewMode === "liveHistory"
-                  ? "bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400"
-                  : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-              }`}
-            >
-              <div className="flex items-center">
-                <svg
-                  className="w-5 h-5 mr-3 shrink-0"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-                  />
-                </svg>
-                {t("nav.liveGameHistory")}
-              </div>
-            </button>
             {getGuestLiveGameBaseUrl() ? (
               <a
                 href={getGuestLiveGameBaseUrl()}
@@ -942,9 +919,9 @@ export default function Dashboard() {
                     />
                   </svg>
                   <span>
-                    <span className="block font-medium">Join as guest</span>
+                    <span className="block font-medium">{t("nav.guestLiveGame")}</span>
                     <span className="block text-xs text-gray-500 dark:text-gray-400 font-normal">
-                      Code only — opens guest live URL from env
+                    {t("nav.guestLiveGameHint")}
                     </span>
                   </span>
                 </div>
@@ -1104,7 +1081,7 @@ export default function Dashboard() {
                   <div className="flex items-center gap-2">
                     <select
                       value={filterFromLanguage}
-                      aria-label="From language"
+                      aria-label={t("createSet.fromLanguage")}
                       onChange={(e) => {
                         setFiltering(true);
                         setFilterFromLanguage(e.target.value);
@@ -1115,7 +1092,7 @@ export default function Dashboard() {
                       <option value="">{t("dashboard.fromAll")}</option>
                       {LANGUAGES.map((lang) => (
                         <option key={lang.value} value={lang.value}>
-                          {lang.label}
+                          {getLanguageLabel(lang.value, locale)}
                         </option>
                       ))}
                     </select>
@@ -1134,7 +1111,7 @@ export default function Dashboard() {
                     </svg>
                     <select
                       value={filterToLanguage}
-                      aria-label="To language"
+                      aria-label={t("createSet.toLanguage")}
                       onChange={(e) => {
                         setFiltering(true);
                         setFilterToLanguage(e.target.value);
@@ -1145,7 +1122,7 @@ export default function Dashboard() {
                       <option value="">{t("dashboard.toAll")}</option>
                       {LANGUAGES.map((lang) => (
                         <option key={lang.value} value={lang.value}>
-                          {lang.label}
+                          {getLanguageLabel(lang.value, locale)}
                         </option>
                       ))}
                     </select>
@@ -1249,8 +1226,8 @@ export default function Dashboard() {
                           className="px-3 py-1 text-xs rounded-full text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
                         >
                           {showAllTags
-                            ? "Show fewer"
-                            : `+${hiddenCount} more`}
+                            ? t("dashboard.collapseTags")
+                            : t("dashboard.showAllTags", { count: hiddenCount })}
                         </button>
                       )}
                     </div>
@@ -1280,7 +1257,7 @@ export default function Dashboard() {
                   {t("dashboard.noSets")}
                 </h3>
                 <p className="text-gray-600 dark:text-gray-400 mb-6">
-                  Create your first flashcard set to get started!
+                  {t("dashboard.noSetsHint")}
                 </p>
                 <button
                   onClick={() => {
@@ -1306,7 +1283,7 @@ export default function Dashboard() {
                       d="M12 6v6m0 0v6m0-6h6m-6 0H6"
                     />
                   </svg>
-                  Make New Flashcard Set
+                  {t("dashboard.createFirstSet")}
                 </button>
               </div>
             ) : (
@@ -1392,7 +1369,7 @@ export default function Dashboard() {
                     })().map((set) => (
                       <div
                         key={set.id}
-                        className="bg-white dark:bg-gray-800 rounded-2xl shadow-md hover:shadow-xl hover:-translate-y-0.5 transition-all p-6 text-left border border-gray-200 dark:border-gray-700 hover:border-blue-400 dark:hover:border-blue-500 relative"
+                        className={`bg-white dark:bg-gray-800 rounded-2xl shadow-md hover:shadow-xl hover:-translate-y-0.5 transition-all p-6 text-left border border-gray-200 dark:border-gray-700 hover:border-blue-400 dark:hover:border-blue-500 relative ${openSettingsId === set.id ? "z-30" : "z-0"}`}
                       >
                         <button
                           onClick={() => handleSetClick(set)}
@@ -1404,7 +1381,7 @@ export default function Dashboard() {
                             </h3>
                             <div className="bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-300 px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap shrink-0">
                               {set.words.length}{" "}
-                              {set.words.length === 1 ? "card" : "cards"}
+                              {set.words.length === 1 ? t("dashboard.card") : t("dashboard.cards")}
                             </div>
                           </div>
                           {/* Tags */}
@@ -1473,14 +1450,13 @@ export default function Dashboard() {
                           </div>
                           <div className="space-y-1">
                             <p className="text-xs text-gray-500 dark:text-gray-400">
-                              Created{" "}
-                              {new Date(set.createdAt).toLocaleDateString()}
+                              {t("dashboard.created", { date: new Date(set.createdAt).toLocaleDateString() })}
                             </p>
                             {/* Show public code only if set is public (not for shared sets) */}
                             {set.isPublic && set.publicCode && (
                               <div className="flex items-center gap-2">
                                 <span className="text-xs text-gray-500 dark:text-gray-400">
-                                  Public Code:
+                                  {t("createSet.publicCode")}:
                                 </span>
                                 <span className="text-xs font-mono font-semibold text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20 px-2 py-0.5 rounded">
                                   {set.publicCode}
@@ -1493,7 +1469,7 @@ export default function Dashboard() {
                                     );
                                   }}
                                   className="cursor-pointer text-xs text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 transition-colors"
-                                  title="Copy code"
+                                  title={t("dashboard.copyCode")}
                                   role="button"
                                   tabIndex={0}
                                   onKeyDown={(e) => {
@@ -1526,7 +1502,7 @@ export default function Dashboard() {
                             {!set.isPublic && set.joinedFromCode && (
                               <div className="flex items-center gap-2">
                                 <span className="text-xs text-gray-500 dark:text-gray-400">
-                                  Public code:
+                                  {t("createSet.publicCode")}:
                                 </span>
                                 <span className="text-xs font-mono font-semibold text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-900/20 px-2 py-0.5 rounded">
                                   {set.joinedFromCode}
@@ -1539,7 +1515,7 @@ export default function Dashboard() {
                                     );
                                   }}
                                   className="cursor-pointer text-xs text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 transition-colors"
-                                  title="Copy code"
+                                  title={t("dashboard.copyCode")}
                                   role="button"
                                   tabIndex={0}
                                   onKeyDown={(e) => {
@@ -1605,7 +1581,7 @@ export default function Dashboard() {
                               }
                             }}
                             className="w-6 h-6 flex items-center justify-center rounded-full bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors z-10"
-                            title="Settings"
+                            title={t("dashboard.settings")}
                           >
                             <svg
                               className="w-4 h-4 text-gray-600 dark:text-gray-400"
@@ -1634,7 +1610,7 @@ export default function Dashboard() {
                                 {deleteConfirmId === set.id ? (
                                   <div className="px-3 py-2">
                                     <p className="text-xs text-gray-600 dark:text-gray-400 mb-2">
-                                      Delete this set?
+                                      {t("dashboard.deleteQuestion")}
                                     </p>
                                     <div className="flex gap-2">
                                       <button
@@ -1667,10 +1643,10 @@ export default function Dashboard() {
                                                 d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                                               ></path>
                                             </svg>
-                                            Deleting...
+                                            {t("dashboard.deleting")}
                                           </>
                                         ) : (
-                                          "Yes"
+                                          t("common.yes")
                                         )}
                                       </button>
                                       <button
@@ -1681,7 +1657,7 @@ export default function Dashboard() {
                                         }}
                                         className="px-2 py-1 text-xs bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-300 dark:hover:bg-gray-600"
                                       >
-                                        No
+                                        {t("common.no")}
                                       </button>
                                     </div>
                                   </div>
@@ -1717,7 +1693,7 @@ export default function Dashboard() {
                                               d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                                             ></path>
                                           </svg>
-                                          Loading...
+                                          {t("dashboard.loadingEdit")}
                                         </>
                                       ) : (
                                         <>
@@ -1734,7 +1710,7 @@ export default function Dashboard() {
                                               d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
                                             />
                                           </svg>
-                                          Change
+                                          {t("dashboard.change")}
                                         </>
                                       )}
                                     </button>
@@ -1758,7 +1734,7 @@ export default function Dashboard() {
                                           d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
                                         />
                                       </svg>
-                                      Delete
+                                          {t("common.delete")}
                                     </button>
                                   </>
                                 )}
@@ -1837,7 +1813,7 @@ export default function Dashboard() {
                     d="M15 19l-7-7 7-7"
                   />
                 </svg>
-                Back
+                  {t("common.back")}
               </button>
               <h2 className="col-start-2 text-lg font-semibold text-gray-900 dark:text-white truncate leading-tight">
                 {selectedSet?.name}
@@ -1872,12 +1848,12 @@ export default function Dashboard() {
                   <span className="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">
                     {mediaLoadProgress.imageTotal > 0 &&
                     mediaLoadProgress.audioTotal > 0
-                      ? "Loading images & audio"
+                      ? t("dashboard.loadingImagesAudio")
                       : mediaLoadProgress.imageTotal > 0
-                        ? "Loading images"
+                        ? t("dashboard.loadingImages")
                         : mediaLoadProgress.audioTotal > 0
-                          ? "Loading audio"
-                          : "Loading…"}
+                          ? t("dashboard.loadingAudio")
+                          : t("common.loading")}
                     {mediaLoadProgress.total > 0
                       ? ` (${mediaLoadProgress.loaded}/${mediaLoadProgress.total})`
                       : ""}
@@ -1886,7 +1862,7 @@ export default function Dashboard() {
               )}
               <p className="col-start-2 row-start-2 text-xs text-gray-500 dark:text-gray-500">
                 {selectedSet?.words.length || 0}{" "}
-                {(selectedSet?.words.length || 0) === 1 ? "card" : "cards"}
+                {(selectedSet?.words.length || 0) === 1 ? t("dashboard.card") : t("dashboard.cards")}
               </p>
             </div>
 
@@ -1940,10 +1916,10 @@ export default function Dashboard() {
                     />
                   </svg>
                   <h3 className="text-2xl font-semibold text-gray-900 dark:text-white mb-2">
-                    No cards in this set
+                    {t("dashboard.noCardsInSet")}
                   </h3>
                   <p className="text-gray-600 dark:text-gray-400">
-                    This flashcard set is empty
+                    {t("dashboard.emptySet")}
                   </p>
                 </div>
               )}
@@ -1956,6 +1932,20 @@ export default function Dashboard() {
       <CoinCostsModal
         isOpen={showCostsModal}
         onClose={() => setShowCostsModal(false)}
+      />
+
+      <SettingsModal
+        isOpen={showSettingsModal}
+        onClose={() => setShowSettingsModal(false)}
+        onOpenCoinGuide={() => {
+          setShowSettingsModal(false);
+          setShowCostsModal(true);
+        }}
+        onOpenLiveGameHistory={() => {
+          setShowSettingsModal(false);
+          window.dispatchEvent(new CustomEvent("closeAIChat"));
+          setViewMode("liveHistory");
+        }}
       />
 
       {showJoinModal && (
