@@ -32,7 +32,7 @@ export default function PasswordInput({
         value={value}
         onChange={onChange}
         required={required}
-        className={`w-full px-3 py-2 pr-10 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-colors ${className}`}
+        className={`w-full rounded-xl border border-gray-200 bg-white/80 px-3 py-2.5 pr-10 transition-colors focus:border-transparent focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700/80 dark:text-white ${className}`}
         placeholder={placeholder}
       />
       <button

@@ -58,19 +58,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!publicSet) {
-      return NextResponse.json(
-        { error: "Invalid public code or flashcard set not found" },
-        { status: 404 }
-      );
-    }
-
-    // Check if user already has this set (by checking if they own it or have a set with same name)
+    // Check if user already has this set — either they own the original
+    // (publicCode) or they previously joined a copy (joinedFromCode).
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const existingSet = await (prisma.flashcardSet.findFirst as any)({
       where: {
         userId: payload.userId,
-        publicCode: normalizedCode,
+        OR: [
+          { publicCode: normalizedCode },
+          { joinedFromCode: normalizedCode },
+        ],
       },
     });
 
@@ -107,7 +104,9 @@ export async function POST(request: NextRequest) {
           tags: publicSet.tags,
           isPublic: false, // User's copy is not public by default
           publicCode: null,
-          joinedFromCode: null, // Don't store the original code - users shouldn't see it
+          // Remember which public code this copy came from so the catalog can
+          // mark the set as already added and repeated joins are rejected.
+          joinedFromCode: normalizedCode,
         },
       });
 
