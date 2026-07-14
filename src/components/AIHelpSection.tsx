@@ -1,5 +1,7 @@
 "use client";
 
+import { useI18n } from "@/i18n/I18nProvider";
+
 interface AIHelpSectionProps {
   aiHelpEnabled: boolean;
   onToggleAIHelp: () => void;
@@ -25,6 +27,7 @@ export default function AIHelpSection({
   onTranslateAll,
   translatingIndex,
 }: AIHelpSectionProps) {
+  const { t } = useI18n();
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-700/30 rounded-lg">
@@ -43,7 +46,7 @@ export default function AIHelpSection({
             />
           </svg>
           <span className="text-xs text-gray-600 dark:text-gray-400">
-            AI Help
+            {t("createSet.aiHelp")}
           </span>
         </div>
         <button
@@ -81,7 +84,7 @@ export default function AIHelpSection({
                 />
               </svg>
               <span className="text-xs text-gray-600 dark:text-gray-400">
-                Auto Translate
+                {t("createSet.autoTranslate")}
               </span>
             </div>
             <button
@@ -116,7 +119,7 @@ export default function AIHelpSection({
                 />
               </svg>
               <span className="text-xs text-gray-600 dark:text-gray-400">
-                Translate to one word
+                {t("createSet.translateOneWord")}
               </span>
             </div>
             <button
@@ -151,7 +154,7 @@ export default function AIHelpSection({
                 />
               </svg>
               <span className="text-xs text-gray-600 dark:text-gray-400">
-                Translate to whole phrase
+                {t("createSet.translatePhrase")}
               </span>
             </div>
             <button
@@ -175,7 +178,7 @@ export default function AIHelpSection({
             onClick={onTranslateAll}
             disabled={translatingIndex !== null}
             className="w-full px-2 py-1.5 text-xs text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded-lg transition-colors flex items-center justify-center gap-1.5 border border-purple-200 dark:border-purple-800 disabled:opacity-50 disabled:cursor-not-allowed"
-            title="Instantly translate all empty translations"
+            title={t("createSet.translateAllHint")}
           >
             <svg
               className="w-3.5 h-3.5"
@@ -190,7 +193,7 @@ export default function AIHelpSection({
                 d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129"
               />
             </svg>
-            <span>Translate All</span>
+            <span>{t("createSet.translateAll")}</span>
           </button>
         </div>
       )}

@@ -28,6 +28,15 @@ export const metadata: Metadata = {
   description:
     "Duocards: Your ultimate flashcard learning web app. Create, organize, and master your knowledge with interactive flashcards.",
   applicationName: "Duocards",
+  robots: {
+    index: false,
+    follow: false,
+    googleBot: {
+      index: false,
+      follow: false,
+      noimageindex: true,
+    },
+  },
   authors: [
     {
       name: "Your Name",

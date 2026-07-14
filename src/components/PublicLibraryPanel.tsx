@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useI18n } from "@/i18n/I18nProvider";
+import { getLanguageLabel } from "@/lib/languages";
 
 interface PublicSet {
   id: number;
@@ -55,7 +56,7 @@ interface PublicLibraryPanelProps {
 export default function PublicLibraryPanel({
   onSetAdded,
 }: PublicLibraryPanelProps) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const router = useRouter();
 
   const [query, setQuery] = useState("");
@@ -262,7 +263,7 @@ export default function PublicLibraryPanel({
                     </p>
                     {(set.fromLanguage || set.toLanguage) && (
                       <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                        {set.fromLanguage ?? "?"} → {set.toLanguage ?? "?"}
+                        {set.fromLanguage ? getLanguageLabel(set.fromLanguage, locale) : "?"} → {set.toLanguage ? getLanguageLabel(set.toLanguage, locale) : "?"}
                       </p>
                     )}
                     {set.tags.length > 0 && (

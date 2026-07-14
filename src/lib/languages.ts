@@ -34,3 +34,55 @@ export const LANGUAGES = [
   { value: "Ukrainian", label: "Ukrainian" },
   { value: "Vietnamese", label: "Vietnamese" },
 ];
+
+const LANGUAGE_CODES: Record<string, string> = {
+  Arabic: "ar",
+  Catalan: "ca",
+  Chinese: "zh",
+  Czech: "cs",
+  Danish: "da",
+  Dutch: "nl",
+  English: "en",
+  Finnish: "fi",
+  French: "fr",
+  German: "de",
+  Greek: "el",
+  Hebrew: "he",
+  Hindi: "hi",
+  Hungarian: "hu",
+  Indonesian: "id",
+  Italian: "it",
+  Japanese: "ja",
+  Korean: "ko",
+  Norwegian: "no",
+  Polish: "pl",
+  Portuguese: "pt",
+  Romanian: "ro",
+  Russian: "ru",
+  Spanish: "es",
+  Swedish: "sv",
+  Thai: "th",
+  Turkish: "tr",
+  Ukrainian: "uk",
+  Vietnamese: "vi",
+};
+
+const displayNamesCache = new Map<string, Intl.DisplayNames>();
+
+export function getLanguageLabel(value: string, locale: string) {
+  const languageCode = LANGUAGE_CODES[value];
+  if (!languageCode || typeof Intl.DisplayNames !== "function") {
+    return LANGUAGES.find((language) => language.value === value)?.label ?? value;
+  }
+
+  try {
+    let displayNames = displayNamesCache.get(locale);
+    if (!displayNames) {
+      displayNames = new Intl.DisplayNames([locale], { type: "language" });
+      displayNamesCache.set(locale, displayNames);
+    }
+    return displayNames.of(languageCode) ?? value;
+  } catch {
+    return LANGUAGES.find((language) => language.value === value)?.label ?? value;
+  }
+}

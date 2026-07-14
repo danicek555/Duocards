@@ -1,8 +1,19 @@
 import { cs } from "./locales/cs";
 import { en } from "./locales/en";
+import { de } from "./locales/de";
+import { es } from "./locales/es";
+import { fr } from "./locales/fr";
+import { additionalLocales } from "./locales/additional";
 import type { Locale } from "./types";
 
-const messages: Record<Locale, Record<string, unknown>> = { cs, en };
+const messages: Record<Locale, Record<string, unknown>> = {
+  cs,
+  en,
+  de,
+  es,
+  fr,
+  ...additionalLocales,
+};
 
 function getNestedValue(tree: Record<string, unknown>, key: string): string | undefined {
   const parts = key.split(".");

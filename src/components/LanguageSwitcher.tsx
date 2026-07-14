@@ -21,23 +21,20 @@ export default function LanguageSwitcher({
           {t("common.language")}
         </span>
       )}
-      <div className="inline-flex rounded-lg border border-gray-200 bg-white/70 p-0.5 dark:border-gray-600 dark:bg-gray-800/70">
+      <select
+        value={locale}
+        onChange={(event) => setLocale(event.target.value as Locale)}
+        aria-label={t("common.appLanguage")}
+        className={`rounded-lg border border-gray-200 bg-white/80 font-medium text-gray-700 shadow-sm outline-none transition-colors hover:border-blue-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 ${
+          compact ? "w-full px-3 py-2 text-sm" : "px-2.5 py-1 text-xs"
+        }`}
+      >
         {LOCALES.map((code) => (
-          <button
-            key={code}
-            type="button"
-            onClick={() => setLocale(code)}
-            className={`rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
-              locale === code
-                ? "bg-blue-600 text-white shadow-sm"
-                : "text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
-            }`}
-            aria-pressed={locale === code}
-          >
-            {compact ? code.toUpperCase() : LOCALE_LABELS[code]}
-          </button>
+          <option key={code} value={code}>
+            {LOCALE_LABELS[code]}
+          </option>
         ))}
-      </div>
+      </select>
     </div>
   );
 }

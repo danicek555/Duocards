@@ -187,7 +187,7 @@ export default function Flashcard({
                           : config.accent
                       }`}
                     >
-                      Word
+              {t("flashcard.word")}
                     </p>
                     <div
                       className={`w-2 h-2 rounded-full ${
@@ -213,7 +213,7 @@ export default function Flashcard({
                         : "text-gray-500 dark:text-gray-400"
                     }`}
                   >
-                    Click to reveal translation
+              {t("flashcard.reveal")}
                   </p>
                 </div>
               </div>
@@ -285,7 +285,7 @@ export default function Flashcard({
                           : config.accent
                       }`}
                     >
-                      Translation
+              {t("flashcard.translation")}
                     </p>
                     <div
                       className={`w-2 h-2 rounded-full ${
@@ -359,7 +359,7 @@ export default function Flashcard({
                         : "text-gray-500 dark:text-gray-400"
                     }`}
                   >
-                    Click to flip back
+              {t("flashcard.flipBack")}
                   </p>
                 </div>
               </div>
