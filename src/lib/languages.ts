@@ -35,18 +35,54 @@ export const LANGUAGES = [
   { value: "Vietnamese", label: "Vietnamese" },
 ];
 
-const CZECH_LANGUAGE_LABELS: Record<string, string> = {
-  Arabic: "Arabština", Catalan: "Katalánština", Chinese: "Čínština (mandarínština)",
-  Czech: "Čeština", Danish: "Dánština", Dutch: "Nizozemština", English: "Angličtina",
-  Finnish: "Finština", French: "Francouzština", German: "Němčina", Greek: "Řečtina",
-  Hebrew: "Hebrejština", Hindi: "Hindština", Hungarian: "Maďarština", Indonesian: "Indonéština",
-  Italian: "Italština", Japanese: "Japonština", Korean: "Korejština", Norwegian: "Norština",
-  Polish: "Polština", Portuguese: "Portugalština", Romanian: "Rumunština", Russian: "Ruština",
-  Spanish: "Španělština", Swedish: "Švédština", Thai: "Thajština", Turkish: "Turečtina",
-  Ukrainian: "Ukrajinština", Vietnamese: "Vietnamština",
+const LANGUAGE_CODES: Record<string, string> = {
+  Arabic: "ar",
+  Catalan: "ca",
+  Chinese: "zh",
+  Czech: "cs",
+  Danish: "da",
+  Dutch: "nl",
+  English: "en",
+  Finnish: "fi",
+  French: "fr",
+  German: "de",
+  Greek: "el",
+  Hebrew: "he",
+  Hindi: "hi",
+  Hungarian: "hu",
+  Indonesian: "id",
+  Italian: "it",
+  Japanese: "ja",
+  Korean: "ko",
+  Norwegian: "no",
+  Polish: "pl",
+  Portuguese: "pt",
+  Romanian: "ro",
+  Russian: "ru",
+  Spanish: "es",
+  Swedish: "sv",
+  Thai: "th",
+  Turkish: "tr",
+  Ukrainian: "uk",
+  Vietnamese: "vi",
 };
 
+const displayNamesCache = new Map<string, Intl.DisplayNames>();
+
 export function getLanguageLabel(value: string, locale: string) {
-  if (locale === "cs") return CZECH_LANGUAGE_LABELS[value] ?? value;
-  return LANGUAGES.find((language) => language.value === value)?.label ?? value;
+  const languageCode = LANGUAGE_CODES[value];
+  if (!languageCode || typeof Intl.DisplayNames !== "function") {
+    return LANGUAGES.find((language) => language.value === value)?.label ?? value;
+  }
+
+  try {
+    let displayNames = displayNamesCache.get(locale);
+    if (!displayNames) {
+      displayNames = new Intl.DisplayNames([locale], { type: "language" });
+      displayNamesCache.set(locale, displayNames);
+    }
+    return displayNames.of(languageCode) ?? value;
+  } catch {
+    return LANGUAGES.find((language) => language.value === value)?.label ?? value;
+  }
 }
