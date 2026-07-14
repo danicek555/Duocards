@@ -34,3 +34,19 @@ export const LANGUAGES = [
   { value: "Ukrainian", label: "Ukrainian" },
   { value: "Vietnamese", label: "Vietnamese" },
 ];
+
+const CZECH_LANGUAGE_LABELS: Record<string, string> = {
+  Arabic: "Arabština", Catalan: "Katalánština", Chinese: "Čínština (mandarínština)",
+  Czech: "Čeština", Danish: "Dánština", Dutch: "Nizozemština", English: "Angličtina",
+  Finnish: "Finština", French: "Francouzština", German: "Němčina", Greek: "Řečtina",
+  Hebrew: "Hebrejština", Hindi: "Hindština", Hungarian: "Maďarština", Indonesian: "Indonéština",
+  Italian: "Italština", Japanese: "Japonština", Korean: "Korejština", Norwegian: "Norština",
+  Polish: "Polština", Portuguese: "Portugalština", Romanian: "Rumunština", Russian: "Ruština",
+  Spanish: "Španělština", Swedish: "Švédština", Thai: "Thajština", Turkish: "Turečtina",
+  Ukrainian: "Ukrajinština", Vietnamese: "Vietnamština",
+};
+
+export function getLanguageLabel(value: string, locale: string) {
+  if (locale === "cs") return CZECH_LANGUAGE_LABELS[value] ?? value;
+  return LANGUAGES.find((language) => language.value === value)?.label ?? value;
+}

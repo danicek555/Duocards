@@ -6,6 +6,7 @@ import TagsInput from "./TagsInput";
 import LanguageSelectors from "./LanguageSelectors";
 import AIHelpSection from "./AIHelpSection";
 import ImageUploadOCR from "./ImageUploadOCR";
+import { useI18n } from "@/i18n/I18nProvider";
 
 interface WordPair {
   word: string;
@@ -44,6 +45,7 @@ export default function CreateFlashcardSetForm({
   editSetId,
   initialData,
 }: CreateFlashcardSetFormProps) {
+  const { t } = useI18n();
   const isEditMode = !!editSetId;
   const [setName, setSetName] = useState(initialData?.name || "");
   const [fromLanguage, setFromLanguage] = useState(
@@ -96,7 +98,7 @@ export default function CreateFlashcardSetForm({
     ).length;
 
     if (currentValidCount >= MAX_WORDS) {
-      setError(`Maximum ${MAX_WORDS} words allowed per flashcard set`);
+      setError(t("createSet.maximumWords", { count: MAX_WORDS }));
       return;
     }
 
@@ -104,7 +106,7 @@ export default function CreateFlashcardSetForm({
     const amountToAdd = Math.min(addAmount, remainingSlots);
 
     if (amountToAdd <= 0) {
-      setError(`Maximum ${MAX_WORDS} words allowed per flashcard set`);
+      setError(t("createSet.maximumWords", { count: MAX_WORDS }));
       return;
     }
 
@@ -498,7 +500,7 @@ export default function CreateFlashcardSetForm({
     setError("");
 
     if (!setName.trim()) {
-      setError("Please enter a name for the flashcard set");
+      setError(t("createSet.nameRequired"));
       return;
     }
 
@@ -507,13 +509,13 @@ export default function CreateFlashcardSetForm({
     );
 
     if (validPairs.length === 0) {
-      setError("Please add at least one word pair");
+      setError(t("createSet.wordPairRequired"));
       return;
     }
 
     const MAX_WORDS = 100;
     if (validPairs.length > MAX_WORDS) {
-      setError(`Maximum ${MAX_WORDS} words allowed per flashcard set`);
+      setError(t("createSet.maximumWords", { count: MAX_WORDS }));
       return;
     }
 
@@ -576,7 +578,7 @@ export default function CreateFlashcardSetForm({
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-2xl max-w-6xl w-full max-h-[95vh] overflow-y-auto border border-purple-200 dark:border-purple-800">
         <div className="p-4 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-900/20 dark:to-blue-900/20">
           <h2 className="text-xl font-bold text-gray-900 dark:text-white">
-            {isEditMode ? "Edit Flashcard Set" : "Create New Flashcard Set"}
+            {isEditMode ? t("createSet.editTitle") : t("createSet.createNewTitle")}
           </h2>
         </div>
 
@@ -584,13 +586,13 @@ export default function CreateFlashcardSetForm({
           {/* Set Name */}
           <div>
             <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5">
-              Flashcard Set Name
+              {t("createSet.setName")}
             </label>
             <input
               type="text"
               value={setName}
               onChange={(e) => setSetName(e.target.value)}
-              placeholder="e.g., Spanish Basics"
+              placeholder={t("createSet.setNameExample")}
               maxLength={20}
               className="w-full px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               required
@@ -602,15 +604,15 @@ export default function CreateFlashcardSetForm({
             <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-900/50 rounded-lg border border-gray-200 dark:border-gray-700">
               <div className="flex-1">
                 <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Make Public
+                  {t("createSet.makePublic")}
                   {isEditMode && initialData?.isPublic && (
                     <span className="ml-2 text-xs text-gray-500 dark:text-gray-400 italic">
-                      (Cannot be disabled after making public)
+                      ({t("createSet.publicLocked")})
                     </span>
                   )}
                 </label>
                 <p className="text-xs text-gray-500 dark:text-gray-400">
-                  Share this flashcard set with others using a unique code
+                  {t("createSet.publicHint")}
                 </p>
               </div>
               <button
@@ -656,7 +658,7 @@ export default function CreateFlashcardSetForm({
                     ></path>
                   </svg>
                   <p className="text-xs text-blue-700 dark:text-blue-300">
-                    Generating public code...
+                    {t("createSet.generatingPublicCode")}
                   </p>
                 </div>
               </div>
@@ -664,7 +666,7 @@ export default function CreateFlashcardSetForm({
             {publicCode && !generatingCode && (
               <div className="p-3 bg-green-50 dark:bg-green-900/20 border-2 border-green-400 dark:border-green-600 rounded-lg">
                 <p className="text-xs font-medium text-green-700 dark:text-green-300 mb-2">
-                  Your public code:
+                  {t("createSet.yourPublicCode")}
                 </p>
                 <div className="flex items-center gap-2">
                   <code className="flex-1 px-3 py-2 text-lg font-mono font-bold text-green-800 dark:text-green-200 bg-white dark:bg-gray-800 border-2 border-green-400 dark:border-green-600 rounded-lg text-center tracking-widest">
@@ -676,7 +678,7 @@ export default function CreateFlashcardSetForm({
                       navigator.clipboard.writeText(publicCode);
                     }}
                     className="px-3 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors text-xs font-medium"
-                    title="Copy to clipboard"
+                    title={t("createSet.copyToClipboard")}
                   >
                     <svg
                       className="w-4 h-4"
@@ -694,8 +696,7 @@ export default function CreateFlashcardSetForm({
                   </button>
                 </div>
                 <p className="text-xs text-green-600 dark:text-green-400 mt-2">
-                  Share this code with others so they can join your flashcard
-                  set!
+                  {t("createSet.publicCodeHint")}
                 </p>
               </div>
             )}
@@ -796,8 +797,8 @@ export default function CreateFlashcardSetForm({
             </svg>
             <span>
               {expandedIndices.size === wordPairs.length
-                ? "Collapse All"
-                : "Expand All"}
+                ? t("createSet.collapseAll")
+                : t("createSet.expandAll")}
             </span>
           </button>
 
@@ -805,15 +806,14 @@ export default function CreateFlashcardSetForm({
           <div>
             <div className="flex items-center justify-between mb-2">
               <label className="block text-xs font-medium text-gray-700 dark:text-gray-300">
-                Words and Translations
+                {t("createSet.wordsAndTranslations")}
               </label>
               <span className="text-xs text-gray-500 dark:text-gray-400">
-                {
-                  wordPairs.filter(
+                {t("createSet.wordsCount", {
+                  count: wordPairs.filter(
                     (pair) => pair.word.trim() && pair.translation.trim()
-                  ).length
-                }{" "}
-                / 100 words
+                  ).length,
+                })}
               </span>
             </div>
             <div className="space-y-3">
@@ -830,7 +830,7 @@ export default function CreateFlashcardSetForm({
                     <div className="flex-1 grid grid-cols-2 gap-3">
                       <div className="relative">
                         <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">
-                          Word
+                          {t("createSet.word")}
                         </label>
                         <input
                           type="text"
@@ -838,14 +838,14 @@ export default function CreateFlashcardSetForm({
                           onChange={(e) =>
                             updateWordPair(index, "word", e.target.value)
                           }
-                          placeholder="Enter word"
+                          placeholder={t("createSet.enterWord")}
                           maxLength={50}
                           className="px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 w-full transition-colors"
                         />
                       </div>
                       <div className="relative">
                         <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">
-                          Translation
+                          {t("createSet.translation")}
                         </label>
                         <input
                           type="text"
@@ -853,7 +853,7 @@ export default function CreateFlashcardSetForm({
                           onChange={(e) =>
                             updateWordPair(index, "translation", e.target.value)
                           }
-                          placeholder="Enter translation"
+                          placeholder={t("createSet.enterTranslation")}
                           maxLength={50}
                           className="px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 w-full transition-colors"
                         />
@@ -890,7 +890,7 @@ export default function CreateFlashcardSetForm({
                           onClick={() => handleRegenerateTranslation(index)}
                           disabled={translatingIndex === index}
                           className="p-1.5 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                          title="Regenerate translation"
+                          title={t("createSet.regenerateTranslation")}
                         >
                           <svg
                             className="w-4 h-4"
@@ -921,7 +921,7 @@ export default function CreateFlashcardSetForm({
                           });
                         }}
                         className="p-1.5 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-                        title="More options"
+                        title={t("createSet.moreOptions")}
                       >
                         <svg
                           className={`w-4 h-4 transition-transform ${
@@ -966,7 +966,7 @@ export default function CreateFlashcardSetForm({
                     <div className="w-full mt-2 pt-2 border-t border-gray-200 dark:border-gray-700 space-y-3 opacity-80">
                       <div>
                         <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
-                          Pronunciation
+                          {t("createSet.pronunciation")}
                         </label>
                         <div className="flex gap-2 items-center">
                           {aiHelpEnabled && pair.translation.trim() && (
@@ -975,7 +975,7 @@ export default function CreateFlashcardSetForm({
                               onClick={() => generatePronunciation(index)}
                               disabled={generatingPronunciationIndex === index}
                               className="p-1.5 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
-                              title="Generate pronunciation"
+                              title={t("createSet.generatePronunciation")}
                             >
                               {generatingPronunciationIndex === index ? (
                                 <svg
@@ -1021,7 +1021,7 @@ export default function CreateFlashcardSetForm({
                             onChange={(e) =>
                               updatePronunciation(index, e.target.value)
                             }
-                            placeholder="e.g., /həˈloʊ/"
+                            placeholder={t("createSet.pronunciationExample")}
                             maxLength={50}
                             className="flex-1 px-2 py-1.5 text-xs border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                           />
@@ -1030,7 +1030,7 @@ export default function CreateFlashcardSetForm({
                       <div className="grid grid-cols-2 gap-2">
                         <div>
                           <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
-                            Image
+                            {t("createSet.image")}
                           </label>
                           <label className="flex items-center justify-center px-2 py-1.5 text-xs border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600 cursor-pointer transition-colors">
                             <svg
@@ -1047,7 +1047,7 @@ export default function CreateFlashcardSetForm({
                               />
                             </svg>
                             <span className="text-xs">
-                              {pair.imageUrl ? "Change" : "Upload"}
+                              {pair.imageUrl ? t("createSet.change") : t("createSet.upload")}
                             </span>
                             <input
                               type="file"
@@ -1065,7 +1065,7 @@ export default function CreateFlashcardSetForm({
                                 <div className="relative w-full h-[250px] rounded-lg overflow-hidden border border-gray-300 dark:border-gray-600 shadow-lg">
                                   <Image
                                     src={pair.imageUrl}
-                                    alt="Word image preview"
+                                    alt={t("createSet.imagePreviewAlt")}
                                     fill
                                     className="object-cover"
                                     unoptimized
@@ -1073,8 +1073,7 @@ export default function CreateFlashcardSetForm({
                                   <div className="absolute inset-0 bg-black/40 dark:bg-black/60"></div>
                                   <div className="absolute inset-0 flex items-center justify-center">
                                     <p className="text-white text-xs font-medium drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]">
-                                      Preview: This is how it will appear on
-                                      flashcards
+                                      {t("createSet.previewHint")}
                                     </p>
                                   </div>
                                   <button
@@ -1109,7 +1108,7 @@ export default function CreateFlashcardSetForm({
                         </div>
                         <div>
                           <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
-                            Voice
+                            {t("createSet.voice")}
                           </label>
                           <label className="flex items-center justify-center px-2 py-1.5 text-xs border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600 cursor-pointer transition-colors">
                             <svg
@@ -1126,7 +1125,7 @@ export default function CreateFlashcardSetForm({
                               />
                             </svg>
                             <span className="text-xs">
-                              {pair.audioUrl ? "Change" : "Upload"}
+                              {pair.audioUrl ? t("createSet.change") : t("createSet.upload")}
                             </span>
                             <input
                               type="file"
@@ -1154,7 +1153,7 @@ export default function CreateFlashcardSetForm({
                                 }}
                                 className="mt-1 text-xs text-red-600 hover:text-red-700"
                               >
-                                Remove audio
+                                {t("createSet.removeAudio")}
                               </button>
                             </div>
                           )}
@@ -1169,7 +1168,7 @@ export default function CreateFlashcardSetForm({
             {/* Preset Add Amount Buttons */}
             <div className="mt-2">
               <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5">
-                Add amount:
+                {t("createSet.addAmount")}
               </label>
               <div className="flex gap-2">
                 {[5, 10, 15, 20].map((amount) => (
@@ -1209,7 +1208,7 @@ export default function CreateFlashcardSetForm({
                   d="M12 6v6m0 0v6m0-6h6m-6 0H6"
                 />
               </svg>
-              Add {addAmount} More Words
+              {t("createSet.addMoreWords", { count: addAmount })}
             </button>
           </div>
 
@@ -1227,7 +1226,7 @@ export default function CreateFlashcardSetForm({
               onClick={onClose}
               className="flex-1 px-3 py-1.5 text-sm bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
             >
-              Cancel
+              {t("common.cancel")}
             </button>
             <button
               type="submit"
@@ -1236,26 +1235,26 @@ export default function CreateFlashcardSetForm({
             >
               {loading
                 ? isEditMode
-                  ? "Updating..."
-                  : "Creating..."
+                  ? t("createSet.updating")
+                  : t("createSet.creating")
                 : (() => {
                     const validPairs = wordPairs.filter(
                       (pair) => pair.word.trim() && pair.translation.trim()
                     );
                     const count = validPairs.length;
                     if (isEditMode) {
-                      return `Update Set${
+                      return `${t("createSet.update")}${
                         count > 0
                           ? ` (${count} ${
-                              count === 1 ? "flashcard" : "flashcards"
+                              count === 1 ? t("dashboard.card") : t("dashboard.cards")
                             })`
                           : ""
                       }`;
                     } else {
-                      return `Create Set${
+                      return `${t("createSet.create")}${
                         count > 0
                           ? ` (${count} ${
-                              count === 1 ? "flashcard" : "flashcards"
+                              count === 1 ? t("dashboard.card") : t("dashboard.cards")
                             })`
                           : ""
                       }`;

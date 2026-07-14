@@ -374,12 +374,12 @@ export default function AIChatModal({
           </div>
           <div className="flex items-center justify-between text-[11px] text-gray-500 dark:text-gray-400 mt-1">
             <p>
-              {input.length}/{MAX_PROMPT_LENGTH} characters
+              {t("aiChat.characters", { count: input.length, max: MAX_PROMPT_LENGTH })}
             </p>
-            <p>max 250</p>
+            <p>{t("aiChat.maxCharacters", { max: MAX_PROMPT_LENGTH })}</p>
           </div>
           <p className="text-xs text-gray-500 dark:text-gray-400 mt-1.5">
-            {COIN_COSTS.AI_CHAT} AI coins per message
+            {t("aiChat.pricePerMessage", { count: COIN_COSTS.AI_CHAT })}
           </p>
         </div>
       </div>

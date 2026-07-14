@@ -1,0 +1,26 @@
+import { ar } from "./ar";
+import { ca } from "./ca";
+import { zh } from "./zh";
+import { da } from "./da";
+import { nl } from "./nl";
+import { fi } from "./fi";
+import { el } from "./el";
+import { he } from "./he";
+import { hi } from "./hi";
+import { hu } from "./hu";
+import { id } from "./id";
+import { it } from "./it";
+import { ja } from "./ja";
+import { ko } from "./ko";
+import { no } from "./no";
+import { pl } from "./pl";
+import { pt } from "./pt";
+import { ro } from "./ro";
+import { ru } from "./ru";
+import { sv } from "./sv";
+import { th } from "./th";
+import { tr } from "./tr";
+import { uk } from "./uk";
+import { vi } from "./vi";
+
+export const additionalLocales = { ar, ca, zh, da, nl, fi, el, he, hi, hu, id, it, ja, ko, no, pl, pt, ro, ru, sv, th, tr, uk, vi } as const;

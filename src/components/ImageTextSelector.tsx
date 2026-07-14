@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useI18n } from "@/i18n/I18nProvider";
 
 interface ImageTextSelectorProps {
   text: string;
@@ -19,6 +20,7 @@ export default function ImageTextSelector({
   onWordToggle,
   onPhraseSelect,
 }: ImageTextSelectorProps) {
+  const { t } = useI18n();
   const [selectionMode, setSelectionMode] = useState<SelectionMode>("words");
   const [phraseSelection, setPhraseSelection] = useState<number[]>([]);
   const [createdPhrases, setCreatedPhrases] = useState<Set<number>>(new Set());
@@ -180,7 +182,7 @@ export default function ImageTextSelector({
       <div className="mb-4">
         <div className="flex items-center gap-4 flex-wrap">
           <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-            Mode:
+          {t("createSet.selectionMode")}
           </span>
           <label className="flex items-center gap-2 cursor-pointer">
             <input
@@ -195,7 +197,7 @@ export default function ImageTextSelector({
               className="w-4 h-4 text-blue-600 focus:ring-blue-500"
             />
             <span className="text-sm text-gray-700 dark:text-gray-300">
-              Words
+              {t("createSet.selectWordsMode")}
             </span>
           </label>
           <label className="flex items-center gap-2 cursor-pointer">
@@ -211,7 +213,7 @@ export default function ImageTextSelector({
               className="w-4 h-4 text-blue-600 focus:ring-blue-500"
             />
             <span className="text-sm text-gray-700 dark:text-gray-300">
-              Phrases
+              {t("createSet.selectPhrasesMode")}
             </span>
           </label>
           <label className="flex items-center gap-2 cursor-pointer">
@@ -227,19 +229,18 @@ export default function ImageTextSelector({
               className="w-4 h-4 text-red-600 focus:ring-red-500"
             />
             <span className="text-sm text-gray-700 dark:text-gray-300">
-              Clear
+              {t("createSet.clearMode")}
             </span>
           </label>
         </div>
         {selectionMode === "phrases" && (
           <div className="mt-2 text-xs text-gray-600 dark:text-gray-400">
-            Click words to build a phrase, then click &quot;Create Phrase&quot;
-            to add it
+            {t("createSet.phraseModeHint")}
           </div>
         )}
         {selectionMode === "clear" && (
           <div className="mt-2 text-xs text-gray-600 dark:text-gray-400">
-            Click on selected words or phrases to remove them
+            {t("createSet.clearModeHint")}
           </div>
         )}
       </div>
@@ -251,14 +252,13 @@ export default function ImageTextSelector({
             onClick={handleCreatePhrase}
             className="px-3 py-1.5 text-xs bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
           >
-            Create Phrase ({phraseSelection.length} word
-            {phraseSelection.length !== 1 ? "s" : ""})
+            {t("createSet.createPhrase", { count: phraseSelection.length })}
           </button>
           <button
             onClick={handleClearPhraseSelection}
             className="px-3 py-1.5 text-xs bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors"
           >
-            Clear
+            {t("createSet.clearMode")}
           </button>
         </div>
       )}
@@ -406,15 +406,15 @@ export default function ImageTextSelector({
               title={
                 selectionMode === "clear"
                   ? isSelected || isInCreatedPhrase || isInPhraseSelection
-                    ? "Click to remove"
-                    : "Not selected"
+                    ? t("createSet.clickRemove")
+                    : t("createSet.notSelected")
                   : selectionMode === "words"
                   ? isSelected
-                    ? "Already selected (use Clear mode to remove)"
-                    : "Click to select"
+                    ? t("createSet.alreadySelected")
+                    : t("createSet.clickSelect")
                   : isInPhraseSelection
-                  ? "Click to remove from phrase"
-                  : "Click to add to phrase"
+                  ? t("createSet.clickRemovePhrase")
+                  : t("createSet.clickAddPhrase")
               }
             >
               {part.text}
@@ -424,8 +424,7 @@ export default function ImageTextSelector({
       </div>
       {selectedWordIndices.size > 0 && (
         <div className="mt-3 text-xs text-gray-500 dark:text-gray-400">
-          {selectedWordIndices.size} word
-          {selectedWordIndices.size !== 1 ? "s" : ""} selected
+          {t("createSet.selectedWords", { count: selectedWordIndices.size })}
         </div>
       )}
     </div>

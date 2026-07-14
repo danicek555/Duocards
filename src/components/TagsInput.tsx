@@ -1,5 +1,7 @@
 "use client";
 
+import { useI18n } from "@/i18n/I18nProvider";
+
 interface TagsInputProps {
   tags: string[];
   tagInput: string;
@@ -19,6 +21,7 @@ export default function TagsInput({
   existingUniqueTagsCount,
   maxTags = 5,
 }: TagsInputProps) {
+  const { t } = useI18n();
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === "Enter") {
       e.preventDefault();
@@ -29,11 +32,10 @@ export default function TagsInput({
   return (
     <div>
       <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5">
-        Tags (optional) - Max {maxTags} tags per set ({tags.length}/{maxTags})
+        {t("createSet.tagsLabel", { max: maxTags, count: tags.length })}
       </label>
       <div className="text-xs text-gray-500 dark:text-gray-400 mb-1.5">
-        Maximum 20 different tags allowed across all sets. You currently have{" "}
-        {existingUniqueTagsCount} unique tags.
+        {t("createSet.tagsLimitHint", { count: existingUniqueTagsCount })}
       </div>
       <div className="flex flex-wrap gap-2 mb-2">
         {tags.map((tag, index) => (
@@ -60,8 +62,8 @@ export default function TagsInput({
           onKeyPress={handleKeyPress}
           placeholder={
             tags.length >= maxTags
-              ? `Maximum ${maxTags} tags per set`
-              : "Add a tag and press Enter"
+              ? t("createSet.tagsMaxPlaceholder", { max: maxTags })
+              : t("createSet.tagPlaceholder")
           }
           maxLength={20}
           disabled={tags.length >= maxTags}
@@ -73,13 +75,12 @@ export default function TagsInput({
           disabled={tags.length >= maxTags}
           className="px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-xs disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          Add
+          {t("createSet.add")}
         </button>
       </div>
     </div>
   );
 }
-
 
 
 

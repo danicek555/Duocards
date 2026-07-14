@@ -1164,7 +1164,7 @@ function LiveGameContent() {
               <div className="flex flex-wrap items-center gap-3">
                 <div className="rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 px-4 py-3 flex items-center gap-3">
                   <span className="text-sm text-gray-500 dark:text-gray-400">
-                    Room code
+                        {t("liveGame.roomCode")}
                   </span>
                   <span className="font-mono text-xl font-bold text-gray-900 dark:text-white tracking-widest">
                     {roomCode}
@@ -1174,7 +1174,7 @@ function LiveGameContent() {
                     onClick={() => void copyRoomCode()}
                     className="text-xs px-2 py-1 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
                   >
-                    Copy
+                      {t("liveGame.copyCode")}
                   </button>
                 </div>
                 <button
@@ -1182,25 +1182,24 @@ function LiveGameContent() {
                   onClick={handleLeaveGame}
                   className="text-sm px-4 py-2 rounded-xl border border-red-300 dark:border-red-800 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
                 >
-                  Leave game
+                  {t("liveGame.leaveGame")}
                 </button>
               </div>
 
               {sessionEnded && (
                 <div className="rounded-xl border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-900/30 px-4 py-3 text-sm text-amber-900 dark:text-amber-100">
-                  Session time is up. You can keep browsing cards or leave the
-                  room when you’re done.
+                  {t("liveGame.timeUp")}
                 </div>
               )}
 
               {roomCode && connectionState === "connected" && (
                 <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white/90 dark:bg-gray-800/90 p-4">
                   <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">
-                    Players in this room
+                    {t("liveGame.playersInRoom")}
                   </p>
                   {roomMembers.length === 0 ? (
                     <p className="text-sm text-gray-500 dark:text-gray-400">
-                      Syncing presence…
+                      {t("liveGame.syncingPresence")}
                     </p>
                   ) : (
                     <ul className="space-y-2">
@@ -1212,14 +1211,14 @@ function LiveGameContent() {
                           <span className="font-medium">{m.nickname}</span>
                           {m.clientId === clientId && (
                             <span className="text-xs text-gray-500 dark:text-gray-400">
-                              (you)
+                              {t("liveGame.youLabel")}
                             </span>
                           )}
                           {isHostUi &&
                             m.clientId === clientId &&
                             liveGameSettings && (
                               <span className="text-xs font-medium text-blue-600 dark:text-blue-400">
-                                · Host
+                                · {t("liveGame.host")}
                               </span>
                             )}
                         </li>
@@ -1232,7 +1231,7 @@ function LiveGameContent() {
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div className="rounded-xl border border-gray-200 dark:border-gray-700 p-4 bg-white/80 dark:bg-gray-800/80">
                   <p className="text-xs text-gray-500 dark:text-gray-400">
-                    Connection
+                    {t("liveGame.connection")}
                   </p>
                   <p className="text-sm font-semibold text-gray-900 dark:text-white capitalize">
                     {connectionState}
@@ -1240,7 +1239,7 @@ function LiveGameContent() {
                 </div>
                 <div className="rounded-xl border border-gray-200 dark:border-gray-700 p-4 bg-white/80 dark:bg-gray-800/80">
                   <p className="text-xs text-gray-500 dark:text-gray-400">
-                    Players online
+                    {t("liveGame.playersOnline")}
                   </p>
                   <p className="text-sm font-semibold text-gray-900 dark:text-white">
                     {onlineCount}
@@ -1248,7 +1247,7 @@ function LiveGameContent() {
                 </div>
                 <div className="rounded-xl border border-gray-200 dark:border-gray-700 p-4 bg-white/80 dark:bg-gray-800/80">
                   <p className="text-xs text-gray-500 dark:text-gray-400">
-                    Session
+                    {t("liveGame.session")}
                   </p>
                   <p className="text-sm font-semibold text-gray-900 dark:text-white">
                     {!sessionSummarySettings ? (
@@ -1257,10 +1256,10 @@ function LiveGameContent() {
                       "—"
                     ) : sessionRemainingSec != null ? (
                       sessionEnded ? (
-                        "Ended"
+                        t("liveGame.ended")
                       ) : (
                         <span className="tabular-nums">
-                          {formatCountdown(sessionRemainingSec)} left
+                          {t("liveGame.left", { time: formatCountdown(sessionRemainingSec) })}
                         </span>
                       )
                     ) : (
@@ -1269,8 +1268,7 @@ function LiveGameContent() {
                   </p>
                   {sessionSummarySettings && (
                     <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-0.5">
-                      Live chat:{" "}
-                      {sessionSummarySettings.liveChatEnabled ? "On" : "Off"}
+                      {t("liveGame.chat")}: {sessionSummarySettings.liveChatEnabled ? t("liveGame.on") : t("liveGame.off")}
                     </p>
                   )}
                 </div>
@@ -1281,18 +1279,16 @@ function LiveGameContent() {
                   <div className="space-y-6 text-left">
                     <div>
                       <p className="text-xs font-medium text-blue-600 dark:text-blue-400 uppercase tracking-wide mb-1">
-                        Lobby
+                        {t("liveGame.lobby")}
                       </p>
                       <p className="text-sm text-gray-600 dark:text-gray-400">
-                        Share the room code so friends can join. When everyone is
-                        ready, start the game — players will get the same cards
-                        and settings.
+                        {t("liveGame.lobbyHint")}
                       </p>
                     </div>
                     <div className="rounded-xl border border-gray-200 dark:border-gray-600 bg-white/80 dark:bg-gray-800/80 p-4 space-y-3">
                       <div>
                         <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">
-                          Mode
+                          {t("liveGame.mode")}
                         </p>
                         <p className="text-lg font-semibold text-gray-900 dark:text-white">
                           {liveGameSettings.gameModeLabel}
@@ -1300,14 +1296,14 @@ function LiveGameContent() {
                       </div>
                       <div>
                         <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">
-                          Sets
+                          {t("liveGame.sets")}
                         </p>
                         <ul className="space-y-1 text-sm text-gray-800 dark:text-gray-200">
                           {liveGameSettings.flashcardSets.map((s) => (
                             <li key={s.id}>
                               {s.name}{" "}
                               <span className="text-gray-500 dark:text-gray-400">
-                                ({s.wordCount} cards)
+                                ({t("liveGame.cardsCount", { count: s.wordCount })})
                               </span>
                             </li>
                           ))}
@@ -1320,7 +1316,7 @@ function LiveGameContent() {
                       disabled={connectionState !== "connected"}
                       className="w-full sm:w-auto px-6 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold transition-colors"
                     >
-                      Start game
+                      {t("liveGame.startGame")}
                     </button>
                   </div>
                 ) : activeGameSettings ? (
@@ -1329,15 +1325,13 @@ function LiveGameContent() {
                       <div className="space-y-4">
                         <div className="text-center">
                           <p className="text-xs font-medium text-teal-600 dark:text-teal-400 uppercase tracking-wide">
-                            Practice mode
+                            {t("liveGame.practiceModeLabel")}
                           </p>
                           <p className="text-sm text-gray-600 dark:text-gray-400">
-                            Tap the card to flip. Use arrows to move between
-                            cards — everyone studies the same deck at their own
-                            pace.
+                            {t("liveGame.practiceHint")}
                           </p>
                           <p className="text-xs text-gray-500 dark:text-gray-500 mt-2">
-                            Card {practiceIndex + 1} of {practiceWords.length}
+                            {t("liveGame.cardProgress", { current: practiceIndex + 1, total: practiceWords.length })}
                           </p>
                         </div>
                         <div className="flex justify-center">
@@ -1369,12 +1363,12 @@ function LiveGameContent() {
                         </div>
                         <details className="text-left text-xs text-gray-500 dark:text-gray-400">
                           <summary className="cursor-pointer font-medium text-gray-700 dark:text-gray-300">
-                            Sets in this session
+                            {t("liveGame.setsInSession")}
                           </summary>
                           <ul className="mt-2 space-y-1 pl-4 list-disc">
                             {activeGameSettings.flashcardSets.map((s) => (
                               <li key={s.id}>
-                                {s.name} ({s.wordCount} cards)
+                                {s.name} ({t("liveGame.cardsCount", { count: s.wordCount })})
                               </li>
                             ))}
                           </ul>
@@ -1382,26 +1376,25 @@ function LiveGameContent() {
                       </div>
                     ) : activeGameSettings.gameMode === "practice" ? (
                       <p className="text-center text-sm text-amber-700 dark:text-amber-300 py-8">
-                        Practice mode was chosen but no card data arrived. Ask
-                        the host to recreate the room, or reconnect.
+                        {t("liveGame.practiceNoCards")}
                       </p>
                     ) : (
                       <div className="text-left space-y-4">
                         <div>
                           <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">
-                            Game mode
+                            {t("liveGame.gameMode")}
                           </p>
                           <p className="text-lg font-semibold text-gray-900 dark:text-white">
                             {activeGameSettings.gameModeLabel}
                           </p>
                           <p className="text-xs text-gray-500 dark:text-gray-400 font-mono">
                             {activeGameSettings.gameMode}{" "}
-                            {isHostUi ? "(you chose this)" : "(from host)"}
+                            {isHostUi ? t("liveGame.chosenByYou") : t("liveGame.chosenByHost")}
                           </p>
                         </div>
                         <div>
                           <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">
-                            Flashcard sets
+                            {t("liveGame.flashcardSets")}
                           </p>
                           <ul className="space-y-2">
                             {activeGameSettings.flashcardSets.map((s) => (
@@ -1413,23 +1406,22 @@ function LiveGameContent() {
                                   {s.name}
                                 </span>
                                 <span className="shrink-0 text-gray-500 dark:text-gray-400">
-                                  {s.wordCount} cards
+                                  {t("liveGame.cardsCount", { count: s.wordCount })}
                                 </span>
                               </li>
                             ))}
                           </ul>
                         </div>
                         <p className="text-xs text-gray-500 dark:text-gray-400">
-                          Session:{" "}
+                          {t("liveGame.session")}:{" "}
                           {activeGameSettings.sessionDurationMinutes <= 0
                             ? "—"
                             : `${activeGameSettings.sessionDurationMinutes} min`}
                           {" · "}
-                          Chat:{" "}
-                          {activeGameSettings.liveChatEnabled ? "on" : "off"}
+                          {t("liveGame.chatLabel")}: {activeGameSettings.liveChatEnabled ? t("liveGame.on") : t("liveGame.off")}
                         </p>
                         <p className="text-xs text-gray-500 dark:text-gray-400">
-                          Set IDs for your game logic:{" "}
+                          {t("liveGame.setIds")}:{" "}
                           <span className="font-mono">
                             {activeGameSettings.flashcardSetIds.join(", ")}
                           </span>
@@ -1472,17 +1464,16 @@ function LiveGameContent() {
                 id="create-live-game-title"
                 className="text-xl font-bold text-gray-900 dark:text-white"
               >
-                Create a live game
+                {t("liveGame.createTitle")}
               </h2>
               <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                Pick a mode (placeholder for now) and which flashcard sets to
-                use.
+                {t("liveGame.createHint")}
               </p>
             </div>
             <div className="p-6 space-y-6">
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Game mode
+                  {t("liveGame.gameMode")}
                 </label>
                 <div className="space-y-2">
                   {GAME_MODE_IDS.map((modeId) => {
@@ -1520,7 +1511,7 @@ function LiveGameContent() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Session length
+                  {t("liveGame.sessionLength")}
                 </label>
                 <select
                   value={sessionDurationMinutes}
@@ -1536,8 +1527,7 @@ function LiveGameContent() {
                   ))}
                 </select>
                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                  When time runs out, everyone still sees a notice; practice /
-                  cards stay available.
+                  {t("liveGame.sessionLengthHint")}
                 </p>
               </div>
 
@@ -1553,28 +1543,27 @@ function LiveGameContent() {
                   htmlFor="live-chat-enabled"
                   className="text-sm text-gray-800 dark:text-gray-200 cursor-pointer"
                 >
-                  <span className="font-medium">Enable live chat</span>
+                  <span className="font-medium">{t("liveGame.enableChat")}</span>
                   <span className="block text-xs text-gray-500 dark:text-gray-400">
-                    Turn off if you want a quieter session (no room messages).
+                    {t("liveGame.enableChatHint")}
                   </span>
                 </label>
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Flashcard sets{" "}
+                  {t("liveGame.flashcardSets")}{" "}
                   <span className="text-red-500 dark:text-red-400">*</span>
                 </label>
                 {loadingFlashcardSets ? (
-                  <p className="text-sm text-gray-500">Loading your sets…</p>
+                  <p className="text-sm text-gray-500">{t("liveGame.loadingYourSets")}</p>
                 ) : flashcardSetsError ? (
                   <p className="text-sm text-red-600 dark:text-red-400">
                     {flashcardSetsError}
                   </p>
                 ) : flashcardSetsList.length === 0 ? (
                   <p className="text-sm text-gray-600 dark:text-gray-400">
-                    You have no flashcard sets yet. Create some on the
-                    dashboard first.
+                    {t("liveGame.noSetsCreateFirst")}
                   </p>
                 ) : (
                   <ul className="max-h-48 overflow-y-auto rounded-xl border border-gray-200 dark:border-gray-600 divide-y divide-gray-100 dark:divide-gray-700">
@@ -1594,7 +1583,7 @@ function LiveGameContent() {
                               {set.name}
                             </span>
                             <span className="text-xs text-gray-500 dark:text-gray-400 shrink-0">
-                              {n} cards
+                              {t("liveGame.cardsCount", { count: n })}
                             </span>
                           </label>
                         </li>
@@ -1604,8 +1593,7 @@ function LiveGameContent() {
                 )}
                 {selectedSetIds.length > 0 && (
                   <p className="text-xs text-gray-500 mt-2">
-                    {selectedSetIds.length} set
-                    {selectedSetIds.length === 1 ? "" : "s"} selected
+                    {t("liveGame.selectedSets", { count: selectedSetIds.length })}
                   </p>
                 )}
               </div>
@@ -1619,7 +1607,7 @@ function LiveGameContent() {
                 }}
                 className="px-4 py-2 rounded-xl border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
               >
-                Cancel
+                {t("common.cancel")}
               </button>
               <button
                 type="button"
@@ -1657,7 +1645,7 @@ function LiveGameContent() {
                   id="game-ended-title"
                   className="text-2xl font-bold text-gray-900 dark:text-white"
                 >
-                  Thanks for playing
+                  {t("liveGame.thanksForPlaying")}
                 </h2>
               </div>
               <span className="text-xs text-gray-500 dark:text-gray-400">
@@ -1670,7 +1658,7 @@ function LiveGameContent() {
             <div className="grid grid-cols-2 gap-4">
               <div className="rounded-2xl border border-gray-200 dark:border-gray-700 p-4 text-center">
                 <p className="text-[10px] uppercase tracking-[0.2em] text-gray-500 dark:text-gray-400 mb-1">
-                  Players
+                  {t("liveGame.players")}
                 </p>
                 <p className="text-3xl font-semibold text-gray-900 dark:text-white">
                   {gameEndDetails.players}
@@ -1678,20 +1666,20 @@ function LiveGameContent() {
               </div>
               <div className="rounded-2xl border border-gray-200 dark:border-gray-700 p-4 text-center">
                 <p className="text-[10px] uppercase tracking-[0.2em] text-gray-500 dark:text-gray-400 mb-1">
-                  Duration
+                  {t("liveGame.duration")}
                 </p>
                 <p className="text-3xl font-semibold text-gray-900 dark:text-white">
                   {gameEndDetails.durationSec != null
                     ? formatCountdown(gameEndDetails.durationSec)
                     : gameEndDetails.plannedMinutes &&
                       gameEndDetails.plannedMinutes > 0
-                    ? `${gameEndDetails.plannedMinutes} min planned`
+                    ? t("liveGame.plannedMinutes", { count: gameEndDetails.plannedMinutes })
                     : "—"}
                 </p>
               </div>
             </div>
             <p className="text-sm text-gray-600 dark:text-gray-300">
-              Mode:{" "}
+              {t("liveGame.mode")}:{" "}
               <span className="font-semibold text-gray-900 dark:text-white">
                 {gameEndDetails.modeLabel}
               </span>
@@ -1702,7 +1690,7 @@ function LiveGameContent() {
                 onClick={() => closeGameEndedModal()}
                 className="px-4 py-2 rounded-xl border border-gray-200 dark:border-gray-700 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/60 transition-colors"
               >
-                Close
+                {t("common.close")}
               </button>
               {joinOnly ? (
                 mainAppUrl ? (
@@ -1710,7 +1698,7 @@ function LiveGameContent() {
                     href={mainAppUrl}
                     className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-sm font-semibold text-white inline-flex items-center justify-center"
                   >
-                    Open full DuoCards
+                    {t("liveGame.openFullApp")}
                   </a>
                 ) : null
               ) : (
@@ -1722,7 +1710,7 @@ function LiveGameContent() {
                   }}
                   className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-sm font-semibold text-white"
                 >
-                  Go to dashboard
+                  {t("liveGame.goToDashboard")}
                 </button>
               )}
             </div>
@@ -1734,7 +1722,7 @@ function LiveGameContent() {
       {!inLobby && roomCode && !chatEnabledForSession ? (
         <div className="border-t border-gray-200 dark:border-gray-700 bg-gray-100/90 dark:bg-gray-900/95 py-3 px-4 text-center">
           <p className="text-sm text-gray-600 dark:text-gray-400">
-            Live chat is off for this session (host disabled it).
+            {t("liveGame.chatDisabled")}
           </p>
         </div>
       ) : !inLobby && roomCode ? (
@@ -1742,13 +1730,13 @@ function LiveGameContent() {
           <div className="max-w-3xl mx-auto px-4 md:px-8 py-3">
             <div className="flex items-center justify-between mb-2">
               <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200">
-                Live chat · {roomCode}
+                {t("liveGame.liveChatLabel")} · {roomCode}
               </h3>
             </div>
             <div className="rounded-lg border border-gray-200 dark:border-gray-700 h-40 overflow-y-auto p-3 mb-2 bg-gray-50 dark:bg-gray-800/50">
               {messages.length === 0 ? (
                 <p className="text-xs text-gray-500 dark:text-gray-400">
-                  No messages yet. Say hi!
+                  {t("liveGame.noMessages")}
                 </p>
               ) : (
                 messages.map((message) => (
@@ -1810,11 +1798,12 @@ function LiveGameContent() {
 }
 
 export default function LiveGamePage() {
+  const { t } = useI18n();
   return (
     <Suspense
       fallback={
         <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
-          <p className="text-gray-600 dark:text-gray-400">Loading…</p>
+          <p className="text-gray-600 dark:text-gray-400">{t("common.loading")}</p>
         </div>
       }
     >
