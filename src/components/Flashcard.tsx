@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useI18n } from "@/i18n/I18nProvider";
 
 interface FlashcardProps {
   word: string;
@@ -27,6 +28,7 @@ export default function Flashcard({
   hasNext,
   hasPrevious,
 }: FlashcardProps) {
+  const { t } = useI18n();
   const [isFlipped, setIsFlipped] = useState(false);
 
   // Reset flip when word or translation changes to ensure we always start with English side
@@ -249,7 +251,7 @@ export default function Flashcard({
                     onPointerDown={handleAudioPointerDown}
                     onTouchStart={handleAudioPointerDown}
                     className="absolute top-4 right-4 w-11 h-11 flex items-center justify-center rounded-full bg-white/90 dark:bg-gray-900/80 shadow-lg hover:shadow-xl transition hover:scale-110 active:scale-95 z-30 border border-white/40 backdrop-blur cursor-pointer"
-                    title="Play pronunciation"
+                    title={t("flashcard.playPronunciation")}
                   >
                     <svg
                       className="w-5 h-5 text-purple-600 dark:text-purple-400"
@@ -377,7 +379,7 @@ export default function Flashcard({
           disabled={!hasPrevious}
           className="px-8 py-3 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-300 dark:hover:bg-gray-600 transition-all duration-200 font-semibold shadow-lg hover:shadow-xl active:scale-95"
         >
-          Previous
+          {t("flashcard.previous")}
         </button>
         <button
           onClick={(e) => {
@@ -388,7 +390,7 @@ export default function Flashcard({
           disabled={!hasNext}
           className="px-8 py-3 bg-blue-600 text-white rounded-xl disabled:opacity-50 disabled:cursor-not-allowed hover:bg-blue-700 transition-all duration-200 font-semibold shadow-lg hover:shadow-xl active:scale-95"
         >
-          Next
+          {t("flashcard.next")}
         </button>
       </div>
     </div>

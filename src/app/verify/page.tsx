@@ -10,8 +10,12 @@ import AuthFooter from "@/components/AuthFooter";
 import AuthLoadingFallback from "@/components/AuthLoadingFallback";
 import AuthPageHeader from "@/components/AuthPageHeader";
 import AuthSubmitButton from "@/components/AuthSubmitButton";
+import { useI18n } from "@/i18n/I18nProvider";
+import { translateApiError } from "@/i18n/translate";
+import { isLocale } from "@/i18n/types";
 
 function VerifyEmailContent() {
+  const { locale, setLocale, t } = useI18n();
   const [code, setCode] = useState("");
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
@@ -100,7 +104,7 @@ function VerifyEmailContent() {
     e.preventDefault();
 
     if (code.length !== 6) {
-      showNotification("Zadej 6místný ověřovací kód", "error");
+      showNotification(t("verify.invalidCode"), "error");
       return;
     }
 
@@ -130,23 +134,23 @@ function VerifyEmailContent() {
         localStorage.removeItem("rememberedEmail");
 
         localStorage.setItem("user", JSON.stringify(data.user));
-        showModal(
-          "Email ověřen!",
-          "Tvůj email byl úspěšně ověřen. Vítej v DuoCards!",
-          "success",
-        );
+        if (isLocale(data.user?.locale)) {
+          setLocale(data.user.locale, { persist: true, sync: false });
+        }
+
+        showModal(t("verify.successTitle"), t("verify.successBody"), "success");
 
         setTimeout(() => {
           router.push("/dashboard");
         }, 2000);
       } else {
-        showNotification(data.error || "Ověření se nezdařilo", "error");
+        showNotification(
+          translateApiError(locale, data.code, data.error || t("verify.verifyFailed")),
+          "error",
+        );
       }
     } catch {
-      showNotification(
-        "Chyba sítě. Zkontroluj připojení a zkus to znovu.",
-        "error",
-      );
+      showNotification(t("verify.networkError"), "error");
     } finally {
       setLoading(false);
     }
@@ -172,22 +176,16 @@ function VerifyEmailContent() {
       const data = await response.json();
 
       if (response.ok) {
-        showNotification(
-          "Ověřovací kód odeslán znovu. Zkontroluj email.",
-          "success",
-        );
+        showNotification(t("verify.resendSuccess"), "success");
         setTimeLeft(600);
       } else {
         showNotification(
-          data.error || "Nepodařilo se znovu odeslat kód.",
+          translateApiError(locale, data.code, data.error || t("verify.resendFailed")),
           "error",
         );
       }
     } catch {
-      showNotification(
-        "Chyba sítě. Zkontroluj připojení a zkus to znovu.",
-        "error",
-      );
+      showNotification(t("verify.networkError"), "error");
     } finally {
       setResendLoading(false);
     }
@@ -200,10 +198,7 @@ function VerifyEmailContent() {
   return (
     <AuthBackground>
       <div className="w-full max-w-md">
-        <AuthPageHeader
-          badge="OVĚŘENÍ EMAILU"
-          subtitle="Poslali jsme 6místný kód na"
-        >
+        <AuthPageHeader badge={t("verify.badge")} subtitle={t("verify.subtitle")}>
           <p className="mt-1 font-medium text-blue-600 dark:text-blue-400">
             {email}
           </p>
@@ -216,7 +211,7 @@ function VerifyEmailContent() {
                 htmlFor="code"
                 className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
               >
-                Ověřovací kód
+                {t("verify.codeLabel")}
               </label>
               <input
                 type="text"
@@ -226,18 +221,18 @@ function VerifyEmailContent() {
                 maxLength={6}
                 required
                 className="w-full rounded-xl border border-gray-200 bg-white/80 px-4 py-3 text-center font-mono text-2xl tracking-widest transition-colors focus:border-transparent focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700/80 dark:text-white"
-                placeholder="000000"
+                placeholder={t("verify.codePlaceholder")}
                 autoComplete="one-time-code"
               />
               <p className="mt-1 text-center text-xs text-gray-500 dark:text-gray-400">
-                Zadej 6místný kód z emailu
+                {t("verify.codeHint")}
               </p>
             </div>
 
             {timeLeft > 0 && (
               <div className="text-center">
                 <p className="text-sm text-gray-600 dark:text-gray-400">
-                  Kód vyprší za:{" "}
+                  {t("verify.expiresIn")}{" "}
                   <span className="font-mono text-red-600 dark:text-red-400">
                     {formatTime(timeLeft)}
                   </span>
@@ -248,14 +243,14 @@ function VerifyEmailContent() {
             <AuthSubmitButton
               disabled={code.length !== 6}
               loading={loading}
-              loadingText="Ověřuji..."
+              loadingText={t("verify.verifying")}
             >
-              Ověřit email →
+              {t("verify.submit")}
             </AuthSubmitButton>
 
             <div className="text-center">
               <p className="mb-2 text-sm text-gray-600 dark:text-gray-400">
-                Kód nepřišel?
+                {t("verify.resendPrompt")}
               </p>
               <button
                 type="button"
@@ -263,7 +258,7 @@ function VerifyEmailContent() {
                 disabled={resendLoading}
                 className="font-medium text-blue-600 transition-colors hover:text-blue-700 disabled:cursor-not-allowed disabled:text-gray-400 dark:text-blue-400 dark:hover:text-blue-300"
               >
-                {resendLoading ? "Odesílám..." : "Poslat znovu"}
+                {resendLoading ? t("verify.resending") : t("verify.resend")}
               </button>
             </div>
 
@@ -273,7 +268,7 @@ function VerifyEmailContent() {
                 onClick={() => router.push("/")}
                 className="font-medium text-gray-600 transition-colors hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200"
               >
-                ← Zpět na přihlášení
+                {t("verify.backToLogin")}
               </button>
             </div>
           </form>

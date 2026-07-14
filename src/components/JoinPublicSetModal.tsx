@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useI18n } from "@/i18n/I18nProvider";
 
 interface JoinPublicSetModalProps {
   onClose: () => void;
@@ -11,6 +12,7 @@ export default function JoinPublicSetModal({
   onClose,
   onSuccess,
 }: JoinPublicSetModalProps) {
+  const { t } = useI18n();
   const [code, setCode] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -22,12 +24,10 @@ export default function JoinPublicSetModal({
       }
     };
 
-    // Prevent body scrolling when modal is open
     document.body.style.overflow = "hidden";
     document.addEventListener("keydown", handleEscape);
 
     return () => {
-      // Restore body scrolling when modal closes
       document.body.style.overflow = "unset";
       document.removeEventListener("keydown", handleEscape);
     };
@@ -37,12 +37,10 @@ export default function JoinPublicSetModal({
     e.preventDefault();
     setError("");
 
-    // Normalize code (remove spaces, convert to uppercase)
     const normalizedCode = code.trim().replace(/\s+/g, "").toUpperCase();
 
-    // Validate format (should be XXXX-XXXX)
     if (!/^\d{4}-\d{4}$/.test(normalizedCode)) {
-      setError("Invalid code format. Please use format XXXX-XXXX");
+      setError(t("joinModal.invalidFormat"));
       return;
     }
 
@@ -57,14 +55,14 @@ export default function JoinPublicSetModal({
 
       if (!response.ok) {
         const data = await response.json();
-        throw new Error(data.error || "Failed to join flashcard set");
+        throw new Error(data.error || t("joinModal.joinFailed"));
       }
 
       onSuccess();
       onClose();
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : "Failed to join flashcard set"
+        err instanceof Error ? err.message : t("joinModal.joinFailed")
       );
     } finally {
       setLoading(false);
@@ -72,10 +70,8 @@ export default function JoinPublicSetModal({
   };
 
   const handleCodeChange = (value: string) => {
-    // Remove all non-digit characters
     const digits = value.replace(/\D/g, "");
 
-    // Format as XXXX-XXXX
     let formatted = digits;
     if (digits.length > 4) {
       formatted = `${digits.slice(0, 4)}-${digits.slice(4, 8)}`;
@@ -95,26 +91,26 @@ export default function JoinPublicSetModal({
       >
         <div className="p-4 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-900/20 dark:to-blue-900/20">
           <h2 className="text-xl font-bold text-gray-900 dark:text-white">
-            Join Public Flashcard Set
+            {t("joinModal.title")}
           </h2>
         </div>
 
         <form onSubmit={handleSubmit} className="p-4 space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Enter Public Code
+              {t("joinModal.codeLabel")}
             </label>
             <input
               type="text"
               value={code}
               onChange={(e) => handleCodeChange(e.target.value)}
-              placeholder="XXXX-XXXX"
+              placeholder={t("joinModal.codePlaceholder")}
               maxLength={9}
               className="w-full px-3 py-2 text-lg border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent text-center tracking-widest font-mono"
               required
             />
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-              Enter the 8-digit code in format XXXX-XXXX
+              {t("joinModal.codeHint")}
             </p>
           </div>
 
@@ -130,14 +126,14 @@ export default function JoinPublicSetModal({
               onClick={onClose}
               className="flex-1 px-3 py-2 text-sm bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
             >
-              Cancel
+              {t("common.cancel")}
             </button>
             <button
               type="submit"
               disabled={loading || !code.trim()}
               className="flex-1 px-3 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
-              {loading ? "Joining..." : "Join Set"}
+              {loading ? t("joinModal.joining") : t("joinModal.joinSet")}
             </button>
           </div>
         </form>

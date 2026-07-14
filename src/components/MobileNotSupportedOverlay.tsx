@@ -1,11 +1,10 @@
 "use client";
 
-/**
- * Full-screen block for small viewports (phones and small tablets like iPad).
- * Rendered from root layout for all routes. Uses Tailwind lg (1024px) — allowed at that width and up.
- * Client component so it can be used from global-error and other client boundaries.
- */
+import { useI18n } from "@/i18n/I18nProvider";
+
 export default function MobileNotSupportedOverlay() {
+  const { t } = useI18n();
+
   return (
     <div
       className="fixed inset-0 z-200 flex lg:hidden flex-col items-center justify-center bg-slate-900/97 dark:bg-black/97 px-6 text-center backdrop-blur-sm"
@@ -25,15 +24,13 @@ export default function MobileNotSupportedOverlay() {
           id="mobile-not-supported-title"
           className="text-xl font-semibold tracking-tight text-white"
         >
-          DuoCards needs a larger screen
+          {t("mobile.title")}
         </h1>
         <p
           id="mobile-not-supported-desc"
           className="mt-3 text-sm leading-relaxed text-slate-300"
         >
-          This app needs a wide enough window (small tablets and phones are too
-          cramped). Please open DuoCards on a computer or large tablet to sign in
-          and use your flashcards.
+          {t("mobile.body")}
         </p>
       </div>
     </div>

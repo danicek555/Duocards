@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { useI18n } from "@/i18n/I18nProvider";
 
 interface ModalProps {
   isOpen: boolean;
@@ -19,6 +20,8 @@ export default function Modal({
   type,
   showCloseButton = true,
 }: ModalProps) {
+  const { t } = useI18n();
+
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
@@ -123,39 +126,37 @@ export default function Modal({
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
-      {/* Backdrop */}
       <div
         className="fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity"
         onClick={onClose}
       />
 
-      {/* Modal */}
       <div className="flex min-h-full items-center justify-center p-4">
         <div
           className={`relative transform overflow-hidden rounded-2xl bg-white dark:bg-gray-800 shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg ${styles.bg} ${styles.border} border-2`}
         >
           <div className="px-6 py-8 sm:px-8">
-            <div className="flex items-center justify-center mb-4">
+            <div className="mb-4 flex items-center justify-center">
               <div className={`${styles.icon}`}>{getIcon()}</div>
             </div>
 
             <div className="text-center">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+              <h3 className="mb-2 text-lg font-semibold text-gray-900 dark:text-white">
                 {title}
               </h3>
-              <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed">
+              <p className="text-sm leading-relaxed text-gray-600 dark:text-gray-300">
                 {message}
               </p>
             </div>
           </div>
 
           {showCloseButton && (
-            <div className="px-6 py-4 bg-gray-50 dark:bg-gray-700/50 flex justify-center">
+            <div className="flex justify-center bg-gray-50 px-6 py-4 dark:bg-gray-700/50">
               <button
                 onClick={onClose}
-                className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-medium"
+                className="rounded-lg bg-blue-600 px-6 py-2 font-medium text-white transition-colors hover:bg-blue-700"
               >
-                Got it
+                {t("common.gotIt")}
               </button>
             </div>
           )}

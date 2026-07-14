@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
     const ipLimit = await checkRateLimit(`login:ip:${clientIp}`, 40, 15 * 60 * 1000);
     if (!ipLimit.allowed) {
       return NextResponse.json(
-        { error: "Too many login attempts. Please try again later." },
+        { error: "Too many login attempts. Please try again later.", code: "RATE_LIMIT_LOGIN" },
         {
           status: 429,
           headers: { "Retry-After": String(ipLimit.retryAfterSeconds) },
@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
     // Validate input data
     if (!email || !password) {
       return NextResponse.json(
-        { error: "Email and password are required" },
+        { error: "Email and password are required", code: "REQUIRED_EMAIL_PASSWORD" },
         { status: 400 },
       );
     }
@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
     // Validate email format
     if (!isValidEmail(email)) {
       return NextResponse.json(
-        { error: "Invalid email format" },
+        { error: "Invalid email format", code: "INVALID_EMAIL" },
         { status: 400 },
       );
     }
@@ -63,6 +63,7 @@ export async function POST(request: NextRequest) {
         email: true,
         password: true,
         nickname: true,
+        locale: true,
         createdAt: true,
       },
     });
@@ -70,7 +71,7 @@ export async function POST(request: NextRequest) {
     // If user doesn't exist, return error (don't reveal if email exists)
     if (!user) {
       return NextResponse.json(
-        { error: "Invalid email or password" }, // Generic message for security
+        { error: "Invalid email or password", code: "INVALID_CREDENTIALS" },
         { status: 401 }, // 401 = Unauthorized
       );
     }
@@ -99,7 +100,7 @@ export async function POST(request: NextRequest) {
 
     if (!isPasswordValid) {
       return NextResponse.json(
-        { error: "Invalid email or password" }, // Generic message for security
+        { error: "Invalid email or password", code: "INVALID_CREDENTIALS" },
         { status: 401 },
       );
     }
@@ -113,6 +114,7 @@ export async function POST(request: NextRequest) {
           id: user.id,
           email: user.email,
           nickname: user.nickname,
+          locale: user.locale,
           createdAt: user.createdAt,
         },
       },

@@ -13,6 +13,9 @@ import MoneyBagReward from "@/components/MoneyBagReward";
 import PublicLibraryPanel from "@/components/PublicLibraryPanel";
 import LiveGameHistoryPanel from "@/components/LiveGameHistoryPanel";
 import Notification from "@/components/Notification";
+import LanguageSwitcher from "@/components/LanguageSwitcher";
+import { useI18n } from "@/i18n/I18nProvider";
+import { isLocale } from "@/i18n/types";
 import { getLanguageFlag } from "@/lib/flags";
 import { LANGUAGES } from "@/lib/languages";
 import { getGuestLiveGameBaseUrl } from "@/lib/publicUrls";
@@ -21,6 +24,7 @@ interface User {
   id: number;
   email: string;
   nickname: string;
+  locale?: string;
   createdAt: string;
 }
 
@@ -75,6 +79,7 @@ interface FlashcardSet {
 type ViewMode = "sets" | "cards" | "library" | "liveHistory";
 
 export default function Dashboard() {
+  const { t, setLocale } = useI18n();
   const [user, setUser] = useState<User | null>(null);
   const [flashcardSets, setFlashcardSets] = useState<FlashcardSet[]>([]);
   const [selectedSet, setSelectedSet] = useState<FlashcardSet | null>(null);
@@ -182,10 +187,18 @@ export default function Dashboard() {
       new CustomEvent("dashboardLoading", { detail: { loading: true } })
     );
 
+    const applyUserLocale = (nextUser: User) => {
+      if (isLocale(nextUser.locale)) {
+        setLocale(nextUser.locale, { persist: true, sync: false });
+      }
+    };
+
     const loadSession = async () => {
       const userData = localStorage.getItem("user");
       if (userData) {
-        setUser(JSON.parse(userData));
+        const parsedUser = JSON.parse(userData) as User;
+        setUser(parsedUser);
+        applyUserLocale(parsedUser);
         fetchFlashcardSets();
         fetchCoins();
         fetchClaimedRewards();
@@ -203,6 +216,7 @@ export default function Dashboard() {
         const data = await response.json();
         localStorage.setItem("user", JSON.stringify(data.user));
         setUser(data.user);
+        applyUserLocale(data.user);
         fetchFlashcardSets();
         fetchCoins();
         fetchClaimedRewards();
@@ -465,11 +479,11 @@ export default function Dashboard() {
         }
       } else {
         const data = await response.json();
-        alert(data.error || "Failed to delete flashcard set");
+        alert(data.error || t("dashboard.failedDelete"));
       }
     } catch (error) {
       console.error("Error deleting flashcard set:", error);
-      alert("Failed to delete flashcard set");
+      alert(t("dashboard.failedDelete"));
     } finally {
       setDeletingId(null);
       setDeleteConfirmId(null);
@@ -487,7 +501,7 @@ export default function Dashboard() {
         setEditingSetId(setId);
         setOpenSettingsId(null);
       } else {
-        alert("Failed to load flashcard set for editing");
+        alert(t("dashboard.failedLoadEdit"));
       }
     } catch (error) {
       console.error("Error loading flashcard set:", error);
@@ -632,7 +646,7 @@ export default function Dashboard() {
       <div className="h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600 dark:text-gray-400">Loading...</p>
+          <p className="text-gray-600 dark:text-gray-400">{t("common.loading")}</p>
         </div>
       </div>
     );
@@ -648,19 +662,20 @@ export default function Dashboard() {
       <div className="w-72 shrink-0 h-screen bg-white dark:bg-gray-800/80 dark:backdrop-blur shadow-xl border-r border-gray-200 dark:border-gray-700 flex flex-col overflow-hidden">
         {/* Sidebar Header */}
         <div className="p-4 border-b border-gray-200 dark:border-gray-700 shrink-0">
+          <LanguageSwitcher className="mb-3" />
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <h1 className="text-2xl font-bold tracking-tight mb-1 bg-gradient-to-r from-blue-600 to-purple-600 dark:from-blue-400 dark:to-purple-400 bg-clip-text text-transparent">
                 DuoCards
               </h1>
               <p className="text-sm text-gray-600 dark:text-gray-400 truncate">
-                Welcome back, {user.nickname}!
+                {t("nav.welcomeBack", { name: user.nickname })}
               </p>
             </div>
             <button
               onClick={handleLogout}
               className="shrink-0 p-2 text-gray-500 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors cursor-pointer active:scale-[0.98]"
-              title="Logout"
+              title={t("nav.logout")}
             >
               <svg
                 className="w-5 h-5"
@@ -683,7 +698,7 @@ export default function Dashboard() {
         <div className="p-4 space-y-3 border-b border-gray-200 dark:border-gray-700 shrink-0">
           <div className="flex items-center justify-between">
             <span className="text-sm font-medium text-gray-600 dark:text-gray-400">
-              Flashcard Sets
+              {t("nav.flashcardSetsCount")}
             </span>
             <span className="text-xl font-semibold text-gray-900 dark:text-white">
               {flashcardSets.length}
@@ -691,7 +706,7 @@ export default function Dashboard() {
           </div>
           <div className="flex items-center justify-between">
             <span className="text-sm font-medium text-gray-600 dark:text-gray-400">
-              Total Words
+              {t("nav.totalWords")}
             </span>
             <span className="text-xl font-semibold text-gray-900 dark:text-white">
               {totalWords}
@@ -699,7 +714,7 @@ export default function Dashboard() {
           </div>
           <div className="flex items-center justify-between">
             <span className="text-sm font-medium text-gray-600 dark:text-gray-400">
-              AI Coins
+              {t("nav.aiCoins")}
             </span>
             <span className="text-xl font-semibold text-purple-600 dark:text-purple-400">
               {coins !== null ? coins : "..."}
@@ -713,7 +728,7 @@ export default function Dashboard() {
             }}
             className="w-full mt-1 text-xs text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-400 transition-colors text-left"
           >
-            AI Coins Guide →
+            {t("nav.aiCoinsGuide")}
           </button>
 
           {/* Daily Reward Button */}
@@ -724,7 +739,7 @@ export default function Dashboard() {
           {viewMode === "cards" && selectedSet && (
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium text-gray-600 dark:text-gray-400">
-                Current Card
+                {t("nav.currentCard")}
               </span>
               <span className="text-xl font-semibold text-gray-900 dark:text-white">
                 {selectedSet.words.length > 0
@@ -763,7 +778,7 @@ export default function Dashboard() {
                     d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
                   />
                 </svg>
-                Flashcard Sets
+                {t("nav.flashcardSetsCount")}
               </div>
             </button>
             {/* Statistics button - commented out */}
@@ -810,7 +825,7 @@ export default function Dashboard() {
                     d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
                   />
                 </svg>
-                Public Library
+                {t("nav.publicLibrary")}
               </div>
             </button>
             <button
@@ -835,7 +850,7 @@ export default function Dashboard() {
                     d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"
                   />
                 </svg>
-                Public Codes
+                {t("nav.publicCodes")}
               </div>
             </button>
             <button
@@ -867,9 +882,9 @@ export default function Dashboard() {
                   />
                 </svg>
                 <span>
-                  <span className="block font-medium">Live game</span>
+                  <span className="block font-medium">{t("nav.liveGame")}</span>
                   <span className="block text-xs text-gray-500 dark:text-gray-400 font-normal">
-                    Host or join with your account
+                    {t("nav.liveGameHint")}
                   </span>
                 </span>
               </div>
@@ -899,7 +914,7 @@ export default function Dashboard() {
                     d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
                   />
                 </svg>
-                Live Game History
+                {t("nav.liveGameHistory")}
               </div>
             </button>
             {getGuestLiveGameBaseUrl() ? (
@@ -950,14 +965,14 @@ export default function Dashboard() {
             <div className="mb-8 flex flex-wrap items-start justify-between gap-4">
               <div>
                 <h2 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-white mb-1">
-                  Your Flashcard Sets
+                  {t("dashboard.title")}
                 </h2>
                 <p className="text-sm text-gray-600 dark:text-gray-400">
-                  Click on a set to start practicing
+                  {t("dashboard.subtitle")}
                   <span className="mx-2 text-gray-300 dark:text-gray-600">
                     ·
                   </span>
-                  {flashcardSets.length} / 100 sets
+                  {t("dashboard.setsCount", { count: flashcardSets.length })}
                 </p>
               </div>
               {!showCreateForm && !showAIGenerateForm && (
@@ -965,7 +980,7 @@ export default function Dashboard() {
                   <button
                     onClick={() => {
                       if (flashcardSets.length >= 100) {
-                        alert("Maximum 100 flashcard sets allowed");
+                        alert(t("dashboard.maxSets"));
                         return;
                       }
                       setShowCreateForm(true);
@@ -987,12 +1002,12 @@ export default function Dashboard() {
                         d="M12 6v6m0 0v6m0-6h6m-6 0H6"
                       />
                     </svg>
-                    New Set
+                    {t("dashboard.newSet")}
                   </button>
                   <button
                     onClick={() => {
                       if (flashcardSets.length >= 100) {
-                        alert("Maximum 100 flashcard sets allowed");
+                        alert(t("dashboard.maxSets"));
                         return;
                       }
                       setShowAIGenerateForm(true);
@@ -1014,7 +1029,7 @@ export default function Dashboard() {
                         d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"
                       />
                     </svg>
-                    AI Generate
+                    {t("dashboard.aiGenerate")}
                   </button>
                 </div>
               )}
@@ -1048,7 +1063,7 @@ export default function Dashboard() {
                       type="text"
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      placeholder="Search sets by name..."
+                      placeholder={t("dashboard.searchPlaceholder")}
                       className="w-full px-4 py-2 pl-10 text-sm border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-900/60 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     />
                     <svg
@@ -1097,7 +1112,7 @@ export default function Dashboard() {
                       }}
                       className="px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-900/60 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent cursor-pointer"
                     >
-                      <option value="">From: all</option>
+                      <option value="">{t("dashboard.fromAll")}</option>
                       {LANGUAGES.map((lang) => (
                         <option key={lang.value} value={lang.value}>
                           {lang.label}
@@ -1127,7 +1142,7 @@ export default function Dashboard() {
                       }}
                       className="px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-900/60 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent cursor-pointer"
                     >
-                      <option value="">To: all</option>
+                      <option value="">{t("dashboard.toAll")}</option>
                       {LANGUAGES.map((lang) => (
                         <option key={lang.value} value={lang.value}>
                           {lang.label}
@@ -1149,7 +1164,7 @@ export default function Dashboard() {
                         }}
                         className="px-3 py-2 text-xs font-medium rounded-xl bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors"
                       >
-                        Clear filters
+                        {t("dashboard.clearFilters")}
                       </button>
                       {filtering && (
                         <div className="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400">
@@ -1173,7 +1188,7 @@ export default function Dashboard() {
                               d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                             ></path>
                           </svg>
-                          Filtering...
+                          {t("dashboard.filtering")}
                         </div>
                       )}
                     </div>
@@ -1184,7 +1199,8 @@ export default function Dashboard() {
                 {(() => {
                   const allTags = new Set<string>();
                   flashcardSets.forEach((set) => {
-                    if (set.isAIGenerated) allTags.add("AI Generated");
+                    const aiGeneratedTag = t("dashboard.aiGenerated");
+                    if (set.isAIGenerated) allTags.add(aiGeneratedTag);
                     set.tags?.forEach((tag) => allTags.add(tag));
                   });
                   const tagsArray = Array.from(allTags).sort();
@@ -1224,7 +1240,7 @@ export default function Dashboard() {
                                 : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
                           }`}
                         >
-                          {tag}
+                          {tag === "AI Generated" ? t("dashboard.aiGenerated") : tag}
                         </button>
                       ))}
                       {(hiddenCount > 0 || showAllTags) && (
@@ -1261,7 +1277,7 @@ export default function Dashboard() {
                   />
                 </svg>
                 <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
-                  No flashcard sets yet
+                  {t("dashboard.noSets")}
                 </h3>
                 <p className="text-gray-600 dark:text-gray-400 mb-6">
                   Create your first flashcard set to get started!
@@ -1269,7 +1285,7 @@ export default function Dashboard() {
                 <button
                   onClick={() => {
                     if (flashcardSets.length >= 100) {
-                      alert("Maximum 100 flashcard sets allowed");
+                      alert(t("dashboard.maxSets"));
                       return;
                     }
                     setShowCreateForm(true);
@@ -1416,7 +1432,9 @@ export default function Dashboard() {
                                         : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300"
                                     }`}
                                   >
-                                    {tag}
+                                    {tag === "AI Generated"
+                                      ? t("dashboard.aiGenerated")
+                                      : tag}
                                   </span>
                                 ))}
                                 {displayTags.length > 5 && (
@@ -1753,7 +1771,7 @@ export default function Dashboard() {
                 ) : (
                   <div className="text-center py-16">
                     <p className="text-gray-600 dark:text-gray-400">
-                      No flashcard sets match the selected filters.
+                      {t("dashboard.noResults")}
                     </p>
                     {(filterFromLanguage ||
                       filterToLanguage ||
@@ -1790,7 +1808,7 @@ export default function Dashboard() {
                             ></path>
                           </svg>
                         )}
-                        Clear filters
+                        {t("dashboard.clearFilters")}
                       </button>
                     )}
                   </div>
