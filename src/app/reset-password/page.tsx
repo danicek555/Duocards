@@ -6,6 +6,12 @@ import Notification from "@/components/Notification";
 import PasswordInput from "@/components/PasswordInput";
 import PasswordRequirements from "@/components/PasswordRequirements";
 import { validatePassword } from "@/lib/passwordValidation";
+import AuthBackground from "@/components/AuthBackground";
+import AuthCard from "@/components/AuthCard";
+import AuthFooter from "@/components/AuthFooter";
+import AuthLoadingFallback from "@/components/AuthLoadingFallback";
+import AuthPageHeader from "@/components/AuthPageHeader";
+import AuthSubmitButton from "@/components/AuthSubmitButton";
 
 function ResetPasswordContent() {
   const router = useRouter();
@@ -37,7 +43,7 @@ function ResetPasswordContent() {
 
   const showNotification = (
     message: string,
-    type: "success" | "error" | "warning" | "info"
+    type: "success" | "error" | "warning" | "info",
   ) => {
     setNotification({ message, type, isVisible: true });
   };
@@ -53,23 +59,26 @@ function ResetPasswordContent() {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ email }),
-        }
+        },
       );
 
       const data = await response.json();
       if (response.ok) {
         showNotification(
           data.message ||
-            "If your account exists, we sent a reset link. Please check your spam or junk folder too.",
-          "success"
+            "Pokud účet existuje, poslali jsme odkaz na reset. Zkontroluj i spam.",
+          "success",
         );
       } else {
-        showNotification(data.error || "Failed to send reset email.", "error");
+        showNotification(
+          data.error || "Nepodařilo se odeslat email.",
+          "error",
+        );
       }
     } catch {
       showNotification(
-        "Network error. Please check your connection and try again.",
-        "error"
+        "Chyba sítě. Zkontroluj připojení a zkus to znovu.",
+        "error",
       );
     } finally {
       setLoading(false);
@@ -85,7 +94,7 @@ function ResetPasswordContent() {
     }
 
     if (!passwordsMatch) {
-      showNotification("Passwords do not match.", "error");
+      showNotification("Hesla se neshodují.", "error");
       return;
     }
 
@@ -98,23 +107,26 @@ function ResetPasswordContent() {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ token, password }),
-        }
+        },
       );
 
       const data = await response.json();
       if (response.ok) {
         showNotification(
-          "Password reset successful. Redirecting to login...",
-          "success"
+          "Heslo změněno. Přesměrovávám na přihlášení...",
+          "success",
         );
         setTimeout(() => router.push("/"), 1500);
       } else {
-        showNotification(data.error || "Failed to reset password.", "error");
+        showNotification(
+          data.error || "Nepodařilo se změnit heslo.",
+          "error",
+        );
       }
     } catch {
       showNotification(
-        "Network error. Please check your connection and try again.",
-        "error"
+        "Chyba sítě. Zkontroluj připojení a zkus to znovu.",
+        "error",
       );
     } finally {
       setLoading(false);
@@ -122,28 +134,26 @@ function ResetPasswordContent() {
   };
 
   return (
-    <div className="min-h-screen bg-linear-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center p-4">
+    <AuthBackground>
       <div className="w-full max-w-md">
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-            {hasToken ? "Set New Password" : "Forgot Password"}
-          </h1>
-          <p className="text-gray-600 dark:text-gray-400">
-            {hasToken
-              ? "Enter your new password below."
-              : "Enter your email and we will send you a reset link. If you do not see it, check your spam or junk folder."}
-          </p>
-        </div>
+        <AuthPageHeader
+          badge={hasToken ? "NOVÉ HESLO" : "ZAPOMENUTÉ HESLO"}
+          subtitle={
+            hasToken
+              ? "Zadej nové heslo pro svůj účet."
+              : "Zadej email a pošleme ti odkaz na reset. Zkontroluj i spam."
+          }
+        />
 
-        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8">
+        <AuthCard>
           {!hasToken ? (
             <form onSubmit={handleForgotPassword} className="space-y-4">
               <div>
                 <label
                   htmlFor="email"
-                  className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                  className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
                 >
-                  Email Address
+                  Email
                 </label>
                 <input
                   id="email"
@@ -151,34 +161,30 @@ function ResetPasswordContent() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-colors"
-                  placeholder="Enter your email"
+                  className="w-full rounded-xl border border-gray-200 bg-white/80 px-3 py-2.5 transition-colors focus:border-transparent focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700/80 dark:text-white"
+                  placeholder="tvuj@email.cz"
                 />
               </div>
 
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white py-3 px-4 rounded-lg font-medium transition-colors"
-              >
-                {loading ? "Sending..." : "Send Reset Link"}
-              </button>
+              <AuthSubmitButton loading={loading} loadingText="Odesílám...">
+                Poslat odkaz →
+              </AuthSubmitButton>
             </form>
           ) : (
             <form onSubmit={handleResetPassword} className="space-y-4">
               <div>
                 <label
                   htmlFor="password"
-                  className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                  className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
                 >
-                  New Password
+                  Nové heslo
                 </label>
                 <PasswordInput
                   id="password"
                   name="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Enter new password"
+                  placeholder="Tvoje nové heslo"
                   showPassword={showPassword}
                   onToggleShowPassword={() => setShowPassword(!showPassword)}
                   required
@@ -191,16 +197,16 @@ function ResetPasswordContent() {
               <div>
                 <label
                   htmlFor="confirmPassword"
-                  className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                  className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
                 >
-                  Confirm New Password
+                  Potvrzení hesla
                 </label>
                 <PasswordInput
                   id="confirmPassword"
                   name="confirmPassword"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder="Confirm new password"
+                  placeholder="Zopakuj heslo"
                   showPassword={showConfirmPassword}
                   onToggleShowPassword={() =>
                     setShowConfirmPassword(!showConfirmPassword)
@@ -209,26 +215,24 @@ function ResetPasswordContent() {
                 />
               </div>
 
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white py-3 px-4 rounded-lg font-medium transition-colors"
-              >
-                {loading ? "Updating..." : "Reset Password"}
-              </button>
+              <AuthSubmitButton loading={loading} loadingText="Ukládám...">
+                Změnit heslo →
+              </AuthSubmitButton>
             </form>
           )}
 
-          <div className="text-center pt-4 mt-4 border-t border-gray-200 dark:border-gray-600">
+          <div className="mt-4 border-t border-gray-200 pt-4 text-center dark:border-gray-600">
             <button
               type="button"
               onClick={() => router.push("/")}
-              className="text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200 font-medium transition-colors"
+              className="font-medium text-gray-600 transition-colors hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200"
             >
-              ← Back to Login
+              ← Zpět na přihlášení
             </button>
           </div>
-        </div>
+        </AuthCard>
+
+        <AuthFooter />
       </div>
 
       <Notification
@@ -237,22 +241,13 @@ function ResetPasswordContent() {
         isVisible={notification.isVisible}
         onClose={() => setNotification({ ...notification, isVisible: false })}
       />
-    </div>
+    </AuthBackground>
   );
 }
 
 export default function ResetPasswordPage() {
   return (
-    <Suspense
-      fallback={
-        <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-            <p className="text-gray-600 dark:text-gray-400">Loading...</p>
-          </div>
-        </div>
-      }
-    >
+    <Suspense fallback={<AuthLoadingFallback />}>
       <ResetPasswordContent />
     </Suspense>
   );

@@ -571,8 +571,7 @@ export default function CreateFlashcardSetForm({
 
   return (
     <div
-      className="fixed inset-0 flex items-center justify-center z-50 p-4 overflow-hidden"
-      style={{ backgroundColor: "rgba(0, 0, 0, 0.7)" }}
+      className="fixed inset-0 flex items-center justify-center z-50 p-4 overflow-hidden bg-black/60 backdrop-blur-sm"
     >
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-2xl max-w-6xl w-full max-h-[95vh] overflow-y-auto border border-purple-200 dark:border-purple-800">
         <div className="p-4 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-900/20 dark:to-blue-900/20">

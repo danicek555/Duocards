@@ -7,28 +7,28 @@ interface AuthToggleProps {
 
 export default function AuthToggle({ isLogin, onToggle }: AuthToggleProps) {
   return (
-    <div className="flex bg-gray-100 dark:bg-gray-700 rounded-lg p-1 mb-6">
+    <div className="mb-6 flex rounded-xl bg-gray-100 p-1 dark:bg-gray-700/80">
       <button
         type="button"
         onClick={() => onToggle(true)}
-        className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-all ${
+        className={`flex-1 rounded-lg py-2.5 px-4 text-sm font-medium transition-all ${
           isLogin
-            ? "bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm"
-            : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
+            ? "bg-white text-gray-900 shadow-sm dark:bg-gray-600 dark:text-white"
+            : "text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
         }`}
       >
-        Login
+        Přihlásit se
       </button>
       <button
         type="button"
         onClick={() => onToggle(false)}
-        className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-all ${
+        className={`flex-1 rounded-lg py-2.5 px-4 text-sm font-medium transition-all ${
           !isLogin
-            ? "bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm"
-            : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
+            ? "bg-white text-gray-900 shadow-sm dark:bg-gray-600 dark:text-white"
+            : "text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
         }`}
       >
-        Register
+        Registrace
       </button>
     </div>
   );

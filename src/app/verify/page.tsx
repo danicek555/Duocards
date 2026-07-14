@@ -4,17 +4,22 @@ import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Notification from "@/components/Notification";
 import Modal from "@/components/Modal";
+import AuthBackground from "@/components/AuthBackground";
+import AuthCard from "@/components/AuthCard";
+import AuthFooter from "@/components/AuthFooter";
+import AuthLoadingFallback from "@/components/AuthLoadingFallback";
+import AuthPageHeader from "@/components/AuthPageHeader";
+import AuthSubmitButton from "@/components/AuthSubmitButton";
 
 function VerifyEmailContent() {
   const [code, setCode] = useState("");
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [resendLoading, setResendLoading] = useState(false);
-  const [timeLeft, setTimeLeft] = useState(600); // 10 minutes in seconds
+  const [timeLeft, setTimeLeft] = useState(600);
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  // Notification and Modal states
   const [notification, setNotification] = useState<{
     message: string;
     type: "success" | "error" | "warning" | "info";
@@ -37,10 +42,9 @@ function VerifyEmailContent() {
     type: "info",
   });
 
-  // Helper functions for notifications and modals
   const showNotification = (
     message: string,
-    type: "success" | "error" | "warning" | "info"
+    type: "success" | "error" | "warning" | "info",
   ) => {
     setNotification({ message, type, isVisible: true });
   };
@@ -48,13 +52,12 @@ function VerifyEmailContent() {
   const showModal = (
     title: string,
     message: string,
-    type: "success" | "error" | "warning" | "info"
+    type: "success" | "error" | "warning" | "info",
   ) => {
     setModal({ isOpen: true, title, message, type });
   };
 
   useEffect(() => {
-    // Get email from URL params or localStorage
     const emailParam = searchParams.get("email");
     const storedEmail = localStorage.getItem("pendingVerificationEmail");
 
@@ -64,11 +67,9 @@ function VerifyEmailContent() {
     } else if (storedEmail) {
       setEmail(storedEmail);
     } else {
-      // No email found, redirect to home
       router.push("/");
     }
 
-    // Start countdown timer
     const timer = setInterval(() => {
       setTimeLeft((prev) => {
         if (prev <= 1) {
@@ -89,7 +90,7 @@ function VerifyEmailContent() {
   };
 
   const handleCodeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value.replace(/\D/g, ""); // Only allow digits
+    const value = e.target.value.replace(/\D/g, "");
     if (value.length <= 6) {
       setCode(value);
     }
@@ -99,7 +100,7 @@ function VerifyEmailContent() {
     e.preventDefault();
 
     if (code.length !== 6) {
-      showNotification("Please enter a 6-digit verification code", "error");
+      showNotification("Zadej 6místný ověřovací kód", "error");
       return;
     }
 
@@ -117,38 +118,34 @@ function VerifyEmailContent() {
             email: email,
             code: code,
           }),
-        }
+        },
       );
 
       const data = await response.json();
 
       if (response.ok) {
-        // Verification successful
-        // Clear any old user data first
         localStorage.removeItem("pendingVerificationEmail");
         localStorage.removeItem("user");
         localStorage.removeItem("rememberMe");
         localStorage.removeItem("rememberedEmail");
 
-        // Store new user data
         localStorage.setItem("user", JSON.stringify(data.user));
         showModal(
-          "Email Verified!",
-          "Your email has been successfully verified. Welcome to DuoCards!",
-          "success"
+          "Email ověřen!",
+          "Tvůj email byl úspěšně ověřen. Vítej v DuoCards!",
+          "success",
         );
 
-        // Redirect to dashboard after a short delay
         setTimeout(() => {
           router.push("/dashboard");
         }, 2000);
       } else {
-        showNotification(data.error || "Verification failed", "error");
+        showNotification(data.error || "Ověření se nezdařilo", "error");
       }
     } catch {
       showNotification(
-        "Network error. Please check your connection and try again.",
-        "error"
+        "Chyba sítě. Zkontroluj připojení a zkus to znovu.",
+        "error",
       );
     } finally {
       setLoading(false);
@@ -169,27 +166,27 @@ function VerifyEmailContent() {
           body: JSON.stringify({
             email: email,
           }),
-        }
+        },
       );
 
       const data = await response.json();
 
       if (response.ok) {
         showNotification(
-          "Verification code resent! Please check your email.",
-          "success"
+          "Ověřovací kód odeslán znovu. Zkontroluj email.",
+          "success",
         );
-        setTimeLeft(600); // Reset timer
+        setTimeLeft(600);
       } else {
         showNotification(
-          data.error || "Failed to resend code. Please try again.",
-          "error"
+          data.error || "Nepodařilo se znovu odeslat kód.",
+          "error",
         );
       }
     } catch {
       showNotification(
-        "Network error. Please check your connection and try again.",
-        "error"
+        "Chyba sítě. Zkontroluj připojení a zkus to znovu.",
+        "error",
       );
     } finally {
       setResendLoading(false);
@@ -197,42 +194,29 @@ function VerifyEmailContent() {
   };
 
   if (!email) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center p-4">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600 dark:text-gray-400">Loading...</p>
-        </div>
-      </div>
-    );
+    return <AuthLoadingFallback />;
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center p-4">
+    <AuthBackground>
       <div className="w-full max-w-md">
-        {/* Logo/Title */}
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-            Verify Your Email
-          </h1>
-          <p className="text-gray-600 dark:text-gray-400">
-            We sent a 6-digit code to
-          </p>
-          <p className="text-blue-600 dark:text-blue-400 font-medium">
+        <AuthPageHeader
+          badge="OVĚŘENÍ EMAILU"
+          subtitle="Poslali jsme 6místný kód na"
+        >
+          <p className="mt-1 font-medium text-blue-600 dark:text-blue-400">
             {email}
           </p>
-        </div>
+        </AuthPageHeader>
 
-        {/* Verification Form */}
-        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8">
+        <AuthCard>
           <form onSubmit={handleVerify} className="space-y-6">
-            {/* Code Input */}
             <div>
               <label
                 htmlFor="code"
-                className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+                className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
               >
-                Verification Code
+                Ověřovací kód
               </label>
               <input
                 type="text"
@@ -241,20 +225,19 @@ function VerifyEmailContent() {
                 onChange={handleCodeChange}
                 maxLength={6}
                 required
-                className="w-full px-4 py-3 text-center text-2xl font-mono border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-colors tracking-widest"
+                className="w-full rounded-xl border border-gray-200 bg-white/80 px-4 py-3 text-center font-mono text-2xl tracking-widest transition-colors focus:border-transparent focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700/80 dark:text-white"
                 placeholder="000000"
                 autoComplete="one-time-code"
               />
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 text-center">
-                Enter the 6-digit code from your email
+              <p className="mt-1 text-center text-xs text-gray-500 dark:text-gray-400">
+                Zadej 6místný kód z emailu
               </p>
             </div>
 
-            {/* Timer */}
             {timeLeft > 0 && (
               <div className="text-center">
                 <p className="text-sm text-gray-600 dark:text-gray-400">
-                  Code expires in:{" "}
+                  Kód vyprší za:{" "}
                   <span className="font-mono text-red-600 dark:text-red-400">
                     {formatTime(timeLeft)}
                   </span>
@@ -262,52 +245,43 @@ function VerifyEmailContent() {
               </div>
             )}
 
-            {/* Verify Button */}
-            <button
-              type="submit"
-              disabled={loading || code.length !== 6}
-              className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white py-3 px-4 rounded-lg font-medium transition-colors"
+            <AuthSubmitButton
+              disabled={code.length !== 6}
+              loading={loading}
+              loadingText="Ověřuji..."
             >
-              {loading ? (
-                <div className="flex items-center justify-center">
-                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                  Verifying...
-                </div>
-              ) : (
-                "Verify Email"
-              )}
-            </button>
+              Ověřit email →
+            </AuthSubmitButton>
 
-            {/* Resend Code */}
             <div className="text-center">
-              <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
-                Didn&apos;t receive the code?
+              <p className="mb-2 text-sm text-gray-600 dark:text-gray-400">
+                Kód nepřišel?
               </p>
               <button
                 type="button"
                 onClick={handleResendCode}
                 disabled={resendLoading}
-                className="text-blue-600 hover:text-blue-700 disabled:text-gray-400 disabled:cursor-not-allowed font-medium transition-colors"
+                className="font-medium text-blue-600 transition-colors hover:text-blue-700 disabled:cursor-not-allowed disabled:text-gray-400 dark:text-blue-400 dark:hover:text-blue-300"
               >
-                {resendLoading ? "Sending..." : "Resend Code"}
+                {resendLoading ? "Odesílám..." : "Poslat znovu"}
               </button>
             </div>
 
-            {/* Back to Login */}
-            <div className="text-center pt-4 border-t border-gray-200 dark:border-gray-600">
+            <div className="border-t border-gray-200 pt-4 text-center dark:border-gray-600">
               <button
                 type="button"
                 onClick={() => router.push("/")}
-                className="text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200 font-medium transition-colors"
+                className="font-medium text-gray-600 transition-colors hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200"
               >
-                ← Back to Login
+                ← Zpět na přihlášení
               </button>
             </div>
           </form>
-        </div>
+        </AuthCard>
+
+        <AuthFooter />
       </div>
 
-      {/* Custom Notification */}
       <Notification
         message={notification.message}
         type={notification.type}
@@ -315,7 +289,6 @@ function VerifyEmailContent() {
         onClose={() => setNotification({ ...notification, isVisible: false })}
       />
 
-      {/* Custom Modal */}
       <Modal
         isOpen={modal.isOpen}
         onClose={() => setModal({ ...modal, isOpen: false })}
@@ -323,22 +296,13 @@ function VerifyEmailContent() {
         message={modal.message}
         type={modal.type}
       />
-    </div>
+    </AuthBackground>
   );
 }
 
 export default function VerifyEmail() {
   return (
-    <Suspense
-      fallback={
-        <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-            <p className="text-gray-600 dark:text-gray-400">Loading...</p>
-          </div>
-        </div>
-      }
-    >
+    <Suspense fallback={<AuthLoadingFallback />}>
       <VerifyEmailContent />
     </Suspense>
   );
