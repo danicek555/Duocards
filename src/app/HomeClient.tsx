@@ -9,6 +9,10 @@ import AuthToggle from "@/components/AuthToggle";
 import PasswordInput from "@/components/PasswordInput";
 import PasswordRequirements from "@/components/PasswordRequirements";
 import SocialLoginButtons from "@/components/SocialLoginButtons";
+import AuthBackground from "@/components/AuthBackground";
+import AuthCard from "@/components/AuthCard";
+import AuthFooter from "@/components/AuthFooter";
+import AuthSubmitButton from "@/components/AuthSubmitButton";
 
 export default function HomeClient() {
   const [isLogin, setIsLogin] = useState(true);
@@ -264,13 +268,11 @@ export default function HomeClient() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center p-4">
+    <AuthBackground>
       <div className="w-full max-w-md">
-        {/* Logo/Title */}
         <AuthHeader isLogin={isLogin} />
 
-        {/* Auth Form */}
-        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8">
+        <AuthCard>
           {/* Toggle Buttons */}
           <AuthToggle isLogin={isLogin} onToggle={setIsLogin} />
 
@@ -293,7 +295,7 @@ export default function HomeClient() {
                     htmlFor="nickname"
                     className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
                   >
-                    Nickname
+                    Přezdívka
                   </label>
                   <input
                     type="text"
@@ -302,8 +304,8 @@ export default function HomeClient() {
                     value={formData.nickname}
                     onChange={handleInputChange}
                     required={!isLogin}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-colors"
-                    placeholder="Choose a nickname"
+                    className="w-full rounded-xl border border-gray-200 bg-white/80 px-3 py-2.5 transition-colors focus:border-transparent focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700/80 dark:text-white"
+                    placeholder="Zvol si přezdívku"
                   />
                 </div>
               )}
@@ -313,7 +315,7 @@ export default function HomeClient() {
                   htmlFor="email"
                   className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
                 >
-                  Email Address
+                    Email
                 </label>
                 <input
                   type="email"
@@ -322,8 +324,8 @@ export default function HomeClient() {
                   value={formData.email}
                   onChange={handleInputChange}
                   required
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-colors"
-                  placeholder="Enter your email"
+                  className="w-full rounded-xl border border-gray-200 bg-white/80 px-3 py-2.5 transition-colors focus:border-transparent focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700/80 dark:text-white"
+                  placeholder="tvuj@email.cz"
                 />
               </div>
 
@@ -332,14 +334,14 @@ export default function HomeClient() {
                   htmlFor="password"
                   className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
                 >
-                  Password
+                    Heslo
                 </label>
                 <PasswordInput
                   id="password"
                   name="password"
                   value={formData.password}
                   onChange={handleInputChange}
-                  placeholder="Enter your password"
+                  placeholder="Tvoje heslo"
                   showPassword={showPassword}
                   onToggleShowPassword={() => setShowPassword(!showPassword)}
                   required
@@ -359,14 +361,14 @@ export default function HomeClient() {
                     htmlFor="confirmPassword"
                     className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
                   >
-                    Confirm Password
+                    Potvrzení hesla
                   </label>
                   <PasswordInput
                     id="confirmPassword"
                     name="confirmPassword"
                     value={formData.confirmPassword}
                     onChange={handleInputChange}
-                    placeholder="Confirm your password"
+                    placeholder="Zopakuj heslo"
                     showPassword={showConfirmPassword}
                     onToggleShowPassword={() =>
                       setShowConfirmPassword(!showConfirmPassword)
@@ -417,57 +419,21 @@ export default function HomeClient() {
                       className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                     />
                     <span className="ml-2 text-sm text-gray-600 dark:text-gray-400">
-                      Remember me
+                      Zapamatovat si mě
                     </span>
                   </label>
                   <a
                     href="/reset-password"
-                    className="text-sm text-blue-600 hover:text-blue-500 dark:text-blue-400"
+                    className="text-sm font-medium text-blue-600 transition-colors hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
                   >
-                    Forgot password?
+                    Zapomenuté heslo?
                   </a>
                 </div>
               )}
 
-              <button
-                type="submit"
-                disabled={isLoading}
-                className={`w-full bg-blue-600 text-white font-medium py-2 px-4 rounded-lg transition-colors focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 ${
-                  isLoading
-                    ? "opacity-50 cursor-not-allowed"
-                    : "hover:bg-blue-700"
-                }`}
-              >
-                {isLoading ? (
-                  <span className="flex items-center justify-center">
-                    <svg
-                      className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
-                      xmlns="http://www.w3.org/2000/svg"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                    >
-                      <circle
-                        className="opacity-25"
-                        cx="12"
-                        cy="12"
-                        r="10"
-                        stroke="currentColor"
-                        strokeWidth="4"
-                      ></circle>
-                      <path
-                        className="opacity-75"
-                        fill="currentColor"
-                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                      ></path>
-                    </svg>
-                    {isLogin ? "Signing in..." : "Creating account..."}
-                  </span>
-                ) : isLogin ? (
-                  "Sign In"
-                ) : (
-                  "Create Account"
-                )}
-              </button>
+              <AuthSubmitButton disabled={isLoading} loading={isLoading} loadingText={isLogin ? "Přihlašuji..." : "Vytvářím účet..."}>
+                {isLogin ? "Přihlásit se →" : "Vytvořit účet →"}
+              </AuthSubmitButton>
             </form>
           )}
 
@@ -478,7 +444,9 @@ export default function HomeClient() {
               onFacebookLogin={handleFacebookLogin}
             />
           )}
-        </div>
+        </AuthCard>
+
+        <AuthFooter />
       </div>
 
       {/* Custom Notification */}
@@ -497,6 +465,6 @@ export default function HomeClient() {
         message={modal.message}
         type={modal.type}
       />
-    </div>
+    </AuthBackground>
   );
 }
