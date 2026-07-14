@@ -18,6 +18,7 @@ import {
   getContentViolationRetrySeconds,
   isContentViolationError,
 } from "@/lib/contentViolationClient";
+import { useI18n } from "@/i18n/I18nProvider";
 
 type ChatMessage = {
   id: string;
@@ -61,21 +62,34 @@ function channelNameForRoom(code: string) {
   return `duocards-live-${normalizeCode(code)}`;
 }
 
-/** Placeholder modes — replace with real logic later */
-const GAME_MODES = [
-  {
-    id: "practice",
-    label: "Practice",
-    description:
-      "Everyone in the room studies the same cards — flip them at your own pace.",
-  },
-  { id: "classic_duel", label: "Classic duel", description: "Take turns — fastest correct answer wins the round." },
-  { id: "speed_run", label: "Speed run", description: "Race through as many cards as you can in a time limit." },
-  { id: "team_battle", label: "Team battle", description: "Split into teams and compete for the highest score." },
-  { id: "survival", label: "Survival", description: "Wrong answer eliminates you — last player standing wins." },
+/** Placeholder modes — labels resolved via i18n in component */
+const GAME_MODE_IDS = [
+  "practice",
+  "classic_duel",
+  "speed_run",
+  "team_battle",
+  "survival",
 ] as const;
 
-type GameModeId = (typeof GAME_MODES)[number]["id"];
+type GameModeId = (typeof GAME_MODE_IDS)[number];
+
+function getGameModeMeta(
+  t: (key: string) => string,
+  id: GameModeId
+): { id: GameModeId; label: string; description: string } {
+  const keys: Record<GameModeId, { label: string; desc: string }> = {
+    practice: { label: "liveGame.modePractice", desc: "liveGame.modePracticeDesc" },
+    classic_duel: { label: "liveGame.modeClassic", desc: "liveGame.modeClassicDesc" },
+    speed_run: { label: "liveGame.modeSpeed", desc: "liveGame.modeSpeedDesc" },
+    team_battle: { label: "liveGame.modeTeam", desc: "liveGame.modeTeamDesc" },
+    survival: { label: "liveGame.modeSurvival", desc: "liveGame.modeSurvivalDesc" },
+  };
+  return {
+    id,
+    label: t(keys[id].label),
+    description: t(keys[id].desc),
+  };
+}
 
 type PracticeWord = {
   word: string;
@@ -97,10 +111,7 @@ type LiveGameSettings = {
   practiceWords?: PracticeWord[];
 };
 
-const SESSION_DURATION_OPTIONS = [5, 10, 15, 20, 25, 30].map((value) => ({
-  value,
-  label: `${value} minutes`,
-})) as readonly { value: number; label: string }[];
+const SESSION_DURATION_OPTIONS = [5, 10, 15, 20, 25, 30] as const;
 
 function shuffleArray<T>(array: T[]): T[] {
   const shuffled = [...array];
@@ -170,6 +181,7 @@ type GameEndSummary = {
 type SessionEndedMessage = GameEndSummary & { endedByClientId: string };
 
 function LiveGameContent() {
+  const { t } = useI18n();
   const router = useRouter();
   const searchParams = useSearchParams();
   const joinOnly = useLiveGameJoinOnly();
@@ -214,7 +226,7 @@ function LiveGameContent() {
 
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [createGameMode, setCreateGameMode] = useState<GameModeId>(
-    GAME_MODES[0].id
+    GAME_MODE_IDS[0]
   );
   const [selectedSetIds, setSelectedSetIds] = useState<number[]>([]);
   const [flashcardSetsList, setFlashcardSetsList] = useState<
@@ -260,7 +272,7 @@ function LiveGameContent() {
     setReceivedGameSettings(null);
     setGameStarted(false);
     gameStartedRef.current = false;
-    setCreateGameMode(GAME_MODES[0].id);
+    setCreateGameMode(GAME_MODE_IDS[0]);
     setSelectedSetIds([]);
     setPracticeIndex(0);
     setSessionRemainingSec(null);
@@ -307,7 +319,7 @@ function LiveGameContent() {
     try {
       const res = await fetch("/api/flashcard-sets");
       if (res.status === 401) {
-        setFlashcardSetsError("You must be logged in to use your flashcard sets.");
+        setFlashcardSetsError(t("liveGame.mustLoginSets"));
         setFlashcardSetsList([]);
         return;
       }
@@ -318,7 +330,7 @@ function LiveGameContent() {
       const list = (data.flashcardSets || []) as FlashcardSetListItem[];
       setFlashcardSetsList(list);
     } catch {
-      setFlashcardSetsError("Could not load flashcard sets.");
+      setFlashcardSetsError(t("liveGame.loadSetsFailed"));
       setFlashcardSetsList([]);
     } finally {
       setLoadingFlashcardSets(false);
@@ -515,7 +527,7 @@ function LiveGameContent() {
                   ? null
                   : null,
             modeLabel:
-              typeof raw.modeLabel === "string" ? raw.modeLabel : "Live game",
+              typeof raw.modeLabel === "string" ? raw.modeLabel : t("liveGame.defaultModeLabel"),
             endedAt: raw.endedAt,
           };
           onRemoteSessionEndedRef.current(details);
@@ -565,7 +577,7 @@ function LiveGameContent() {
           setError(
             err instanceof Error
               ? err.message
-              : "Failed to initialize Ably live connection."
+              : t("liveGame.ablyFailed")
           );
           setConnectionState("failed");
         }
@@ -628,7 +640,7 @@ function LiveGameContent() {
 
   const openCreateModal = () => {
     if (joinOnly) return;
-    setCreateGameMode(GAME_MODES[0].id);
+    setCreateGameMode(GAME_MODE_IDS[0]);
     setSelectedSetIds([]);
     setSessionDurationMinutes(30);
     setLiveChatEnabled(true);
@@ -639,10 +651,10 @@ function LiveGameContent() {
   const confirmCreateGame = async () => {
     if (joinOnly) return;
     if (selectedSetIds.length === 0) {
-      setError("Choose at least one flashcard set for this live game.");
+      setError(t("liveGame.selectSetsError"));
       return;
     }
-    const modeMeta = GAME_MODES.find((m) => m.id === createGameMode)!;
+    const modeMeta = getGameModeMeta(t, createGameMode);
     const pickedSets = flashcardSetsList.filter((s) =>
       selectedSetIds.includes(s.id)
     );
@@ -673,9 +685,7 @@ function LiveGameContent() {
         }
         const shuffled = shuffleArray(collected);
         if (shuffled.length === 0) {
-          setError(
-            "Practice mode needs at least one card. Add words to your selected sets."
-          );
+          setError(t("liveGame.practiceNeedsCards"));
           return;
         }
         practiceWords = shuffled;
@@ -714,7 +724,7 @@ function LiveGameContent() {
       setShowCreateModal(false);
     } catch (e) {
       setError(
-        e instanceof Error ? e.message : "Could not create room. Try again."
+        e instanceof Error ? e.message : t("liveGame.createRoomFailed")
       );
     } finally {
       setCreatingRoom(false);
@@ -730,7 +740,7 @@ function LiveGameContent() {
   const handleJoinGame = () => {
     const code = normalizeCode(joinInput);
     if (code.length < 4) {
-      setError("Enter a valid game code (at least 4 characters).");
+      setError(t("liveGame.invalidCode"));
       return;
     }
     isRoomHostRef.current = false;
@@ -756,7 +766,7 @@ function LiveGameContent() {
       players,
       durationSec: elapsedSec,
       plannedMinutes: settings?.sessionDurationMinutes ?? null,
-      modeLabel: settings?.gameModeLabel ?? "Live game",
+      modeLabel: settings?.gameModeLabel ?? t("liveGame.defaultModeLabel"),
       endedAt: new Date().toISOString(),
     };
 
@@ -810,7 +820,7 @@ function LiveGameContent() {
     try {
       await navigator.clipboard.writeText(roomCode);
     } catch {
-      setError("Could not copy to clipboard.");
+      setError(t("liveGame.copyFailed"));
     }
   };
 
@@ -836,7 +846,7 @@ function LiveGameContent() {
         error?: string;
       };
       if (!res.ok) {
-        const errMsg = data.error || "Failed to send message.";
+        const errMsg = data.error || t("liveGame.sendFailed");
         if (isContentViolationError(errMsg)) {
           setChatBlockError(errMsg);
           setChatBlockedUntil(
@@ -852,7 +862,7 @@ function LiveGameContent() {
     } catch (err) {
       setMessageInput(text);
       setError(
-        err instanceof Error ? err.message : "Failed to send message."
+        err instanceof Error ? err.message : t("liveGame.sendFailed")
       );
     }
   };
@@ -873,7 +883,7 @@ function LiveGameContent() {
   const startGameAsHost = async () => {
     if (!liveGameSettings || !isRoomHostRef.current) return;
     if (!channelRef.current) {
-      setError("Still connecting — wait a moment, then try again.");
+      setError(t("liveGame.stillConnecting"));
       return;
     }
     setError(null);
@@ -887,7 +897,7 @@ function LiveGameContent() {
       setGameStarted(false);
       setSessionStartedAt(null);
       setError(
-        e instanceof Error ? e.message : "Could not start the game. Try again."
+        e instanceof Error ? e.message : t("liveGame.startFailed")
       );
     }
   };
@@ -968,7 +978,7 @@ function LiveGameContent() {
                 href={mainAppUrl}
                 className="mb-4 inline-block text-sm text-blue-600 dark:text-blue-400 hover:underline"
               >
-                ← Full DuoCards (sign in & host games)
+                {t("liveGame.backFullApp")}
               </a>
             ) : null
           ) : (
@@ -977,23 +987,23 @@ function LiveGameContent() {
               onClick={() => router.push("/dashboard")}
               className="mb-4 text-sm text-blue-600 dark:text-blue-400 hover:underline"
             >
-              ← Back to Dashboard
+              {t("liveGame.backDashboard")}
             </button>
           )}
 
           <h1
             className={`text-3xl font-bold text-gray-900 dark:text-white mb-2 ${inLobby ? "text-center" : ""}`}
           >
-            {joinOnly ? "Join a live game" : "Live Game"}
+            {joinOnly ? t("liveGame.joinTitle") : t("liveGame.title")}
           </h1>
           <p
             className={`text-gray-600 dark:text-gray-300 mb-8 ${inLobby ? "text-center max-w-md mx-auto" : ""}`}
           >
             {inLobby
               ? joinOnly
-                ? "Enter the code from your host. Hosting is available only on the main site when signed in."
-                : "Create a new session or join friends with a code."
-              : "You’re in a live room. Share the code so others can join."}
+                ? t("liveGame.lobbyGuest")
+                : t("liveGame.lobbyHost")
+              : t("liveGame.inRoom")}
           </p>
 
           {inLobby ? (
@@ -1004,7 +1014,7 @@ function LiveGameContent() {
                     htmlFor="guest-nickname"
                     className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
                   >
-                    Your name in the room
+                    {t("liveGame.guestName")}
                   </label>
                   <input
                     id="guest-nickname"
@@ -1023,7 +1033,7 @@ function LiveGameContent() {
                       }
                     }}
                     maxLength={40}
-                    placeholder="Guest"
+                    placeholder={t("liveGame.guestPlaceholder")}
                     autoComplete="off"
                     className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
@@ -1045,10 +1055,10 @@ function LiveGameContent() {
                     </svg>
                   </div>
                   <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
-                    Join with a code
+                    {t("liveGame.joinWithCode")}
                   </h2>
                   <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                    Enter the code from the host (signed in on DuoCards).
+                    {t("liveGame.joinCodeHint")}
                   </p>
                   <input
                     type="text"
@@ -1059,7 +1069,7 @@ function LiveGameContent() {
                     onKeyDown={(e) => {
                       if (e.key === "Enter") handleJoinGame();
                     }}
-                    placeholder="e.g. AB12XY"
+                    placeholder={t("liveGame.joinCodePlaceholder")}
                     autoComplete="off"
                     spellCheck={false}
                     className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white font-mono text-lg tracking-widest text-center mb-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -1069,7 +1079,7 @@ function LiveGameContent() {
                     onClick={handleJoinGame}
                     className="w-full py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold transition-colors cursor-pointer"
                   >
-                    Join with code
+                    {t("liveGame.joinWithCodeBtn")}
                   </button>
                 </div>
               </div>
@@ -1096,11 +1106,10 @@ function LiveGameContent() {
                     </svg>
                   </div>
                   <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
-                    Create a live game
+                    {t("liveGame.createGame")}
                   </h2>
                   <p className="text-sm text-gray-600 dark:text-gray-400">
-                    Get a room code you can share. Everyone with the code joins
-                    the same room and chat.
+                    {t("liveGame.createGameHint")}
                   </p>
                 </button>
 
@@ -1121,10 +1130,10 @@ function LiveGameContent() {
                     </svg>
                   </div>
                   <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
-                    Join a live game
+                    {t("liveGame.joinGame")}
                   </h2>
                   <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                    Enter the 6-character code from your host.
+                    {t("liveGame.joinCodeHintShort")}
                   </p>
                   <input
                     type="text"
@@ -1135,7 +1144,7 @@ function LiveGameContent() {
                     onKeyDown={(e) => {
                       if (e.key === "Enter") handleJoinGame();
                     }}
-                    placeholder="e.g. AB12XY"
+                    placeholder={t("liveGame.joinCodePlaceholder")}
                     autoComplete="off"
                     spellCheck={false}
                     className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white font-mono text-lg tracking-widest text-center mb-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -1145,7 +1154,7 @@ function LiveGameContent() {
                     onClick={handleJoinGame}
                     className="w-full py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold transition-colors cursor-pointer"
                   >
-                    Join with code
+                    {t("liveGame.joinWithCodeBtn")}
                   </button>
                 </div>
               </div>
@@ -1432,8 +1441,8 @@ function LiveGameContent() {
                   <div className="h-full min-h-[120px] flex items-center justify-center">
                     <p className="text-center text-gray-500 dark:text-gray-400 text-sm max-w-md">
                       {isHostUi
-                        ? "No game config — try rejoining as host."
-                        : "Waiting for the host to start the game… You’ll see the same mode and cards as everyone else once they press Start."}
+                        ? t("liveGame.noGameConfig")
+                        : t("liveGame.waitingForHost")}
                     </p>
                   </div>
                 )}
@@ -1476,7 +1485,9 @@ function LiveGameContent() {
                   Game mode
                 </label>
                 <div className="space-y-2">
-                  {GAME_MODES.map((mode) => (
+                  {GAME_MODE_IDS.map((modeId) => {
+                    const mode = getGameModeMeta(t, modeId);
+                    return (
                     <label
                       key={mode.id}
                       className={`flex gap-3 p-3 rounded-xl border cursor-pointer transition-colors ${
@@ -1502,7 +1513,8 @@ function LiveGameContent() {
                         </p>
                       </div>
                     </label>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
 
@@ -1517,9 +1529,9 @@ function LiveGameContent() {
                   }
                   className="w-full px-3 py-2.5 rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
                 >
-                  {SESSION_DURATION_OPTIONS.map((opt) => (
-                    <option key={opt.value} value={opt.value}>
-                      {opt.label}
+                  {SESSION_DURATION_OPTIONS.map((value) => (
+                    <option key={value} value={value}>
+                      {t("liveGame.minutes", { value })}
                     </option>
                   ))}
                 </select>
@@ -1620,14 +1632,14 @@ function LiveGameContent() {
                 }
                 className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium"
               >
-                {creatingRoom ? "Preparing room…" : "Create room"}
+                {creatingRoom ? t("liveGame.preparingRoom") : t("liveGame.createRoom")}
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Game ended modal */}
+      {/* {t("liveGame.gameEnded")} modal */}
       {showGameEndedModal && gameEndDetails && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4"
@@ -1639,7 +1651,7 @@ function LiveGameContent() {
             <div className="flex items-start justify-between gap-4">
               <div>
                 <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-gray-500 dark:text-gray-400">
-                  Game ended
+                  {t("liveGame.gameEnded")}
                 </p>
                 <h2
                   id="game-ended-title"
@@ -1775,8 +1787,8 @@ function LiveGameContent() {
                 }}
                 placeholder={
                   isChatBlocked
-                    ? "Chat is paused — try again in a few minutes"
-                    : "Message the room..."
+                    ? t("liveGame.chatPaused")
+                    : t("liveGame.messageRoom")
                 }
                 disabled={!chatEnabledForSession || isChatBlocked}
                 className="flex-1 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed"
@@ -1787,7 +1799,7 @@ function LiveGameContent() {
                 disabled={!chatEnabledForSession || isChatBlocked}
                 className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
               >
-                Send
+                {t("liveGame.send")}
               </button>
             </div>
           </div>

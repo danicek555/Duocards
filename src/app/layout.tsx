@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 import AIChatButtonWrapper from "@/components/AIChatButtonWrapper";
+import AppProviders from "@/components/AppProviders";
 import MobileNotSupportedOverlay from "@/components/MobileNotSupportedOverlay";
 import { getPublicAppUrl } from "@/lib/publicUrls";
 
@@ -83,13 +84,15 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="cs" suppressHydrationWarning>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        {children}
-        <AIChatButtonWrapper />
-        <MobileNotSupportedOverlay />
+        <AppProviders>
+          {children}
+          <AIChatButtonWrapper />
+          <MobileNotSupportedOverlay />
+        </AppProviders>
         <Analytics />
       </body>
     </html>

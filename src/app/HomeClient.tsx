@@ -13,9 +13,15 @@ import AuthBackground from "@/components/AuthBackground";
 import AuthCard from "@/components/AuthCard";
 import AuthFooter from "@/components/AuthFooter";
 import AuthSubmitButton from "@/components/AuthSubmitButton";
+import { LanguageSelect } from "@/components/LanguageSwitcher";
+import { useI18n } from "@/i18n/I18nProvider";
+import { translateApiError } from "@/i18n/translate";
+import { isLocale, type Locale } from "@/i18n/types";
 
 export default function HomeClient() {
+  const { locale, setLocale, t } = useI18n();
   const [isLogin, setIsLogin] = useState(true);
+  const [registerLocale, setRegisterLocale] = useState<Locale>(locale);
   const [formData, setFormData] = useState({
     email: "",
     password: "",
@@ -30,12 +36,10 @@ export default function HomeClient() {
   const [isLoading, setIsLoading] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
 
-  // Feature flags - set to true to show these features
   const showRememberMe = true;
   const showSocialLogin = true;
   const [rememberMe, setRememberMe] = useState(false);
 
-  // Notification and Modal states
   const [notification, setNotification] = useState<{
     message: string;
     type: "success" | "error" | "warning" | "info";
@@ -58,7 +62,6 @@ export default function HomeClient() {
     type: "info",
   });
 
-  // Helper functions for notifications and modals
   const showNotification = (
     message: string,
     type: "success" | "error" | "warning" | "info",
@@ -74,7 +77,10 @@ export default function HomeClient() {
     setModal({ isOpen: true, title, message, type });
   };
 
-  // Handle client-side mounting to prevent hydration mismatches
+  useEffect(() => {
+    setRegisterLocale(locale);
+  }, [locale]);
+
   useEffect(() => {
     setIsMounted(true);
     const rememberedEmail = localStorage.getItem("rememberedEmail");
@@ -88,37 +94,20 @@ export default function HomeClient() {
     const params = new URLSearchParams(window.location.search);
     const authError = params.get("error");
     if (authError) {
-      const messages: Record<string, string> = {
-        google_not_configured:
-          "Google sign-in is not configured yet. Add GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET to your environment.",
-        google_auth_failed: "Google sign-in failed. Please try again.",
-        google_auth_cancelled: "Google sign-in was cancelled.",
-        google_email_not_verified:
-          "Your Google account email is not verified. Please verify it and try again.",
-        facebook_not_configured:
-          "Facebook sign-in is not configured yet. Add FACEBOOK_APP_ID and FACEBOOK_APP_SECRET to your environment.",
-        facebook_auth_failed: "Facebook sign-in failed. Please try again.",
-        facebook_auth_cancelled: "Facebook sign-in was cancelled.",
-        facebook_email_not_available:
-          "Facebook did not share an email address. Use email sign-in or allow email access on Facebook.",
-        facebook_email_scope_not_enabled:
-          "Facebook email permission is not enabled for your app. In Meta Developer Console go to Use cases → Authentication and account creation → Permissions, and add email (Ready for testing).",
-      };
-      showNotification(
-        messages[authError] || "Sign-in failed. Please try again.",
-        "error",
-      );
+      const message =
+        t(`auth.oauthErrors.${authError}`) !== `auth.oauthErrors.${authError}`
+          ? t(`auth.oauthErrors.${authError}`)
+          : t("auth.oauthErrors.default");
+      showNotification(message, "error");
       window.history.replaceState({}, "", window.location.pathname);
     }
-  }, []);
+  }, [t]);
 
-  // Check if passwords match
   const passwordsMatch =
     formData.password &&
     formData.confirmPassword &&
     formData.password === formData.confirmPassword;
 
-  // Social login handlers
   const handleGoogleLogin = () => {
     window.location.href = `${process.env.NEXT_PUBLIC_API_BASE_URL || "/api"}/auth/google`;
   };
@@ -134,21 +123,23 @@ export default function HomeClient() {
     };
     setFormData(newFormData);
 
-    // Validate password in real-time when password field changes
     if (e.target.name === "password") {
       setPasswordValidation(validatePassword(e.target.value));
     }
   };
 
+  const applyUserLocale = (userLocale?: string) => {
+    if (isLocale(userLocale)) {
+      setLocale(userLocale, { persist: true, sync: false });
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    // Set loading state
     setIsLoading(true);
 
     try {
       if (isLogin) {
-        // Handle login
         const response = await fetch(
           `${process.env.NEXT_PUBLIC_API_BASE_URL || "/api"}/auth/login`,
           {
@@ -166,13 +157,9 @@ export default function HomeClient() {
         const data = await response.json();
 
         if (response.ok) {
-          // Login successful
-          console.log("Login successful:", data);
-
-          // Store user data in localStorage
           localStorage.setItem("user", JSON.stringify(data.user));
+          applyUserLocale(data.user?.locale);
 
-          // Handle Remember Me functionality
           if (rememberMe) {
             localStorage.setItem("rememberMe", "true");
             localStorage.setItem("rememberedEmail", formData.email);
@@ -181,33 +168,29 @@ export default function HomeClient() {
             localStorage.removeItem("rememberedEmail");
           }
 
-          // Redirect to dashboard
           window.location.href = "/dashboard";
         } else {
-          // Login failed
-          console.error("Login failed:", data.error);
-          showNotification(data.error || "Login failed", "error");
+          showNotification(
+            translateApiError(locale, data.code, data.error || t("auth.loginFailed")),
+            "error",
+          );
         }
       } else {
-        // Handle registration
-        // Check password strength
         if (!passwordValidation.isValid) {
           showModal(
-            "Password Requirements Not Met",
-            "Your password doesn't meet the security requirements. Please check the requirements below and try again.",
+            t("auth.passwordRequirementsTitle"),
+            t("auth.passwordRequirementsBody"),
             "warning",
           );
           return;
         }
 
-        // Check if passwords match
         if (!passwordsMatch) {
-          showNotification(
-            "Passwords do not match. Please check your password confirmation.",
-            "error",
-          );
+          showNotification(t("auth.passwordsNoMatch"), "error");
           return;
         }
+
+        setLocale(registerLocale, { persist: true, sync: false });
 
         const response = await fetch(
           `${process.env.NEXT_PUBLIC_API_BASE_URL || "/api"}/auth/register`,
@@ -220,6 +203,7 @@ export default function HomeClient() {
               email: formData.email,
               password: formData.password,
               nickname: formData.nickname,
+              locale: registerLocale,
             }),
           },
         );
@@ -227,42 +211,29 @@ export default function HomeClient() {
         const data = await response.json();
 
         if (response.ok) {
-          // Registration successful
-          console.log("Registration successful:", data);
-
           if (data.requiresVerification) {
-            // Store email for verification
             localStorage.setItem("pendingVerificationEmail", formData.email);
-
-            // Redirect to verification page
             window.location.href = `/verify?email=${encodeURIComponent(
               formData.email,
             )}`;
           } else {
-            // Clear any old user data first
             localStorage.removeItem("user");
             localStorage.removeItem("rememberMe");
             localStorage.removeItem("rememberedEmail");
-
-            // Store new user data in localStorage
             localStorage.setItem("user", JSON.stringify(data.user));
-
-            // Redirect to dashboard
+            applyUserLocale(data.user?.locale);
             window.location.href = "/dashboard";
           }
         } else {
-          // Registration failed - show user-friendly error without console logging
-          showNotification(data.error || "Registration failed", "error");
+          showNotification(
+            translateApiError(locale, data.code, data.error || t("auth.registerFailed")),
+            "error",
+          );
         }
       }
     } catch {
-      // Network error - show user-friendly message without console logging
-      showNotification(
-        "Network error. Please check your connection and try again.",
-        "error",
-      );
+      showNotification(t("auth.networkError"), "error");
     } finally {
-      // Reset loading state
       setIsLoading(false);
     }
   };
@@ -273,15 +244,13 @@ export default function HomeClient() {
         <AuthHeader isLogin={isLogin} />
 
         <AuthCard>
-          {/* Toggle Buttons */}
           <AuthToggle isLogin={isLogin} onToggle={setIsLogin} />
 
-          {/* Form */}
           {!isMounted ? (
             <div className="space-y-4">
-              <div className="h-10 bg-gray-200 dark:bg-gray-700 rounded-lg animate-pulse"></div>
-              <div className="h-10 bg-gray-200 dark:bg-gray-700 rounded-lg animate-pulse"></div>
-              <div className="h-10 bg-gray-200 dark:bg-gray-700 rounded-lg animate-pulse"></div>
+              <div className="h-10 animate-pulse rounded-lg bg-gray-200 dark:bg-gray-700" />
+              <div className="h-10 animate-pulse rounded-lg bg-gray-200 dark:bg-gray-700" />
+              <div className="h-10 animate-pulse rounded-lg bg-gray-200 dark:bg-gray-700" />
             </div>
           ) : (
             <form
@@ -293,9 +262,9 @@ export default function HomeClient() {
                 <div>
                   <label
                     htmlFor="nickname"
-                    className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                    className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
                   >
-                    Přezdívka
+                    {t("auth.nickname")}
                   </label>
                   <input
                     type="text"
@@ -305,7 +274,7 @@ export default function HomeClient() {
                     onChange={handleInputChange}
                     required={!isLogin}
                     className="w-full rounded-xl border border-gray-200 bg-white/80 px-3 py-2.5 transition-colors focus:border-transparent focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700/80 dark:text-white"
-                    placeholder="Zvol si přezdívku"
+                    placeholder={t("auth.nicknamePlaceholder")}
                   />
                 </div>
               )}
@@ -313,9 +282,9 @@ export default function HomeClient() {
               <div>
                 <label
                   htmlFor="email"
-                  className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                  className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
                 >
-                    Email
+                  {t("auth.email")}
                 </label>
                 <input
                   type="email"
@@ -325,29 +294,28 @@ export default function HomeClient() {
                   onChange={handleInputChange}
                   required
                   className="w-full rounded-xl border border-gray-200 bg-white/80 px-3 py-2.5 transition-colors focus:border-transparent focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700/80 dark:text-white"
-                  placeholder="tvuj@email.cz"
+                  placeholder={t("auth.emailPlaceholder")}
                 />
               </div>
 
               <div>
                 <label
                   htmlFor="password"
-                  className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                  className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
                 >
-                    Heslo
+                  {t("auth.password")}
                 </label>
                 <PasswordInput
                   id="password"
                   name="password"
                   value={formData.password}
                   onChange={handleInputChange}
-                  placeholder="Tvoje heslo"
+                  placeholder={t("auth.passwordPlaceholder")}
                   showPassword={showPassword}
                   onToggleShowPassword={() => setShowPassword(!showPassword)}
                   required
                 />
 
-                {/* Password Requirements - Only show during registration */}
                 {!isLogin && formData.password && (
                   <PasswordRequirements
                     passwordValidation={passwordValidation}
@@ -359,16 +327,16 @@ export default function HomeClient() {
                 <div>
                   <label
                     htmlFor="confirmPassword"
-                    className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                    className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
                   >
-                    Potvrzení hesla
+                    {t("auth.confirmPassword")}
                   </label>
                   <PasswordInput
                     id="confirmPassword"
                     name="confirmPassword"
                     value={formData.confirmPassword}
                     onChange={handleInputChange}
-                    placeholder="Zopakuj heslo"
+                    placeholder={t("auth.confirmPasswordPlaceholder")}
                     showPassword={showConfirmPassword}
                     onToggleShowPassword={() =>
                       setShowConfirmPassword(!showConfirmPassword)
@@ -383,7 +351,6 @@ export default function HomeClient() {
                     }
                   />
 
-                  {/* Password Match Indicator */}
                   {formData.confirmPassword && formData.password && (
                     <div className="mt-2 flex items-center text-sm">
                       <span
@@ -399,12 +366,19 @@ export default function HomeClient() {
                         }
                       >
                         {passwordsMatch
-                          ? "Passwords match"
-                          : "Passwords do not match"}
+                          ? t("auth.passwordsMatch")
+                          : t("auth.passwordsNoMatch")}
                       </span>
                     </div>
                   )}
                 </div>
+              )}
+
+              {!isLogin && (
+                <LanguageSelect
+                  value={registerLocale}
+                  onChange={setRegisterLocale}
+                />
               )}
 
               {isLogin && showRememberMe && (
@@ -419,25 +393,30 @@ export default function HomeClient() {
                       className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                     />
                     <span className="ml-2 text-sm text-gray-600 dark:text-gray-400">
-                      Zapamatovat si mě
+                      {t("auth.rememberMe")}
                     </span>
                   </label>
                   <a
                     href="/reset-password"
                     className="text-sm font-medium text-blue-600 transition-colors hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
                   >
-                    Zapomenuté heslo?
+                    {t("auth.forgotPassword")}
                   </a>
                 </div>
               )}
 
-              <AuthSubmitButton disabled={isLoading} loading={isLoading} loadingText={isLogin ? "Přihlašuji..." : "Vytvářím účet..."}>
-                {isLogin ? "Přihlásit se →" : "Vytvořit účet →"}
+              <AuthSubmitButton
+                disabled={isLoading}
+                loading={isLoading}
+                loadingText={
+                  isLogin ? t("auth.signingIn") : t("auth.creatingAccount")
+                }
+              >
+                {isLogin ? t("auth.signIn") : t("auth.createAccount")}
               </AuthSubmitButton>
             </form>
           )}
 
-          {/* Social Login */}
           {showSocialLogin && (
             <SocialLoginButtons
               onGoogleLogin={handleGoogleLogin}
@@ -449,7 +428,6 @@ export default function HomeClient() {
         <AuthFooter />
       </div>
 
-      {/* Custom Notification */}
       <Notification
         message={notification.message}
         type={notification.type}
@@ -457,7 +435,6 @@ export default function HomeClient() {
         onClose={() => setNotification({ ...notification, isVisible: false })}
       />
 
-      {/* Custom Modal */}
       <Modal
         isOpen={modal.isOpen}
         onClose={() => setModal({ ...modal, isOpen: false })}

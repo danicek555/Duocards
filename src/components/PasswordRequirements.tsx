@@ -4,6 +4,7 @@ import {
   getPasswordStrengthColor,
   getPasswordStrengthProgress,
 } from "@/lib/passwordValidation";
+import { useI18n } from "@/i18n/I18nProvider";
 
 interface PasswordValidation {
   isValid: boolean;
@@ -24,149 +25,64 @@ interface PasswordRequirementsProps {
 export default function PasswordRequirements({
   passwordValidation,
 }: PasswordRequirementsProps) {
+  const { t } = useI18n();
+
   return (
-    <div className="mt-3 p-3 rounded-lg border">
-      <div className="flex items-center justify-between mb-2">
+    <div className="mt-3 rounded-lg border p-3">
+      <div className="mb-2 flex items-center justify-between">
         <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-          Password Requirements:
+          {t("password.title")}
         </span>
         <span
-          className={`text-xs px-2 py-1 rounded-full border ${getPasswordStrengthColor(
-            passwordValidation.strength
+          className={`rounded-full border px-2 py-1 text-xs ${getPasswordStrengthColor(
+            passwordValidation.strength,
           )}`}
         >
-          {passwordValidation.strength}
+          {t(`password.${passwordValidation.strength}`)}
         </span>
       </div>
 
-      {/* Progress bar */}
-      <div className="w-full bg-gray-200 dark:bg-gray-600 rounded-full h-2 mb-3">
+      <div className="mb-3 h-2 w-full rounded-full bg-gray-200 dark:bg-gray-600">
         <div
           className={`h-2 rounded-full transition-all duration-300 ${
             passwordValidation.strength === "weak"
               ? "bg-red-500"
               : passwordValidation.strength === "medium"
-              ? "bg-yellow-500"
-              : "bg-green-500"
+                ? "bg-yellow-500"
+                : "bg-green-500"
           }`}
           style={{
-            width: `${getPasswordStrengthProgress(
-              passwordValidation.strength
-            )}%`,
+            width: `${getPasswordStrengthProgress(passwordValidation.strength)}%`,
           }}
-        ></div>
+        />
       </div>
 
-      {/* Requirements checklist */}
       <div className="space-y-1">
-        <div className="flex items-center text-sm">
-          <span
-            className={`mr-2 ${
-              passwordValidation.requirements.minLength
-                ? "text-green-600"
-                : "text-gray-400"
-            }`}
-          >
-            {passwordValidation.requirements.minLength ? "✓" : "✗"}
-          </span>
-          <span
-            className={
-              passwordValidation.requirements.minLength
-                ? "text-green-600"
-                : "text-gray-600 dark:text-gray-400"
-            }
-          >
-            at least 8 characters long
-          </span>
-        </div>
-        <div className="flex items-center text-sm">
-          <span
-            className={`mr-2 ${
-              passwordValidation.requirements.hasUppercase
-                ? "text-green-600"
-                : "text-gray-400"
-            }`}
-          >
-            {passwordValidation.requirements.hasUppercase ? "✓" : "✗"}
-          </span>
-          <span
-            className={
-              passwordValidation.requirements.hasUppercase
-                ? "text-green-600"
-                : "text-gray-600 dark:text-gray-400"
-            }
-          >
-            contains uppercase letters (A-Z)
-          </span>
-        </div>
-        <div className="flex items-center text-sm">
-          <span
-            className={`mr-2 ${
-              passwordValidation.requirements.hasLowercase
-                ? "text-green-600"
-                : "text-gray-400"
-            }`}
-          >
-            {passwordValidation.requirements.hasLowercase ? "✓" : "✗"}
-          </span>
-          <span
-            className={
-              passwordValidation.requirements.hasLowercase
-                ? "text-green-600"
-                : "text-gray-600 dark:text-gray-400"
-            }
-          >
-            contains lowercase letters (a-z)
-          </span>
-        </div>
-        <div className="flex items-center text-sm">
-          <span
-            className={`mr-2 ${
-              passwordValidation.requirements.hasNumbers
-                ? "text-green-600"
-                : "text-gray-400"
-            }`}
-          >
-            {passwordValidation.requirements.hasNumbers ? "✓" : "✗"}
-          </span>
-          <span
-            className={
-              passwordValidation.requirements.hasNumbers
-                ? "text-green-600"
-                : "text-gray-600 dark:text-gray-400"
-            }
-          >
-            contains numbers (0-9)
-          </span>
-        </div>
-        <div className="flex items-center text-sm">
-          <span
-            className={`mr-2 ${
-              passwordValidation.requirements.hasSpecialChars
-                ? "text-green-600"
-                : "text-gray-400"
-            }`}
-          >
-            {passwordValidation.requirements.hasSpecialChars ? "✓" : "✗"}
-          </span>
-          <span
-            className={
-              passwordValidation.requirements.hasSpecialChars
-                ? "text-green-600"
-                : "text-gray-600 dark:text-gray-400"
-            }
-          >
-            contains special characters (!@#$%^&*)
-          </span>
-        </div>
+        {(
+          [
+            ["minLength", passwordValidation.requirements.minLength],
+            ["uppercase", passwordValidation.requirements.hasUppercase],
+            ["lowercase", passwordValidation.requirements.hasLowercase],
+            ["numbers", passwordValidation.requirements.hasNumbers],
+            ["special", passwordValidation.requirements.hasSpecialChars],
+          ] as const
+        ).map(([key, met]) => (
+          <div key={key} className="flex items-center text-sm">
+            <span className={`mr-2 ${met ? "text-green-600" : "text-gray-400"}`}>
+              {met ? "✓" : "✗"}
+            </span>
+            <span
+              className={
+                met
+                  ? "text-green-600"
+                  : "text-gray-600 dark:text-gray-400"
+              }
+            >
+              {t(`password.${key}`)}
+            </span>
+          </div>
+        ))}
       </div>
     </div>
   );
 }
-
-
-
-
-
-
-

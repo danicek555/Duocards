@@ -16,6 +16,7 @@ export async function GET(request: NextRequest) {
       id: true,
       email: true,
       nickname: true,
+      locale: true,
       createdAt: true,
     },
   });

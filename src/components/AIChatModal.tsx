@@ -8,6 +8,7 @@ import {
   type KeyboardEvent as ReactKeyboardEvent,
 } from "react";
 import { COIN_COSTS } from "@/lib/coin-costs";
+import { useI18n } from "@/i18n/I18nProvider";
 import {
   getContentViolationRetrySeconds,
   isContentViolationError,
@@ -31,13 +32,8 @@ export default function AIChatModal({
   onClose,
   onCoinsUpdate,
 }: AIChatModalProps) {
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      role: "assistant",
-      content:
-        "Hello! I'm your AI Duocard helper focused on language learning and vocabulary. I can help you with words, flashcards, translations, pronunciations, study techniques for language learning, and questions about using Duocards. I'm here to help you learn languages - what would you like to know?",
-    },
-  ]);
+  const { t, locale } = useI18n();
+  const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -48,6 +44,10 @@ export default function AIChatModal({
 
   const isChatBlocked =
     chatBlockedUntil !== null && Date.now() < chatBlockedUntil;
+
+  useEffect(() => {
+    setMessages([{ role: "assistant", content: t("aiChat.greeting") }]);
+  }, [locale, t]);
 
   useEffect(() => {
     if (!chatBlockedUntil) return;
@@ -170,7 +170,7 @@ export default function AIChatModal({
       const data = await response.json();
 
       if (!response.ok) {
-        const errorMessage = data.error || "Failed to get AI response";
+        const errorMessage = data.error || t("aiChat.sendFailed");
         if (isContentViolationError(errorMessage)) {
           setChatBlockedUntil(
             Date.now() +
@@ -201,7 +201,7 @@ export default function AIChatModal({
       }
     } catch (err) {
       const errorMessage =
-        err instanceof Error ? err.message : "Failed to send message";
+        err instanceof Error ? err.message : t("aiChat.networkError");
       setError(errorMessage);
       console.error("Error sending message:", err);
     } finally {
@@ -247,9 +247,9 @@ export default function AIChatModal({
             </div>
             <div>
               <h3 className="text-sm font-semibold text-white">
-                AI Duocard Helper
+                {t("aiChat.title")}
               </h3>
-              <p className="text-xs text-white/80">Ask me anything</p>
+              <p className="text-xs text-white/80">{t("aiChat.subtitle")}</p>
             </div>
           </div>
         </div>
@@ -315,8 +315,8 @@ export default function AIChatModal({
               onKeyDown={handleKeyDown}
               placeholder={
                 isChatBlocked
-                  ? "Chat is paused — try again in a few minutes"
-                  : "Type your message..."
+                  ? t("aiChat.chatPaused")
+                  : t("aiChat.inputPlaceholder")
               }
               className="flex-1 resize-none rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:cursor-not-allowed disabled:opacity-60"
               rows={1}

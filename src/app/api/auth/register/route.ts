@@ -20,6 +20,7 @@ import {
   generateVerificationCode,
   sendVerificationEmail,
 } from "@/lib/emailVerification";
+import { parseRequestLocale } from "@/lib/locale";
 import { logEnvironmentStatus } from "@/lib/envValidation";
 
 // Define the expected request body structure
@@ -27,6 +28,7 @@ interface RegisterRequest {
   email: string;
   password: string;
   nickname: string;
+  locale?: string;
 }
 
 export async function POST(request: NextRequest) {
@@ -35,7 +37,7 @@ export async function POST(request: NextRequest) {
     const ipLimit = await checkRateLimit(`register:ip:${clientIp}`, 20, 15 * 60 * 1000);
     if (!ipLimit.allowed) {
       return NextResponse.json(
-        { error: "Too many registration attempts. Please try again later." },
+        { error: "Too many registration attempts. Please try again later.", code: "RATE_LIMIT_REGISTER" },
         {
           status: 429,
           headers: { "Retry-After": String(ipLimit.retryAfterSeconds) },
@@ -58,12 +60,13 @@ export async function POST(request: NextRequest) {
 
     // Parse JSON from request body
     const body: RegisterRequest = await request.json();
-    const { email, password, nickname } = body;
+    const { email, password, nickname, locale: rawLocale } = body;
+    const locale = parseRequestLocale(rawLocale);
 
     // Validate input data
     if (!email || !password || !nickname) {
       return NextResponse.json(
-        { error: "Email, password, and nickname are required" },
+        { error: "Email, password, and nickname are required", code: "REQUIRED_FIELDS" },
         { status: 400 }
       );
     }
@@ -71,7 +74,7 @@ export async function POST(request: NextRequest) {
     // Validate email format
     if (!isValidEmail(email)) {
       return NextResponse.json(
-        { error: "Invalid email format" },
+        { error: "Invalid email format", code: "INVALID_EMAIL" },
         { status: 400 }
       );
     }
@@ -80,7 +83,7 @@ export async function POST(request: NextRequest) {
     const passwordValidation = validatePassword(password);
     if (!passwordValidation.isValid) {
       return NextResponse.json(
-        { error: passwordValidation.message },
+        { error: passwordValidation.message, code: passwordValidation.strength === "weak" ? "PASSWORD_WEAK" : "PASSWORD_MEDIUM" },
         { status: 400 }
       );
     }
@@ -93,7 +96,7 @@ export async function POST(request: NextRequest) {
 
     if (existingUser) {
       return NextResponse.json(
-        { error: "User with this email already exists" },
+        { error: "User with this email already exists", code: "EMAIL_EXISTS" },
         { status: 409 } // 409 = Conflict
       );
     }
@@ -113,12 +116,14 @@ export async function POST(request: NextRequest) {
           email: email.toLowerCase(),
           password: hashedPassword,
           nickname: nickname.trim(),
+          locale,
           emailVerified: true, // Auto-verify in development
         },
         select: {
           id: true,
           email: true,
           nickname: true,
+          locale: true,
           emailVerified: true,
           createdAt: true,
         },
@@ -164,6 +169,7 @@ export async function POST(request: NextRequest) {
         data: {
           password: hashedPassword,
           nickname: nickname.trim(),
+          locale,
           verificationCode: verificationCode,
           verificationCodeExpires: verificationCodeExpires,
         },
@@ -175,6 +181,7 @@ export async function POST(request: NextRequest) {
           email: email.toLowerCase(),
           password: hashedPassword,
           nickname: nickname.trim(),
+          locale,
           verificationCode: verificationCode,
           verificationCodeExpires: verificationCodeExpires,
         },

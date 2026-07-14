@@ -4,12 +4,14 @@ import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import AIChatModal from "./AIChatModal";
 import { isJoinOnlyLiveBrowser } from "@/lib/liveGameHost";
+import { useI18n } from "@/i18n/I18nProvider";
 
 interface AIChatButtonProps {
   onCoinsUpdate?: (coins: number) => void;
 }
 
 export default function AIChatButton({ onCoinsUpdate }: AIChatButtonProps) {
+  const { t } = useI18n();
   const [isOpen, setIsOpen] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
@@ -129,7 +131,7 @@ export default function AIChatButton({ onCoinsUpdate }: AIChatButtonProps) {
         className={`fixed right-4 bottom-4 z-40 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white rounded-full p-4 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-110 active:scale-95 group ${
           isOpen ? "scale-95" : ""
         }`}
-        aria-label="Open AI Chat Helper"
+        aria-label={t("aiChat.openChat")}
       >
         <div className="relative">
           {isOpen ? (
@@ -170,7 +172,7 @@ export default function AIChatButton({ onCoinsUpdate }: AIChatButtonProps) {
         {!isOpen && (
           <div className="absolute right-full mr-3 top-1/2 transform -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap">
             <div className="bg-gray-900 dark:bg-gray-700 text-white text-xs px-3 py-2 rounded-lg shadow-lg">
-              AI Duocard Helper
+              {t("aiChat.title")}
               <div className="absolute right-0 top-1/2 transform -translate-y-1/2 translate-x-1 w-2 h-2 bg-gray-900 dark:bg-gray-700 rotate-45" />
             </div>
           </div>

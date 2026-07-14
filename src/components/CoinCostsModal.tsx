@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { COIN_COSTS } from "@/lib/coin-costs";
+import { useI18n } from "@/i18n/I18nProvider";
 
 interface CoinCostsModalProps {
   isOpen: boolean;
@@ -12,6 +13,8 @@ export default function CoinCostsModal({
   isOpen,
   onClose,
 }: CoinCostsModalProps) {
+  const { t } = useI18n();
+
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
@@ -37,8 +40,8 @@ export default function CoinCostsModal({
   // AI Generation Costs
   const aiGenerationCosts = [
     {
-      name: "Flashcard Generation",
-      description: "Per word",
+      name: t("coins.flashcardGen"),
+      description: t("coins.flashcardGenDesc"),
       cost: 1,
       costPerItem: true,
       itemName: "word",
@@ -59,8 +62,8 @@ export default function CoinCostsModal({
       ),
     },
     {
-      name: "Pronunciation",
-      description: "Per word pronunciation guide",
+      name: t("coins.pronunciation"),
+      description: t("coins.pronunciationDesc"),
       cost: COIN_COSTS.PRONUNCIATION_GENERATION,
       costPerItem: true,
       itemName: "word",
@@ -81,8 +84,8 @@ export default function CoinCostsModal({
       ),
     },
     {
-      name: "Word Translation",
-      description: "Per word translation",
+      name: t("coins.translation"),
+      description: t("coins.translationDesc"),
       cost: COIN_COSTS.WORD_TRANSLATION,
       costPerItem: true,
       itemName: "word",
@@ -103,8 +106,8 @@ export default function CoinCostsModal({
       ),
     },
     {
-      name: "Audio Generation",
-      description: "Per audio (Text-to-Speech)",
+      name: t("coins.audioGen"),
+      description: t("coins.audioGenDesc"),
       cost: COIN_COSTS.AUDIO_GENERATION,
       costPerItem: true,
       itemName: "audio",
@@ -125,8 +128,8 @@ export default function CoinCostsModal({
       ),
     },
     {
-      name: "Image to Text",
-      description: "Per image text extraction",
+      name: t("coins.ocr"),
+      description: t("coins.ocrDesc"),
       cost: COIN_COSTS.OCR_EXTRACTION,
       costPerItem: true,
       itemName: "image",
@@ -147,8 +150,8 @@ export default function CoinCostsModal({
       ),
     },
     {
-      name: "Image Generation",
-      description: "Per image (DALL-E 3) - Expensive",
+      name: t("coins.imageGen"),
+      description: t("coins.imageGenDesc"),
       cost: COIN_COSTS.IMAGE_GENERATION,
       costPerItem: true,
       itemName: "image",
@@ -201,7 +204,7 @@ export default function CoinCostsModal({
                   </svg>
                 </div>
                 <h3 className="text-xl font-bold text-gray-900 dark:text-white">
-                  AI Coins Guide
+                  {t("coins.title")}
                 </h3>
               </div>
               <button
@@ -469,7 +472,7 @@ export default function CoinCostsModal({
               onClick={onClose}
               className="px-6 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors font-medium"
             >
-              Got it
+              {t("coins.close")}
             </button>
           </div>
         </div>

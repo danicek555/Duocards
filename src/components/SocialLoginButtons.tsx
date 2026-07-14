@@ -1,5 +1,7 @@
 "use client";
 
+import { useI18n } from "@/i18n/I18nProvider";
+
 interface SocialLoginButtonsProps {
   onGoogleLogin: () => void;
   onFacebookLogin: () => void;
@@ -9,6 +11,8 @@ export default function SocialLoginButtons({
   onGoogleLogin,
   onFacebookLogin,
 }: SocialLoginButtonsProps) {
+  const { t } = useI18n();
+
   return (
     <div className="mt-6">
       <div className="relative">
@@ -17,7 +21,7 @@ export default function SocialLoginButtons({
         </div>
         <div className="relative flex justify-center text-sm">
           <span className="bg-white/80 px-3 text-gray-500 dark:bg-gray-800/80 dark:text-gray-400">
-            Nebo pokračuj přes
+            {t("auth.socialDivider")}
           </span>
         </div>
       </div>

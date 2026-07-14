@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useI18n } from "@/i18n/I18nProvider";
 
 interface PublicSet {
   id: number;
@@ -48,17 +49,13 @@ interface PreviewResponse {
 }
 
 interface PublicLibraryPanelProps {
-  /** Called after a set is successfully added so the parent can refresh its data. */
   onSetAdded?: () => void;
 }
 
-/**
- * Embeddable public catalog panel. Rendered inside the dashboard's right
- * content area so the dashboard sidebar stays visible on the left.
- */
 export default function PublicLibraryPanel({
   onSetAdded,
 }: PublicLibraryPanelProps) {
+  const { t } = useI18n();
   const router = useRouter();
 
   const [query, setQuery] = useState("");
@@ -69,12 +66,10 @@ export default function PublicLibraryPanel({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  // Per-set state for the "add to my sets" action
   const [joiningId, setJoiningId] = useState<number | null>(null);
   const [joinedCodes, setJoinedCodes] = useState<Set<string>>(new Set());
   const [actionError, setActionError] = useState("");
 
-  // Word preview modal
   const [previewSet, setPreviewSet] = useState<PublicSet | null>(null);
   const [previewData, setPreviewData] = useState<PreviewResponse | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
@@ -101,23 +96,20 @@ export default function PublicLibraryPanel({
 
       if (!response.ok) {
         const body = await response.json().catch(() => ({}));
-        throw new Error(body.error || "Failed to load public flashcard sets");
+        throw new Error(body.error || t("library.loadFailed"));
       }
 
       const body: PublicSetsResponse = await response.json();
       setData(body);
     } catch (err) {
       setError(
-        err instanceof Error
-          ? err.message
-          : "Failed to load public flashcard sets"
+        err instanceof Error ? err.message : t("library.loadFailed")
       );
     } finally {
       setLoading(false);
     }
-  }, [query, tags, page, router]);
+  }, [query, tags, page, router, t]);
 
-  // Debounce search/tag changes; reset to page 1 when filters change.
   useEffect(() => {
     const timeout = setTimeout(() => {
       fetchSets();
@@ -125,7 +117,6 @@ export default function PublicLibraryPanel({
     return () => clearTimeout(timeout);
   }, [fetchSets]);
 
-  // Close the preview modal with Escape.
   useEffect(() => {
     if (!previewSet) return;
     const handleEscape = (e: KeyboardEvent) => {
@@ -157,16 +148,14 @@ export default function PublicLibraryPanel({
       const body = await response.json().catch(() => ({}));
 
       if (!response.ok) {
-        throw new Error(body.error || "Failed to add flashcard set");
+        throw new Error(body.error || t("library.addFailed"));
       }
 
       setJoinedCodes((prev) => new Set(prev).add(set.publicCode as string));
-      // Let the parent (dashboard) refetch flashcard sets so the new set is
-      // visible without a page refresh.
       onSetAdded?.();
     } catch (err) {
       setActionError(
-        err instanceof Error ? err.message : "Failed to add flashcard set"
+        err instanceof Error ? err.message : t("library.addFailed")
       );
     } finally {
       setJoiningId(null);
@@ -183,12 +172,12 @@ export default function PublicLibraryPanel({
       const response = await fetch(`/api/flashcard-sets/public/${set.id}`);
       const body = await response.json().catch(() => ({}));
       if (!response.ok) {
-        throw new Error(body.error || "Failed to load words");
+        throw new Error(body.error || t("library.previewFailed"));
       }
       setPreviewData(body as PreviewResponse);
     } catch (err) {
       setPreviewError(
-        err instanceof Error ? err.message : "Failed to load words"
+        err instanceof Error ? err.message : t("library.previewFailed")
       );
     } finally {
       setPreviewLoading(false);
@@ -199,27 +188,26 @@ export default function PublicLibraryPanel({
     <div className="flex-1 overflow-y-auto p-8">
       <div className="mb-6">
         <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-          Public Library
+          {t("library.title")}
         </h2>
         <p className="text-gray-600 dark:text-gray-400 mb-1">
-          Browse public flashcard sets and add them to your account.
+          {t("library.subtitle")}
         </p>
       </div>
 
-      {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-3 mb-6">
         <input
           type="text"
           value={query}
           onChange={(e) => handleFilterChange(setQuery)(e.target.value)}
-          placeholder="Search by name..."
+          placeholder={t("library.searchPlaceholder")}
           className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
         />
         <input
           type="text"
           value={tags}
           onChange={(e) => handleFilterChange(setTags)(e.target.value)}
-          placeholder="Filter by tags (comma-separated)"
+          placeholder={t("library.tagsPlaceholder")}
           className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
         />
       </div>
@@ -230,10 +218,9 @@ export default function PublicLibraryPanel({
         </div>
       )}
 
-      {/* Content */}
       {loading ? (
         <p className="text-gray-500 dark:text-gray-400 py-12 text-center">
-          Loading...
+          {t("library.loading")}
         </p>
       ) : error ? (
         <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-red-600 dark:text-red-400">
@@ -241,7 +228,7 @@ export default function PublicLibraryPanel({
         </div>
       ) : !data || data.items.length === 0 ? (
         <p className="text-gray-500 dark:text-gray-400 py-12 text-center">
-          No public flashcard sets found.
+          {t("library.noResults")}
         </p>
       ) : (
         <>
@@ -263,13 +250,15 @@ export default function PublicLibraryPanel({
                       </h3>
                       {haveIt && (
                         <span className="shrink-0 px-2 py-0.5 text-xs bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 rounded-full">
-                          {set.ownedByMe ? "Yours" : "You have this"}
+                          {set.ownedByMe
+                            ? t("library.owned")
+                            : t("library.haveThis")}
                         </span>
                       )}
                     </div>
                     <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                      by {set.ownerNickname} · {set.wordCount}{" "}
-                      {set.wordCount === 1 ? "word" : "words"}
+                      {t("library.by", { name: set.ownerNickname })} ·{" "}
+                      {t("library.words", { count: set.wordCount })}
                     </p>
                     {(set.fromLanguage || set.toLanguage) && (
                       <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
@@ -290,7 +279,7 @@ export default function PublicLibraryPanel({
                     )}
                     {set.publicCode && (
                       <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-                        Code:{" "}
+                        {t("library.code")}:{" "}
                         <span className="font-mono font-semibold text-green-600 dark:text-green-400">
                           {set.publicCode}
                         </span>
@@ -302,7 +291,7 @@ export default function PublicLibraryPanel({
                       onClick={() => openPreview(set)}
                       className="flex-1 px-3 py-2 text-sm bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
                     >
-                      View words
+                      {t("library.viewWords")}
                     </button>
                     <button
                       onClick={() => handleAdd(set)}
@@ -312,12 +301,12 @@ export default function PublicLibraryPanel({
                       className="flex-1 px-3 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                     >
                       {set.ownedByMe
-                        ? "Your set"
+                        ? t("library.yourSet")
                         : haveIt
-                        ? "Already added"
+                        ? t("library.alreadyAdded")
                         : joiningId === set.id
-                        ? "Adding..."
-                        : "Add to my sets"}
+                        ? t("library.adding")
+                        : t("library.addToMySets")}
                     </button>
                   </div>
                 </div>
@@ -325,7 +314,6 @@ export default function PublicLibraryPanel({
             })}
           </div>
 
-          {/* Pagination */}
           {data.totalPages > 1 && (
             <div className="flex items-center justify-center gap-3 mt-8">
               <button
@@ -333,24 +321,23 @@ export default function PublicLibraryPanel({
                 disabled={page <= 1}
                 className="px-3 py-2 text-sm bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
-                Previous
+                {t("library.prev")}
               </button>
               <span className="text-sm text-gray-600 dark:text-gray-400">
-                Page {data.page} of {data.totalPages}
+                {t("library.page", { page: data.page, total: data.totalPages })}
               </span>
               <button
                 onClick={() => setPage((p) => Math.min(data.totalPages, p + 1))}
                 disabled={page >= data.totalPages}
                 className="px-3 py-2 text-sm bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
-                Next
+                {t("library.next")}
               </button>
             </div>
           )}
         </>
       )}
 
-      {/* Word preview modal */}
       {previewSet && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center p-4"
@@ -368,15 +355,15 @@ export default function PublicLibraryPanel({
                     {previewSet.name}
                   </h3>
                   <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                    by {previewSet.ownerNickname} · {previewSet.wordCount}{" "}
-                    {previewSet.wordCount === 1 ? "word" : "words"}
+                    {t("library.by", { name: previewSet.ownerNickname })} ·{" "}
+                    {t("library.words", { count: previewSet.wordCount })}
                   </p>
                 </div>
                 <button
                   onClick={() => setPreviewSet(null)}
                   className="shrink-0 px-2 py-1 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
                 >
-                  Close
+                  {t("library.closePreview")}
                 </button>
               </div>
             </div>
@@ -384,7 +371,7 @@ export default function PublicLibraryPanel({
             <div className="flex-1 overflow-y-auto p-4">
               {previewLoading ? (
                 <p className="text-sm text-gray-500 dark:text-gray-400 py-6 text-center">
-                  Loading words...
+                  {t("library.loadingWords")}
                 </p>
               ) : previewError ? (
                 <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-red-600 dark:text-red-400 text-sm">
@@ -409,24 +396,12 @@ export default function PublicLibraryPanel({
                           </p>
                         )}
                       </div>
-                      <div className="shrink-0 flex gap-1">
-                        {w.hasImage && (
-                          <span className="px-1.5 py-0.5 text-[10px] uppercase tracking-wide bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded">
-                            image
-                          </span>
-                        )}
-                        {w.hasAudio && (
-                          <span className="px-1.5 py-0.5 text-[10px] uppercase tracking-wide bg-teal-100 dark:bg-teal-900/30 text-teal-700 dark:text-teal-300 rounded">
-                            audio
-                          </span>
-                        )}
-                      </div>
                     </li>
                   ))}
                 </ul>
               ) : (
                 <p className="text-sm text-gray-500 dark:text-gray-400 py-6 text-center">
-                  This set has no words.
+                  {t("library.noWords")}
                 </p>
               )}
             </div>

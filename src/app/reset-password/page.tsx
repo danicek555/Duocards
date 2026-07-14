@@ -12,8 +12,11 @@ import AuthFooter from "@/components/AuthFooter";
 import AuthLoadingFallback from "@/components/AuthLoadingFallback";
 import AuthPageHeader from "@/components/AuthPageHeader";
 import AuthSubmitButton from "@/components/AuthSubmitButton";
+import { useI18n } from "@/i18n/I18nProvider";
+import { translateApiError } from "@/i18n/translate";
 
 function ResetPasswordContent() {
+  const { locale, t } = useI18n();
   const router = useRouter();
   const searchParams = useSearchParams();
   const token = searchParams.get("token") || "";
@@ -64,22 +67,15 @@ function ResetPasswordContent() {
 
       const data = await response.json();
       if (response.ok) {
-        showNotification(
-          data.message ||
-            "Pokud účet existuje, poslali jsme odkaz na reset. Zkontroluj i spam.",
-          "success",
-        );
+        showNotification(data.message || t("resetPassword.sendSuccess"), "success");
       } else {
         showNotification(
-          data.error || "Nepodařilo se odeslat email.",
+          translateApiError(locale, data.code, data.error || t("resetPassword.sendFailed")),
           "error",
         );
       }
     } catch {
-      showNotification(
-        "Chyba sítě. Zkontroluj připojení a zkus to znovu.",
-        "error",
-      );
+      showNotification(t("resetPassword.networkError"), "error");
     } finally {
       setLoading(false);
     }
@@ -89,12 +85,15 @@ function ResetPasswordContent() {
     e.preventDefault();
 
     if (!passwordValidation.isValid) {
-      showNotification(passwordValidation.message, "warning");
+      showNotification(
+        t(`errors.${passwordValidation.strength === "weak" ? "PASSWORD_WEAK" : "PASSWORD_MEDIUM"}`),
+        "warning",
+      );
       return;
     }
 
     if (!passwordsMatch) {
-      showNotification("Hesla se neshodují.", "error");
+      showNotification(t("resetPassword.passwordsNoMatch"), "error");
       return;
     }
 
@@ -112,22 +111,16 @@ function ResetPasswordContent() {
 
       const data = await response.json();
       if (response.ok) {
-        showNotification(
-          "Heslo změněno. Přesměrovávám na přihlášení...",
-          "success",
-        );
+        showNotification(t("resetPassword.resetSuccess"), "success");
         setTimeout(() => router.push("/"), 1500);
       } else {
         showNotification(
-          data.error || "Nepodařilo se změnit heslo.",
+          translateApiError(locale, data.code, data.error || t("resetPassword.resetFailed")),
           "error",
         );
       }
     } catch {
-      showNotification(
-        "Chyba sítě. Zkontroluj připojení a zkus to znovu.",
-        "error",
-      );
+      showNotification(t("resetPassword.networkError"), "error");
     } finally {
       setLoading(false);
     }
@@ -137,11 +130,11 @@ function ResetPasswordContent() {
     <AuthBackground>
       <div className="w-full max-w-md">
         <AuthPageHeader
-          badge={hasToken ? "NOVÉ HESLO" : "ZAPOMENUTÉ HESLO"}
+          badge={hasToken ? t("resetPassword.badgeNew") : t("resetPassword.badgeForgot")}
           subtitle={
             hasToken
-              ? "Zadej nové heslo pro svůj účet."
-              : "Zadej email a pošleme ti odkaz na reset. Zkontroluj i spam."
+              ? t("resetPassword.subtitleNew")
+              : t("resetPassword.subtitleForgot")
           }
         />
 
@@ -153,7 +146,7 @@ function ResetPasswordContent() {
                   htmlFor="email"
                   className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
                 >
-                  Email
+                  {t("resetPassword.email")}
                 </label>
                 <input
                   id="email"
@@ -162,12 +155,12 @@ function ResetPasswordContent() {
                   onChange={(e) => setEmail(e.target.value)}
                   required
                   className="w-full rounded-xl border border-gray-200 bg-white/80 px-3 py-2.5 transition-colors focus:border-transparent focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700/80 dark:text-white"
-                  placeholder="tvuj@email.cz"
+                  placeholder={t("resetPassword.emailPlaceholder")}
                 />
               </div>
 
-              <AuthSubmitButton loading={loading} loadingText="Odesílám...">
-                Poslat odkaz →
+              <AuthSubmitButton loading={loading} loadingText={t("resetPassword.sending")}>
+                {t("resetPassword.sendLink")}
               </AuthSubmitButton>
             </form>
           ) : (
@@ -177,14 +170,14 @@ function ResetPasswordContent() {
                   htmlFor="password"
                   className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
                 >
-                  Nové heslo
+                  {t("resetPassword.newPassword")}
                 </label>
                 <PasswordInput
                   id="password"
                   name="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Tvoje nové heslo"
+                  placeholder={t("resetPassword.newPasswordPlaceholder")}
                   showPassword={showPassword}
                   onToggleShowPassword={() => setShowPassword(!showPassword)}
                   required
@@ -199,14 +192,14 @@ function ResetPasswordContent() {
                   htmlFor="confirmPassword"
                   className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
                 >
-                  Potvrzení hesla
+                  {t("resetPassword.confirmPassword")}
                 </label>
                 <PasswordInput
                   id="confirmPassword"
                   name="confirmPassword"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder="Zopakuj heslo"
+                  placeholder={t("resetPassword.confirmPasswordPlaceholder")}
                   showPassword={showConfirmPassword}
                   onToggleShowPassword={() =>
                     setShowConfirmPassword(!showConfirmPassword)
@@ -215,8 +208,8 @@ function ResetPasswordContent() {
                 />
               </div>
 
-              <AuthSubmitButton loading={loading} loadingText="Ukládám...">
-                Změnit heslo →
+              <AuthSubmitButton loading={loading} loadingText={t("resetPassword.saving")}>
+                {t("resetPassword.reset")}
               </AuthSubmitButton>
             </form>
           )}
@@ -227,7 +220,7 @@ function ResetPasswordContent() {
               onClick={() => router.push("/")}
               className="font-medium text-gray-600 transition-colors hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200"
             >
-              ← Zpět na přihlášení
+              {t("resetPassword.backToLogin")}
             </button>
           </div>
         </AuthCard>

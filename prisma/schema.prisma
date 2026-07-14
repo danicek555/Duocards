@@ -17,6 +17,7 @@ model User {
   createdAt         DateTime           @default(now())
   updatedAt         DateTime           @updatedAt
   nickname          String             @default("User")
+  locale            String             @default("cs")
   emailVerified     Boolean            @default(true)
   coins             Int                @default(100)
   lastDailyReward   DateTime?
@@ -48,6 +49,7 @@ model PendingRegistration {
   email                   String   @unique
   password                String
   nickname                String
+  locale                  String   @default("cs")
   createdAt               DateTime @default(now())
   verificationCode        String
   verificationCodeExpires DateTime
