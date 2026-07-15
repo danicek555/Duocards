@@ -33,7 +33,10 @@ npm run dev:backend
 ```
 
 Do `backend/.env` doplň stejnou databázovou adresu a stejný `AUTH_SECRET`, jaký
-používá web. Backend standardně poslouchá na `http://localhost:4000`.
+používá web. Pro skutečné ověřovací e-maily nastav `RESEND_API_KEY` a
+`FROM_EMAIL`; čistě lokálně lze s `NODE_ENV=development` explicitně použít
+`VERIFICATION_EMAIL_MODE=console`. Backend standardně poslouchá na
+`http://localhost:4000`.
 
 Před prvním `prisma migrate deploy` je nutné ověřit zkopírovanou migration
 baseline proti tabulce `_prisma_migrations` cílové databáze. Detailní bezpečný
@@ -56,9 +59,11 @@ npm run dev:web
 ```
 
 Web bude přes same-origin `/shared-api` proxy používat nový backend pro login,
-session, logout, seznam/detail sad, coiny a čtení word media. Zatím
-nepřemigrované create, AI, public a live mutace zůstávají na původních Next.js
-`/api` routách, takže web může fungovat během postupné migrace.
+registraci, ověření e-mailu, resend ověřovacího kódu, session, logout,
+seznam/detail sad, coiny a čtení word media. Staré identity cesty
+`/api/auth/register|verify|resend` jsou jen kompatibilní 307 aliasy do stejného
+backendu, takže neexistuje druhý slabší registrační flow. Zatím nepřemigrované
+AI, public a live mutace zůstávají na původních Next.js `/api` routách.
 
 ### 3. iOS v Xcode
 
@@ -72,20 +77,22 @@ proměnnou prostředí `DUOCARDS_API_BASE_URL` na HTTPS vývojovou adresu dostup
 z telefonu. Další možnosti konfigurace a terminálový build jsou v
 `ios/README.md`.
 
-## Co je hotové v prvním řezu
+## Co je hotové v aktuálních řezech
 
 - oddělený backend s kompatibilní cookie session a jednotným `/api/v1` error
   kontraktem;
-- webový adaptér a proxy na nový backend s legacy fallbackem;
+- webový adaptér, same-origin proxy a bezpečné compatibility identity aliasy;
 - iOS session restore, login/logout, dashboard, coiny, detail sady a základní
   studium karet;
+- bezpečná e-mailová registrace na webu i iOS, šest číslic, resend a
+  automatické přihlášení po ověření;
 - bezpečné backendové a nativní iOS vytvoření, úprava a smazání
   privátní textové sady včetně stabilních ID kartiček;
 - backend unit testy, TypeScript build a iOS unit test target.
 
-Nejde zatím o hotovou 1:1 kopii celé aplikace. Registrace, reset hesla,
-pokročilý editor s AI a médii, veřejná knihovna a live funkcionalita jsou
-další migrační vertikály popsané v implementačním plánu.
+Nejde zatím o hotovou 1:1 kopii celé aplikace. Reset hesla, pokročilý editor
+s AI a médii, veřejná knihovna a live funkcionalita jsou další migrační
+vertikály popsané v implementačním plánu.
 
 ## Kontroly
 
