@@ -17,6 +17,7 @@ import { LanguageSelect } from "@/components/LanguageSwitcher";
 import { useI18n } from "@/i18n/I18nProvider";
 import { translateApiError } from "@/i18n/translate";
 import { isLocale, type Locale } from "@/i18n/types";
+import { apiFetch, parseApiError } from "@/lib/apiUrl";
 
 export default function HomeClient() {
   const { locale, setLocale, t } = useI18n();
@@ -140,19 +141,16 @@ export default function HomeClient() {
 
     try {
       if (isLogin) {
-        const response = await fetch(
-          `${process.env.NEXT_PUBLIC_API_BASE_URL || "/api"}/auth/login`,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              email: formData.email,
-              password: formData.password,
-            }),
+        const response = await apiFetch("/auth/login", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
           },
-        );
+          body: JSON.stringify({
+            email: formData.email,
+            password: formData.password,
+          }),
+        });
 
         const data = await response.json();
 
@@ -170,8 +168,9 @@ export default function HomeClient() {
 
           window.location.href = "/dashboard";
         } else {
+          const apiError = parseApiError(data, t("auth.loginFailed"));
           showNotification(
-            translateApiError(locale, data.code, data.error || t("auth.loginFailed")),
+            translateApiError(locale, apiError.code, apiError.message),
             "error",
           );
         }
@@ -225,8 +224,9 @@ export default function HomeClient() {
             window.location.href = "/dashboard";
           }
         } else {
+          const apiError = parseApiError(data, t("auth.registerFailed"));
           showNotification(
-            translateApiError(locale, data.code, data.error || t("auth.registerFailed")),
+            translateApiError(locale, apiError.code, apiError.message),
             "error",
           );
         }

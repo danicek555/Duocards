@@ -19,6 +19,7 @@ import { isLocale } from "@/i18n/types";
 import { getLanguageFlag } from "@/lib/flags";
 import { getLanguageLabel, LANGUAGES } from "@/lib/languages";
 import { getGuestLiveGameBaseUrl } from "@/lib/publicUrls";
+import { apiFetch } from "@/lib/apiUrl";
 
 interface User {
   id: number;
@@ -156,7 +157,7 @@ export default function Dashboard() {
 
   const fetchCoins = async () => {
     try {
-      const response = await fetch("/api/user/coins");
+      const response = await apiFetch("/user/coins");
       if (response.ok) {
         const data = await response.json();
         setCoins(data.coins);
@@ -208,9 +209,7 @@ export default function Dashboard() {
 
       // OAuth / cookie-only session (e.g. Google login)
       try {
-        const response = await fetch(
-          `${process.env.NEXT_PUBLIC_API_BASE_URL || "/api"}/auth/me`
-        );
+        const response = await apiFetch("/auth/me");
         if (!response.ok) {
           throw new Error("Unauthorized");
         }
@@ -312,7 +311,7 @@ export default function Dashboard() {
 
   const fetchFlashcardSets = async () => {
     try {
-      const response = await fetch("/api/flashcard-sets");
+      const response = await apiFetch("/flashcard-sets");
       if (response.ok) {
         const data = await response.json();
         setFlashcardSets(data.flashcardSets || []);
@@ -331,7 +330,7 @@ export default function Dashboard() {
   const handleLogout = async () => {
     try {
       // Call logout API to clear auth cookie
-      await fetch("/api/auth/logout", {
+      await apiFetch("/auth/logout", {
         method: "POST",
       });
     } catch (error) {
@@ -368,7 +367,7 @@ export default function Dashboard() {
     setViewMode("cards");
 
     try {
-      const response = await fetch(`/api/flashcard-sets/${set.id}`);
+      const response = await apiFetch(`/flashcard-sets/${set.id}`);
       if (response.ok) {
         const data = await response.json();
         setSelectedSet((prev) => {
@@ -495,7 +494,7 @@ export default function Dashboard() {
   const handleEditSet = async (setId: number) => {
     setLoadingEditId(setId);
     try {
-      const response = await fetch(`/api/flashcard-sets/${setId}`);
+      const response = await apiFetch(`/flashcard-sets/${setId}`);
       if (response.ok) {
         const data = await response.json();
         setEditingSetData(data.flashcardSet);
@@ -592,7 +591,7 @@ export default function Dashboard() {
 
     const fetchImage = async (id: number) => {
       try {
-        const response = await fetch(`/api/word-images/${id}`, {
+        const response = await apiFetch(`/word-images/${id}`, {
           signal: abort.signal,
         });
         if (response.ok) {
@@ -613,7 +612,7 @@ export default function Dashboard() {
 
     const fetchAudio = async (id: number) => {
       try {
-        const response = await fetch(`/api/word-audio/${id}`, {
+        const response = await apiFetch(`/word-audio/${id}`, {
           signal: abort.signal,
         });
         if (response.ok) {

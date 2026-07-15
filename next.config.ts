@@ -4,6 +4,23 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   outputFileTracingRoot: __dirname,
   output: "standalone",
+  async rewrites() {
+    const sharedBackendUrl = process.env.SHARED_BACKEND_URL?.trim().replace(
+      /\/+$/,
+      "",
+    );
+
+    if (!sharedBackendUrl) {
+      return [];
+    }
+
+    return [
+      {
+        source: "/shared-api/:path*",
+        destination: `${sharedBackendUrl}/api/v1/:path*`,
+      },
+    ];
+  },
   webpack: (config, { isServer }) => {
     if (!isServer) {
       // Exclude pg and adapter from client bundle

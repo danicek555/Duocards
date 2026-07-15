@@ -4,7 +4,12 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "dev:web": "next dev",
+    "dev:backend": "npm --prefix backend run dev",
     "build": "prisma migrate deploy && prisma generate && next build",
+    "build:backend": "npm --prefix backend run build",
+    "test:backend": "npm --prefix backend test",
+    "build:ios": "xcodebuild -project ios/DuoCards.xcodeproj -scheme DuoCards -sdk iphonesimulator -configuration Debug -derivedDataPath /tmp/DuoCardsDerivedData CODE_SIGNING_ALLOWED=NO build",
     "build:prod": "prisma migrate deploy && prisma generate && next build",
     "build:vercel": "prisma migrate deploy && prisma generate && next build",
     "start": "next start",

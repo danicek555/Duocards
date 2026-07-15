@@ -4,6 +4,7 @@ import { useMemo, useState, useEffect } from "react";
 import { COIN_COSTS } from "@/lib/coin-costs";
 import { getLanguageLabel, LANGUAGES } from "@/lib/languages";
 import { useI18n } from "@/i18n/I18nProvider";
+import { apiFetch } from "@/lib/apiUrl";
 
 interface InlineAIGenerateFormProps {
   onSuccess: () => void;
@@ -65,7 +66,7 @@ export default function InlineAIGenerateForm({
   useEffect(() => {
     const fetchUniqueTagsCount = async () => {
       try {
-        const response = await fetch("/api/flashcard-sets");
+        const response = await apiFetch("/flashcard-sets");
         if (response.ok) {
           const data = await response.json();
           const flashcardSets = data.flashcardSets || [];
