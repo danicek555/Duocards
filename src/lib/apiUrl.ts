@@ -2,7 +2,8 @@ const legacyApiBaseUrl =
   process.env.NEXT_PUBLIC_API_BASE_URL?.trim() || "/api";
 
 const sharedApiBaseUrl =
-  process.env.NEXT_PUBLIC_SHARED_API_BASE_URL?.trim() || legacyApiBaseUrl;
+  process.env.NEXT_PUBLIC_SHARED_API_BASE_URL?.trim() ||
+  (process.env.NODE_ENV === "production" ? "/shared-api" : legacyApiBaseUrl);
 
 function trimTrailingSlashes(value: string): string {
   return value.replace(/\/+$/, "");
@@ -11,8 +12,8 @@ function trimTrailingSlashes(value: string): string {
 /**
  * Builds a URL for endpoints already available on the shared backend.
  *
- * Set NEXT_PUBLIC_SHARED_API_BASE_URL=/shared-api to opt in. When it is not
- * configured, callers continue to use the existing API base (or /api).
+ * Production defaults to the same-origin /shared-api proxy. Local development
+ * continues to use the existing API base unless explicitly configured.
  */
 export function apiUrl(path: string): string {
   const normalizedPath = path.startsWith("/") ? path : `/${path}`;

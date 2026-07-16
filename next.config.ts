@@ -1,6 +1,9 @@
 import { withSentryConfig } from "@sentry/nextjs";
 import type { NextConfig } from "next";
 
+const productionSharedBackendUrl =
+  "https://duocards-backend-731652720086.europe-west1.run.app";
+
 const nextConfig: NextConfig = {
   outputFileTracingRoot: __dirname,
   output: "standalone",
@@ -13,10 +16,13 @@ const nextConfig: NextConfig = {
     ];
   },
   async rewrites() {
-    const sharedBackendUrl = process.env.SHARED_BACKEND_URL?.trim().replace(
-      /\/+$/,
-      "",
-    );
+    const configuredSharedBackendUrl = process.env.SHARED_BACKEND_URL?.trim();
+    const sharedBackendUrl = (
+      configuredSharedBackendUrl ||
+      (process.env.NODE_ENV === "production"
+        ? productionSharedBackendUrl
+        : "")
+    ).replace(/\/+$/, "");
 
     if (!sharedBackendUrl) {
       return [];

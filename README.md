@@ -53,6 +53,11 @@ SHARED_BACKEND_URL=http://127.0.0.1:4000
 NEXT_PUBLIC_SHARED_API_BASE_URL=/shared-api
 ```
 
+V produkčním buildu web standardně proxyuje `/shared-api` na
+`https://duocards-backend-731652720086.europe-west1.run.app/api/v1`. Obě hodnoty
+lze přepsat proměnnými `SHARED_BACKEND_URL` a
+`NEXT_PUBLIC_SHARED_API_BASE_URL` bez změny zdrojového kódu.
+
 Potom spusť:
 
 ```sh
