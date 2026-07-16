@@ -35,7 +35,9 @@ npm run dev:backend
 Do `backend/.env` doplň stejnou databázovou adresu a stejný `AUTH_SECRET`, jaký
 používá web. Pro skutečné ověřovací e-maily nastav `RESEND_API_KEY` a
 `FROM_EMAIL`; čistě lokálně lze s `NODE_ENV=development` explicitně použít
-`VERIFICATION_EMAIL_MODE=console`. Backend standardně poslouchá na
+`VERIFICATION_EMAIL_MODE=console`. `PUBLIC_APP_URL` nastav na veřejný origin
+webu, který bude hostovat odkazy pro obnovu hesla; lokálně typicky
+`http://localhost:3000`. Backend standardně poslouchá na
 `http://localhost:4000`.
 
 Před prvním `prisma migrate deploy` je nutné ověřit zkopírovanou migration
@@ -60,10 +62,11 @@ npm run dev:web
 
 Web bude přes same-origin `/shared-api` proxy používat nový backend pro login,
 registraci, ověření e-mailu, resend ověřovacího kódu, session, logout,
-seznam/detail sad, coiny a čtení word media. Staré identity cesty
-`/api/auth/register|verify|resend` jsou jen kompatibilní 307 aliasy do stejného
-backendu, takže neexistuje druhý slabší registrační flow. Zatím nepřemigrované
-AI, public a live mutace zůstávají na původních Next.js `/api` routách.
+obnovu hesla, seznam/detail sad, coiny a čtení word media. Staré identity
+cesty `/api/auth/register|verify|resend|forgot-password|reset-password` jsou jen
+kompatibilní 307 aliasy do stejného backendu, takže neexistuje druhý slabší
+flow. Zatím nepřemigrované AI, public a live mutace zůstávají na původních
+Next.js `/api` routách.
 
 ### 3. iOS v Xcode
 
@@ -86,13 +89,15 @@ z telefonu. Další možnosti konfigurace a terminálový build jsou v
   studium karet;
 - bezpečná e-mailová registrace na webu i iOS, šest číslic, resend a
   automatické přihlášení po ověření;
+- jednotná veřejná odpověď při vyžádání obnovy hesla, jednorázový 30minutový
+  reset token a nativní iOS flow pro vložení tokenu nebo celého HTTPS odkazu;
 - bezpečné backendové a nativní iOS vytvoření, úprava a smazání
   privátní textové sady včetně stabilních ID kartiček;
 - backend unit testy, TypeScript build a iOS unit test target.
 
-Nejde zatím o hotovou 1:1 kopii celé aplikace. Reset hesla, pokročilý editor
-s AI a médii, veřejná knihovna a live funkcionalita jsou další migrační
-vertikály popsané v implementačním plánu.
+Nejde zatím o hotovou 1:1 kopii celé aplikace. Dashboardové filtry a odměny,
+pokročilý editor s AI a médii, veřejná knihovna a live funkcionalita jsou
+další migrační vertikály popsané v implementačním plánu.
 
 ## Kontroly
 

@@ -4,6 +4,14 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   outputFileTracingRoot: __dirname,
   output: "standalone",
+  async headers() {
+    return [
+      {
+        source: "/reset-password",
+        headers: [{ key: "Referrer-Policy", value: "no-referrer" }],
+      },
+    ];
+  },
   async rewrites() {
     const sharedBackendUrl = process.env.SHARED_BACKEND_URL?.trim().replace(
       /\/+$/,

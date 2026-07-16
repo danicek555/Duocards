@@ -2,14 +2,19 @@ import "server-only";
 
 import { NextRequest, NextResponse } from "next/server";
 
-type SharedAuthPath = "/auth/register" | "/auth/verify" | "/auth/resend";
+type SharedAuthPath =
+  | "/auth/register"
+  | "/auth/verify"
+  | "/auth/resend"
+  | "/auth/forgot-password"
+  | "/auth/reset-password";
 
 function unavailableResponse(): NextResponse {
   return NextResponse.json(
     {
       error: {
         code: "SHARED_BACKEND_UNAVAILABLE",
-        message: "Registration service is temporarily unavailable.",
+        message: "Authentication service is temporarily unavailable.",
       },
     },
     { status: 503 },

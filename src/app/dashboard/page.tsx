@@ -196,19 +196,9 @@ export default function Dashboard() {
     };
 
     const loadSession = async () => {
-      const userData = localStorage.getItem("user");
-      if (userData) {
-        const parsedUser = JSON.parse(userData) as User;
-        setUser(parsedUser);
-        applyUserLocale(parsedUser);
-        fetchFlashcardSets();
-        fetchCoins();
-        fetchClaimedRewards();
-        return;
-      }
-
-      // OAuth / cookie-only session (e.g. Google login)
       try {
+        // localStorage is only a display cache. Always ask the backend so a
+        // password reset revokes this device on its next dashboard load.
         const response = await apiFetch("/auth/me");
         if (!response.ok) {
           throw new Error("Unauthorized");
@@ -221,10 +211,16 @@ export default function Dashboard() {
         fetchCoins();
         fetchClaimedRewards();
       } catch {
+        localStorage.removeItem("user");
+        try {
+          await apiFetch("/auth/logout", { method: "POST" });
+        } catch {
+          // The backend may be unavailable; local state is still cleared.
+        }
         window.dispatchEvent(
           new CustomEvent("dashboardLoading", { detail: { loading: false } })
         );
-        router.push("/");
+        router.replace("/");
       }
     };
 

@@ -1,7 +1,7 @@
 "use client";
 
-import { FormEvent, Suspense, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { FormEvent, useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import Notification from "@/components/Notification";
 import PasswordInput from "@/components/PasswordInput";
 import PasswordRequirements from "@/components/PasswordRequirements";
@@ -14,13 +14,16 @@ import AuthPageHeader from "@/components/AuthPageHeader";
 import AuthSubmitButton from "@/components/AuthSubmitButton";
 import { useI18n } from "@/i18n/I18nProvider";
 import { translateApiError } from "@/i18n/translate";
+import { apiFetch, parseApiError } from "@/lib/apiUrl";
+import { redactSensitiveUrl } from "@/lib/sentryPrivacy";
 
 function ResetPasswordContent() {
   const { locale, t } = useI18n();
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const token = searchParams.get("token") || "";
-  const hasToken = token.length > 0;
+  const [token, setToken] = useState<string | null>(null);
+  const didCaptureToken = useRef(false);
+  const redirectTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [resetCompleted, setResetCompleted] = useState(false);
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -37,6 +40,40 @@ function ResetPasswordContent() {
     type: "info",
     isVisible: false,
   });
+
+  useEffect(() => {
+    // Keep the secret only in component memory and remove it from browser history
+    // before the user can continue through the reset flow.
+    if (!didCaptureToken.current) {
+      didCaptureToken.current = true;
+
+      const currentUrl = new URL(window.location.href);
+      const fragmentParams = new URLSearchParams(currentUrl.hash.slice(1));
+      const capturedToken =
+        fragmentParams.get("token")?.trim() ||
+        currentUrl.searchParams.get("token")?.trim() ||
+        "";
+
+      setToken(capturedToken);
+
+      const redactedUrl = new URL(redactSensitiveUrl(currentUrl.href));
+      window.history.replaceState(
+        window.history.state,
+        "",
+        `${redactedUrl.pathname}${redactedUrl.search}${redactedUrl.hash}`,
+      );
+    }
+
+    return () => {
+      if (redirectTimeout.current) {
+        clearTimeout(redirectTimeout.current);
+      }
+    };
+  }, []);
+
+  if (token === null) return <AuthLoadingFallback />;
+
+  const hasToken = token.length > 0 || resetCompleted;
 
   const passwordValidation = validatePassword(password);
   const passwordsMatch =
@@ -56,21 +93,19 @@ function ResetPasswordContent() {
     setLoading(true);
 
     try {
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_BASE_URL || "/api"}/auth/forgot-password`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email }),
-        },
-      );
+      const response = await apiFetch("/auth/forgot-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
 
       const data = await response.json();
       if (response.ok) {
         showNotification(data.message || t("resetPassword.sendSuccess"), "success");
       } else {
+        const apiError = parseApiError(data, t("resetPassword.sendFailed"));
         showNotification(
-          translateApiError(locale, data.code, data.error || t("resetPassword.sendFailed")),
+          translateApiError(locale, apiError.code, apiError.message),
           "error",
         );
       }
@@ -100,22 +135,24 @@ function ResetPasswordContent() {
     setLoading(true);
 
     try {
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_BASE_URL || "/api"}/auth/reset-password`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ token, password }),
-        },
-      );
+      const response = await apiFetch("/auth/reset-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token, password }),
+      });
 
       const data = await response.json();
       if (response.ok) {
+        setToken("");
+        setPassword("");
+        setConfirmPassword("");
+        setResetCompleted(true);
         showNotification(t("resetPassword.resetSuccess"), "success");
-        setTimeout(() => router.push("/"), 1500);
+        redirectTimeout.current = setTimeout(() => router.push("/"), 1500);
       } else {
+        const apiError = parseApiError(data, t("resetPassword.resetFailed"));
         showNotification(
-          translateApiError(locale, data.code, data.error || t("resetPassword.resetFailed")),
+          translateApiError(locale, apiError.code, apiError.message),
           "error",
         );
       }
@@ -239,9 +276,5 @@ function ResetPasswordContent() {
 }
 
 export default function ResetPasswordPage() {
-  return (
-    <Suspense fallback={<AuthLoadingFallback />}>
-      <ResetPasswordContent />
-    </Suspense>
-  );
+  return <ResetPasswordContent />;
 }

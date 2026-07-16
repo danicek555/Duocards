@@ -175,7 +175,7 @@ export async function sendPasswordResetEmail(
         error: "Application URL is not configured (NEXT_PUBLIC_APP_URL).",
       };
     }
-    const resetUrl = `${appUrl}/reset-password?token=${encodeURIComponent(
+    const resetUrl = `${appUrl}/reset-password#token=${encodeURIComponent(
       token
     )}`;
 
@@ -276,7 +276,6 @@ export function isVerificationCodeExpired(
   const expiryTime = timestamp + expiryMinutes * 60 * 1000;
   return now > expiryTime;
 }
-
 
 
 
