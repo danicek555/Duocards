@@ -19,6 +19,7 @@ import {
   isContentViolationError,
 } from "@/lib/contentViolationClient";
 import { useI18n } from "@/i18n/I18nProvider";
+import { apiFetch } from "@/lib/apiUrl";
 
 type ChatMessage = {
   id: string;
@@ -317,7 +318,7 @@ function LiveGameContent() {
     setLoadingFlashcardSets(true);
     setFlashcardSetsError(null);
     try {
-      const res = await fetch("/api/flashcard-sets");
+      const res = await apiFetch("/flashcard-sets");
       if (res.status === 401) {
         setFlashcardSetsError(t("liveGame.mustLoginSets"));
         setFlashcardSetsList([]);
@@ -667,7 +668,7 @@ function LiveGameContent() {
       if (createGameMode === "practice") {
         const collected: PracticeWord[] = [];
         for (const id of selectedSetIds) {
-          const res = await fetch(`/api/flashcard-sets/${id}`);
+          const res = await apiFetch(`/flashcard-sets/${id}`);
           if (!res.ok) {
             throw new Error(`Could not load flashcard set (ID ${id}).`);
           }

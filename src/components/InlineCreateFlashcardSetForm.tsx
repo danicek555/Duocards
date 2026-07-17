@@ -7,6 +7,7 @@ import LanguageSelectors from "./LanguageSelectors";
 import AIHelpSection from "./AIHelpSection";
 import ImageUploadOCR from "./ImageUploadOCR";
 import { useI18n } from "@/i18n/I18nProvider";
+import { apiFetch } from "@/lib/apiUrl";
 
 interface WordPair {
   word: string;
@@ -321,7 +322,7 @@ export default function InlineCreateFlashcardSetForm({
   useEffect(() => {
     const fetchUniqueTagsCount = async () => {
       try {
-        const response = await fetch("/api/flashcard-sets");
+        const response = await apiFetch("/flashcard-sets");
         if (response.ok) {
           const data = await response.json();
           const flashcardSets = data.flashcardSets || [];

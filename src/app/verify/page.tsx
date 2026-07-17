@@ -13,6 +13,7 @@ import AuthSubmitButton from "@/components/AuthSubmitButton";
 import { useI18n } from "@/i18n/I18nProvider";
 import { translateApiError } from "@/i18n/translate";
 import { isLocale } from "@/i18n/types";
+import { apiFetch, parseApiError } from "@/lib/apiUrl";
 
 function VerifyEmailContent() {
   const { locale, setLocale, t } = useI18n();
@@ -111,19 +112,16 @@ function VerifyEmailContent() {
     setLoading(true);
 
     try {
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_BASE_URL || "/api"}/auth/verify`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            email: email,
-            code: code,
-          }),
+      const response = await apiFetch("/auth/verify", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
         },
-      );
+        body: JSON.stringify({
+          email: email,
+          code: code,
+        }),
+      });
 
       const data = await response.json();
 
@@ -144,8 +142,9 @@ function VerifyEmailContent() {
           router.push("/dashboard");
         }, 2000);
       } else {
+        const apiError = parseApiError(data, t("verify.verifyFailed"));
         showNotification(
-          translateApiError(locale, data.code, data.error || t("verify.verifyFailed")),
+          translateApiError(locale, apiError.code, apiError.message),
           "error",
         );
       }
@@ -160,18 +159,15 @@ function VerifyEmailContent() {
     setResendLoading(true);
 
     try {
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_BASE_URL || "/api"}/auth/resend`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            email: email,
-          }),
+      const response = await apiFetch("/auth/resend", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
         },
-      );
+        body: JSON.stringify({
+          email: email,
+        }),
+      });
 
       const data = await response.json();
 
@@ -179,8 +175,9 @@ function VerifyEmailContent() {
         showNotification(t("verify.resendSuccess"), "success");
         setTimeLeft(600);
       } else {
+        const apiError = parseApiError(data, t("verify.resendFailed"));
         showNotification(
-          translateApiError(locale, data.code, data.error || t("verify.resendFailed")),
+          translateApiError(locale, apiError.code, apiError.message),
           "error",
         );
       }

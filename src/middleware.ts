@@ -39,7 +39,9 @@ function requestHostname(req: NextRequest): string {
 async function verify(token: string | undefined): Promise<boolean> {
   if (!token) return false;
   try {
-    const [data, sig] = token.split(".");
+    const parts = token.split(".");
+    if (parts.length !== 2) return false;
+    const [data, sig] = parts;
     if (!data || !sig) return false;
     const encoder = new TextEncoder();
     const key = await crypto.subtle.importKey(
@@ -61,10 +63,25 @@ async function verify(token: string | undefined): Promise<boolean> {
     );
     if (!valid) return false;
     const payload = JSON.parse(Buffer.from(data, "base64url").toString()) as {
+      userId?: number;
+      email?: string;
+      credentialVersion?: string;
       exp?: number;
     };
-    if (!payload.exp || payload.exp < Math.floor(Date.now() / 1000))
+    if (
+      typeof payload.userId !== "number" ||
+      !Number.isInteger(payload.userId) ||
+      payload.userId <= 0 ||
+      typeof payload.email !== "string" ||
+      payload.email.length === 0 ||
+      typeof payload.credentialVersion !== "string" ||
+      !/^[A-Za-z0-9_-]{43}$/u.test(payload.credentialVersion) ||
+      typeof payload.exp !== "number" ||
+      !Number.isFinite(payload.exp) ||
+      payload.exp <= Math.floor(Date.now() / 1000)
+    ) {
       return false;
+    }
     return true;
   } catch {
     return false;

@@ -6,7 +6,9 @@
  * recommended by OWASP for maximum security.
  */
 
+import { createHmac, timingSafeEqual } from "node:crypto";
 import argon2 from "argon2";
+import { prisma } from "@/lib/prisma";
 
 /**
  * Hash a password using Argon2id with secure parameters
@@ -198,15 +200,51 @@ function getAuthSecret(): string {
 export interface AuthPayload {
   userId: number;
   email: string;
+  credentialVersion: string;
   exp: number; // epoch seconds
 }
 
+const CREDENTIAL_VERSION_CONTEXT = Buffer.from(
+  "duocards-auth-credential-version:v1\0",
+  "utf8",
+);
+
+function deriveCredentialVersion(passwordHash: string): string {
+  return createHmac("sha256", getAuthSecret())
+    .update(CREDENTIAL_VERSION_CONTEXT)
+    .update(Buffer.from(passwordHash, "utf8"))
+    .digest("base64url");
+}
+
+function credentialVersionsMatch(
+  providedVersion: string,
+  expectedVersion: string,
+): boolean {
+  if (!/^[A-Za-z0-9_-]{43}$/u.test(providedVersion)) return false;
+
+  try {
+    const provided = Buffer.from(providedVersion, "base64url");
+    const expected = Buffer.from(expectedVersion, "base64url");
+
+    return (
+      provided.length === expected.length && timingSafeEqual(provided, expected)
+    );
+  } catch {
+    return false;
+  }
+}
+
 export async function createAuthToken(
-  payload: Omit<AuthPayload, "exp">,
+  payload: Pick<AuthPayload, "userId" | "email">,
+  verifiedPasswordHash: string,
   ttlSeconds = 60 * 60 * 24 * 7
 ): Promise<string> {
   const exp = Math.floor(Date.now() / 1000) + ttlSeconds;
-  const body: AuthPayload = { ...payload, exp } as AuthPayload;
+  const body: AuthPayload = {
+    ...payload,
+    credentialVersion: deriveCredentialVersion(verifiedPasswordHash),
+    exp,
+  };
   const data = Buffer.from(JSON.stringify(body)).toString("base64url");
   const encoder = new TextEncoder();
   const key = await crypto.subtle.importKey(
@@ -225,30 +263,67 @@ export async function verifyAuthToken(
   token: string | undefined
 ): Promise<AuthPayload | null> {
   if (!token) return null;
-  const [data, sig] = token.split(".");
+  const parts = token.split(".");
+  if (parts.length !== 2) return null;
+  const [data, sig] = parts;
   if (!data || !sig) return null;
-  const encoder = new TextEncoder();
-  const key = await crypto.subtle.importKey(
-    "raw",
-    encoder.encode(getAuthSecret()),
-    { name: "HMAC", hash: { name: "SHA-256" } },
-    false,
-    ["sign", "verify"]
-  );
-  const valid = await crypto.subtle.verify(
-    "HMAC",
-    key,
-    Buffer.from(sig, "base64url"),
-    encoder.encode(data)
-  );
-  if (!valid) return null;
+
+  let payload: AuthPayload;
   try {
-    const payload = JSON.parse(
+    const encoder = new TextEncoder();
+    const key = await crypto.subtle.importKey(
+      "raw",
+      encoder.encode(getAuthSecret()),
+      { name: "HMAC", hash: { name: "SHA-256" } },
+      false,
+      ["verify"]
+    );
+    const valid = await crypto.subtle.verify(
+      "HMAC",
+      key,
+      Buffer.from(sig, "base64url"),
+      encoder.encode(data)
+    );
+    if (!valid) return null;
+
+    const decoded = JSON.parse(
       Buffer.from(data, "base64url").toString()
-    ) as AuthPayload;
-    if (payload.exp < Math.floor(Date.now() / 1000)) return null;
-    return payload;
+    ) as Partial<AuthPayload>;
+    if (
+      typeof decoded.userId !== "number" ||
+      !Number.isInteger(decoded.userId) ||
+      decoded.userId <= 0 ||
+      typeof decoded.email !== "string" ||
+      decoded.email.length === 0 ||
+      typeof decoded.credentialVersion !== "string" ||
+      decoded.credentialVersion.length === 0 ||
+      typeof decoded.exp !== "number" ||
+      !Number.isFinite(decoded.exp) ||
+      decoded.exp <= Math.floor(Date.now() / 1000)
+    ) {
+      return null;
+    }
+
+    payload = {
+      userId: decoded.userId,
+      email: decoded.email,
+      credentialVersion: decoded.credentialVersion,
+      exp: decoded.exp,
+    };
   } catch {
     return null;
   }
+
+  const user = await prisma.user.findUnique({
+    where: { id: payload.userId },
+    select: { email: true, password: true },
+  });
+  if (!user || user.email !== payload.email) return null;
+
+  const expectedVersion = deriveCredentialVersion(user.password);
+  if (!credentialVersionsMatch(payload.credentialVersion, expectedVersion)) {
+    return null;
+  }
+
+  return payload;
 }
