@@ -1,8 +1,14 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import { useI18n } from "@/i18n/I18nProvider";
+import {
+  getApiBackendSource,
+  isVercelBackendForced,
+  subscribeApiBackendSource,
+  type ApiBackendSource,
+} from "@/lib/apiUrl";
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -18,6 +24,12 @@ export default function SettingsModal({
   onOpenLiveGameHistory,
 }: SettingsModalProps) {
   const { t } = useI18n();
+  const [backendSource, setBackendSource] = useState<ApiBackendSource>(
+    getApiBackendSource,
+  );
+  const vercelForced = isVercelBackendForced();
+
+  useEffect(() => subscribeApiBackendSource(setBackendSource), []);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -48,7 +60,7 @@ export default function SettingsModal({
         role="dialog"
         aria-modal="true"
         aria-labelledby="settings-title"
-        className="relative w-full max-w-lg overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl dark:border-gray-700 dark:bg-gray-800"
+        className="relative max-h-[90vh] w-full max-w-lg overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl dark:border-gray-700 dark:bg-gray-800"
       >
         <div className="flex items-center justify-between border-b border-gray-200 bg-gradient-to-r from-blue-50 to-purple-50 px-6 py-5 dark:border-gray-700 dark:from-blue-900/20 dark:to-purple-900/20">
           <div className="flex items-center gap-3">
@@ -72,11 +84,53 @@ export default function SettingsModal({
           </button>
         </div>
 
-        <div className="space-y-4 p-6">
+        <div className="max-h-[calc(90vh-88px)] space-y-4 overflow-y-auto p-6">
           <section className="rounded-xl border border-gray-200 p-4 dark:border-gray-700">
             <h3 className="mb-1 font-semibold text-gray-900 dark:text-white">{t("settings.appLanguage")}</h3>
             <p className="mb-3 text-sm text-gray-500 dark:text-gray-400">{t("settings.appLanguageHint")}</p>
             <LanguageSwitcher compact />
+          </section>
+
+          <section className="rounded-xl border border-gray-200 p-4 dark:border-gray-700">
+            <div className="flex items-start gap-3">
+              <div className="rounded-xl bg-emerald-100 p-2.5 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">
+                <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7h16M4 12h16M4 17h16M6 5v4m0 2v4m0 2v2" />
+                </svg>
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <h3 className="font-semibold text-gray-900 dark:text-white">
+                    {t("settings.apiBackendTitle")}
+                  </h3>
+                  <span
+                    className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
+                      backendSource === "cloud-run"
+                        ? "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300"
+                        : backendSource === "vercel"
+                          ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300"
+                          : "bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300"
+                    }`}
+                  >
+                    {backendSource === "cloud-run"
+                      ? t("settings.apiBackendCloudRun")
+                      : backendSource === "vercel"
+                        ? t("settings.apiBackendVercel")
+                        : t("settings.apiBackendUnknown")}
+                  </span>
+                </div>
+                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                  {t("settings.apiBackendHint")}
+                </p>
+                <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                  {t(
+                    vercelForced
+                      ? "settings.apiBackendForcedHint"
+                      : "settings.apiBackendAutoHint",
+                  )}
+                </p>
+              </div>
+            </div>
           </section>
 
           <button

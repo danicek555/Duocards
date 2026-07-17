@@ -169,6 +169,13 @@ export const cs = {
     aiCoinsHint: "Podívej se, za co se mince používají a kolik stojí AI funkce.",
     liveGameHistoryTitle: "Historie live her",
     liveGameHistoryHint: "Prohlédni si výsledky a statistiky odehraných her.",
+    apiBackendTitle: "Aktivní API backend",
+    apiBackendHint: "Backend použitý pro poslední úspěšný API požadavek.",
+    apiBackendCloudRun: "Google Cloud Run",
+    apiBackendVercel: "Vercel fallback",
+    apiBackendUnknown: "Zatím nezjištěno",
+    apiBackendForcedHint: "Cloud Run je v tomto nasazení vypnutý a web používá pouze Vercel.",
+    apiBackendAutoHint: "Při výpadku Cloud Run se web automaticky přepne na Vercel.",
   },
   dashboard: {
     title: "Tvoje balíčky kartiček",
