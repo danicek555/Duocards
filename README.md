@@ -51,6 +51,8 @@ Do lokálního root `.env` přidej:
 ```dotenv
 SHARED_BACKEND_URL=http://127.0.0.1:4000
 NEXT_PUBLIC_SHARED_API_BASE_URL=/shared-api
+# Volitelně vynutí vestavěný Vercel API fallback:
+NEXT_PUBLIC_API_BACKEND=vercel
 ```
 
 V produkčním buildu web standardně proxyuje `/shared-api` na
@@ -62,6 +64,9 @@ Pokud Cloud Run neodpoví, vrátí 5xx nebo překročí osm sekund, web přepne 
 vlastní Vercel `/api` routy. Před zápisovými požadavky nejdřív kontroluje health
 endpoint, aby zbytečně neposlal stejný zápis na oba backendy. Vercel a Cloud Run
 musí používat stejnou databázi a stejný `AUTH_SECRET`.
+Aktivní backend je vidět v dashboardovém Nastavení podle posledního úspěšného
+API požadavku. Hodnota `NEXT_PUBLIC_API_BACKEND=vercel` Cloud Run pro web úplně
+obejde; bez ní zůstává automatický režim Cloud Run → Vercel fallback.
 
 Potom spusť:
 

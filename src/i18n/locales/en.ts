@@ -170,6 +170,13 @@ export const en = {
     aiCoinsHint: "See what coins are used for and how much AI features cost.",
     liveGameHistoryTitle: "Live Game History",
     liveGameHistoryHint: "View results and stats from your completed games.",
+    apiBackendTitle: "Active API backend",
+    apiBackendHint: "Backend used for the most recent successful API request.",
+    apiBackendCloudRun: "Google Cloud Run",
+    apiBackendVercel: "Vercel fallback",
+    apiBackendUnknown: "Not detected yet",
+    apiBackendForcedHint: "Cloud Run is disabled for this deployment and the web uses Vercel only.",
+    apiBackendAutoHint: "If Cloud Run is unavailable, the web automatically switches to Vercel.",
   },
   dashboard: {
     title: "Your Flashcard Sets",

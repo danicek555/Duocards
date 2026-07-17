@@ -8,6 +8,9 @@ const sharedApiBaseUrl =
 const sharedHealthUrl =
   process.env.NEXT_PUBLIC_SHARED_HEALTH_URL?.trim() || "/shared-health";
 
+const forceVercelApi =
+  process.env.NEXT_PUBLIC_API_BACKEND?.trim().toLowerCase() === "vercel";
+
 const primaryTimeoutMs = 8_000;
 const healthCacheMs = 20_000;
 const circuitBreakerMs = 30_000;
@@ -15,6 +18,32 @@ const circuitBreakerMs = 30_000;
 let cloudUnavailableUntil = 0;
 let lastHealthyAt = 0;
 let healthCheck: Promise<boolean> | null = null;
+
+export type ApiBackendSource = "cloud-run" | "vercel" | "unknown";
+
+let lastBackendSource: ApiBackendSource = "unknown";
+const backendSourceListeners = new Set<(source: ApiBackendSource) => void>();
+
+export function getApiBackendSource(): ApiBackendSource {
+  return lastBackendSource;
+}
+
+export function isVercelBackendForced(): boolean {
+  return forceVercelApi;
+}
+
+export function subscribeApiBackendSource(
+  listener: (source: ApiBackendSource) => void,
+): () => void {
+  backendSourceListeners.add(listener);
+  return () => backendSourceListeners.delete(listener);
+}
+
+function setApiBackendSource(source: ApiBackendSource): void {
+  if (lastBackendSource === source) return;
+  lastBackendSource = source;
+  for (const listener of backendSourceListeners) listener(source);
+}
 
 function trimTrailingSlashes(value: string): string {
   return value.replace(/\/+$/, "");
@@ -127,11 +156,16 @@ function shouldFallbackFromResponse(
   return [502, 503, 504].includes(response.status);
 }
 
-function fetchLegacy(path: string, init: RequestInit): Promise<Response> {
-  return fetch(legacyApiUrl(path), {
+async function fetchLegacy(
+  path: string,
+  init: RequestInit,
+): Promise<Response> {
+  const response = await fetch(legacyApiUrl(path), {
     ...init,
     credentials: init.credentials ?? "include",
   });
+  setApiBackendSource("vercel");
+  return response;
 }
 
 /**
@@ -148,7 +182,10 @@ export async function apiFetch(
   };
   const method = requestMethod(requestInit);
 
-  if (trimTrailingSlashes(sharedApiBaseUrl) === trimTrailingSlashes(legacyApiBaseUrl)) {
+  if (
+    forceVercelApi ||
+    trimTrailingSlashes(sharedApiBaseUrl) === trimTrailingSlashes(legacyApiBaseUrl)
+  ) {
     return fetchLegacy(path, requestInit);
   }
 
@@ -168,6 +205,7 @@ export async function apiFetch(
     );
     if (!shouldFallbackFromResponse(response, method)) {
       markCloudHealthy();
+      setApiBackendSource("cloud-run");
       return response;
     }
 
