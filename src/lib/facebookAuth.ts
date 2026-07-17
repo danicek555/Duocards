@@ -112,6 +112,7 @@ export async function findOrCreateFacebookUser(profile: FacebookUserProfile) {
     select: {
       id: true,
       email: true,
+      password: true,
       nickname: true,
       createdAt: true,
     },
@@ -123,6 +124,7 @@ export async function findOrCreateFacebookUser(profile: FacebookUserProfile) {
     select: {
       id: true,
       email: true,
+      password: true,
       nickname: true,
       createdAt: true,
       facebookId: true,
@@ -140,6 +142,7 @@ export async function findOrCreateFacebookUser(profile: FacebookUserProfile) {
         select: {
           id: true,
           email: true,
+          password: true,
           nickname: true,
           createdAt: true,
         },
@@ -161,6 +164,7 @@ export async function findOrCreateFacebookUser(profile: FacebookUserProfile) {
     select: {
       id: true,
       email: true,
+      password: true,
       nickname: true,
       createdAt: true,
     },

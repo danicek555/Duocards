@@ -1,7 +1,7 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
 # dependencies
-/node_modules
+node_modules/
 /.pnp
 .pnp.*
 .yarn/*
@@ -19,10 +19,19 @@
 
 # production
 /build
+/backend/dist/
 
 # misc
 .DS_Store
 *.pem
+
+# Xcode / Swift
+DerivedData/
+*.xcuserstate
+xcuserdata/
+*.xccheckout
+*.moved-aside
+.swiftpm/
 
 # debug
 npm-debug.log*

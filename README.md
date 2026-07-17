@@ -1,31 +1,112 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# DuoCards
 
-## Getting Started
+DuoCards používá tři samostatně nasaditelné části, jednu PostgreSQL databázi a
+jeden verzovaný API kontrakt:
 
-First, run the development server:
-
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+```text
+web (Next.js) ----\
+                  >---- backend (Fastify /api/v1) ---- PostgreSQL
+iOS (SwiftUI) ----/
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Tento repozitář obsahuje web a lokální kopii backendu pro vývoj a záložní
+provoz. Produkční backend a iOS aplikace mají vlastní repozitáře:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+- [duocards-backend](https://github.com/danicek555/duocards-backend)
+- [duocards-ios](https://github.com/danicek555/duocards-ios)
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load fonts.
+## Struktura
 
-## Learn More
+- `src/` – existující web v Next.js;
+- `backend/` – lokální Fastify + TypeScript + Prisma backend;
+- `prisma/` – databázový model webového Vercel fallbacku.
 
-To learn more about Next.js, take a look at the following resources:
+## Lokální spuštění celé vertikály
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### 1. Backend
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-# Duocards
+```sh
+cp backend/.env.example backend/.env
+npm install --prefix backend
+npm --prefix backend run prisma:generate
+npm run dev:backend
+```
+
+Do `backend/.env` doplň stejnou databázovou adresu a stejný `AUTH_SECRET`, jaký
+používá web. Pro skutečné ověřovací e-maily nastav `RESEND_API_KEY` a
+`FROM_EMAIL`; čistě lokálně lze s `NODE_ENV=development` explicitně použít
+`VERIFICATION_EMAIL_MODE=console`. `PUBLIC_APP_URL` nastav na veřejný origin
+webu, který bude hostovat odkazy pro obnovu hesla; lokálně typicky
+`http://localhost:3000`. Backend standardně poslouchá na
+`http://localhost:4000`.
+
+Před prvním `prisma migrate deploy` je nutné ověřit zkopírovanou migration
+baseline proti tabulce `_prisma_migrations` cílové databáze. Detailní bezpečný
+postup je v `backend/README.md`.
+
+### 2. Web
+
+Do lokálního root `.env` přidej:
+
+```dotenv
+SHARED_BACKEND_URL=http://127.0.0.1:4000
+NEXT_PUBLIC_SHARED_API_BASE_URL=/shared-api
+```
+
+V produkčním buildu web standardně proxyuje `/shared-api` na
+`https://duocards-backend-731652720086.europe-west1.run.app/api/v1`. Obě hodnoty
+lze přepsat proměnnými `SHARED_BACKEND_URL` a
+`NEXT_PUBLIC_SHARED_API_BASE_URL` bez změny zdrojového kódu.
+
+Pokud Cloud Run neodpoví, vrátí 5xx nebo překročí osm sekund, web přepne na
+vlastní Vercel `/api` routy. Před zápisovými požadavky nejdřív kontroluje health
+endpoint, aby zbytečně neposlal stejný zápis na oba backendy. Vercel a Cloud Run
+musí používat stejnou databázi a stejný `AUTH_SECRET`.
+
+Potom spusť:
+
+```sh
+npm install
+npm run dev:web
+```
+
+Web bude přes same-origin `/shared-api` proxy používat nový backend pro login,
+registraci, ověření e-mailu, resend ověřovacího kódu, session, logout,
+obnovu hesla, seznam/detail sad, coiny a čtení word media. Identity cesty pod
+`/api/auth/*` zůstávají funkční jako Vercel záloha pro výpadek Cloud Run.
+Zatím nepřemigrované AI, public a live mutace zůstávají na původních
+Next.js `/api` routách.
+
+### 3. iOS v Xcode
+
+Nativní aplikaci otevři ze samostatného repozitáře
+[duocards-ios](https://github.com/danicek555/duocards-ios). Její README obsahuje
+postup pro Simulator, fyzický iPhone i lokální fallback backend.
+
+## Co je hotové v aktuálních řezech
+
+- oddělený backend s kompatibilní cookie session a jednotným `/api/v1` error
+  kontraktem;
+- webový adaptér, same-origin proxy a bezpečné compatibility identity aliasy;
+- iOS session restore, login/logout, dashboard, coiny, detail sady a základní
+  studium karet;
+- bezpečná e-mailová registrace na webu i iOS, šest číslic, resend a
+  automatické přihlášení po ověření;
+- jednotná veřejná odpověď při vyžádání obnovy hesla, jednorázový 30minutový
+  reset token a nativní iOS flow pro vložení tokenu nebo celého HTTPS odkazu;
+- bezpečné backendové a nativní iOS vytvoření, úprava a smazání
+  privátní textové sady včetně stabilních ID kartiček;
+- backend unit testy, TypeScript build a iOS unit test target.
+
+Nejde zatím o hotovou 1:1 kopii celé aplikace. Dashboardové filtry a odměny,
+pokročilý editor s AI a médii, veřejná knihovna a live funkcionalita jsou
+další migrační vertikály popsané v implementačním plánu.
+
+## Kontroly
+
+```sh
+npm --prefix backend run typecheck
+npm run test:backend
+npm run build:backend
+npx tsc --noEmit
+```
