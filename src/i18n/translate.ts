@@ -46,7 +46,7 @@ export function createTranslator(locale: Locale) {
     key: string,
     params?: Record<string, string | number>,
   ): string {
-    const value = getNestedValue(tree, key);
+    const value = getNestedValue(tree, key) ?? getNestedValue(messages.en, key);
     if (!value) return key;
     return interpolate(value, params);
   };
