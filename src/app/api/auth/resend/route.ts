@@ -1,8 +1,5 @@
-import { NextRequest } from "next/server";
-import { redirectSharedAuthPost } from "@/lib/sharedAuthRedirect";
+import { fallbackResend } from "@/lib/legacyAuthFallback";
 
 export const runtime = "nodejs";
 
-export function POST(request: NextRequest) {
-  return redirectSharedAuthPost(request, "/auth/resend");
-}
+export const POST = fallbackResend;

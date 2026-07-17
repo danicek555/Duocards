@@ -1,7 +1,7 @@
 # DuoCards
 
-DuoCards se postupně dělí na tři samostatně nasaditelné části, které používají
-jednu PostgreSQL databázi a jeden verzovaný API kontrakt:
+DuoCards používá tři samostatně nasaditelné části, jednu PostgreSQL databázi a
+jeden verzovaný API kontrakt:
 
 ```text
 web (Next.js) ----\
@@ -9,17 +9,17 @@ web (Next.js) ----\
 iOS (SwiftUI) ----/
 ```
 
-Repozitář je zatím záměrně monorepo, aby šlo bezpečně migrovat po jednotlivých
-funkcích. `backend/` i `ios/` lze po stabilizaci oddělit do vlastních GitHub
-repozitářů bez změny API kontraktu.
+Tento repozitář obsahuje web a lokální kopii backendu pro vývoj a záložní
+provoz. Produkční backend a iOS aplikace mají vlastní repozitáře:
+
+- [duocards-backend](https://github.com/danicek555/duocards-backend)
+- [duocards-ios](https://github.com/danicek555/duocards-ios)
 
 ## Struktura
 
 - `src/` – existující web v Next.js;
-- `backend/` – nový Fastify + TypeScript + Prisma backend;
-- `ios/` – nativní SwiftUI aplikace a Xcode projekt;
-- `prisma/` – současný legacy databázový model;
-- `ios/IMPLEMENTATION_PLAN.md` – plán úplné funkční a vizuální parity.
+- `backend/` – lokální Fastify + TypeScript + Prisma backend;
+- `prisma/` – databázový model webového Vercel fallbacku.
 
 ## Lokální spuštění celé vertikály
 
@@ -58,6 +58,11 @@ V produkčním buildu web standardně proxyuje `/shared-api` na
 lze přepsat proměnnými `SHARED_BACKEND_URL` a
 `NEXT_PUBLIC_SHARED_API_BASE_URL` bez změny zdrojového kódu.
 
+Pokud Cloud Run neodpoví, vrátí 5xx nebo překročí osm sekund, web přepne na
+vlastní Vercel `/api` routy. Před zápisovými požadavky nejdřív kontroluje health
+endpoint, aby zbytečně neposlal stejný zápis na oba backendy. Vercel a Cloud Run
+musí používat stejnou databázi a stejný `AUTH_SECRET`.
+
 Potom spusť:
 
 ```sh
@@ -67,23 +72,16 @@ npm run dev:web
 
 Web bude přes same-origin `/shared-api` proxy používat nový backend pro login,
 registraci, ověření e-mailu, resend ověřovacího kódu, session, logout,
-obnovu hesla, seznam/detail sad, coiny a čtení word media. Staré identity
-cesty `/api/auth/register|verify|resend|forgot-password|reset-password` jsou jen
-kompatibilní 307 aliasy do stejného backendu, takže neexistuje druhý slabší
-flow. Zatím nepřemigrované AI, public a live mutace zůstávají na původních
+obnovu hesla, seznam/detail sad, coiny a čtení word media. Identity cesty pod
+`/api/auth/*` zůstávají funkční jako Vercel záloha pro výpadek Cloud Run.
+Zatím nepřemigrované AI, public a live mutace zůstávají na původních
 Next.js `/api` routách.
 
 ### 3. iOS v Xcode
 
-1. Nech backend běžet na portu `4000`.
-2. Otevři `ios/DuoCards.xcodeproj` v Xcode.
-3. V horní liště vyber scheme **DuoCards** a libovolný iPhone Simulator.
-4. Stiskni **Cmd+R**.
-
-Simulator použije `http://localhost:4000`. Pro fyzický iPhone nastav ve scheme
-proměnnou prostředí `DUOCARDS_API_BASE_URL` na HTTPS vývojovou adresu dostupnou
-z telefonu. Další možnosti konfigurace a terminálový build jsou v
-`ios/README.md`.
+Nativní aplikaci otevři ze samostatného repozitáře
+[duocards-ios](https://github.com/danicek555/duocards-ios). Její README obsahuje
+postup pro Simulator, fyzický iPhone i lokální fallback backend.
 
 ## Co je hotové v aktuálních řezech
 
@@ -111,5 +109,4 @@ npm --prefix backend run typecheck
 npm run test:backend
 npm run build:backend
 npx tsc --noEmit
-npm run build:ios
 ```

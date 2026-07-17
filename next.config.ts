@@ -33,6 +33,10 @@ const nextConfig: NextConfig = {
         source: "/shared-api/:path*",
         destination: `${sharedBackendUrl}/api/v1/:path*`,
       },
+      {
+        source: "/shared-health",
+        destination: `${sharedBackendUrl}/health`,
+      },
     ];
   },
   webpack: (config, { isServer }) => {
