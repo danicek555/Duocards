@@ -55,10 +55,13 @@ export async function GET(request: NextRequest) {
     }
 
     const user = await findOrCreateFacebookUser(profile);
-    const token = await createAuthToken({
-      userId: user.id,
-      email: user.email,
-    });
+    const token = await createAuthToken(
+      {
+        userId: user.id,
+        email: user.email,
+      },
+      user.password,
+    );
 
     const dashboardUrl = request.nextUrl.clone();
     dashboardUrl.pathname = "/dashboard";

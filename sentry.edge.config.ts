@@ -4,6 +4,10 @@
 // https://docs.sentry.io/platforms/javascript/guides/nextjs/
 
 import * as Sentry from "@sentry/nextjs";
+import {
+  redactSentryBreadcrumb,
+  redactSentryEvent,
+} from "./src/lib/sentryPrivacy";
 
 Sentry.init({
   dsn: "https://3d324d3ebbc1267a272493b6054883d0@o4510268886220800.ingest.de.sentry.io/4510274874900560",
@@ -14,7 +18,8 @@ Sentry.init({
   // Enable logs to be sent to Sentry
   enableLogs: true,
 
-  // Enable sending user PII (Personally Identifiable Information)
-  // https://docs.sentry.io/platforms/javascript/guides/nextjs/configuration/options/#sendDefaultPii
-  sendDefaultPii: true,
+  sendDefaultPii: false,
+  beforeSend: redactSentryEvent,
+  beforeSendTransaction: redactSentryEvent,
+  beforeBreadcrumb: redactSentryBreadcrumb,
 });

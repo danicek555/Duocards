@@ -76,27 +76,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Debug logging in development
-    if (process.env.NODE_ENV === "development") {
-      console.log("Login attempt:", {
-        email: email.toLowerCase(),
-        userId: user.id,
-        passwordHashPrefix: user.password.substring(0, 20),
-        passwordHashLength: user.password.length,
-        isArgon2Hash: user.password.startsWith("$argon2"),
-      });
-    }
-
     // Compare provided password with stored hash
     const isPasswordValid = await comparePassword(password, user.password);
-
-    // Debug logging in development
-    if (process.env.NODE_ENV === "development") {
-      console.log("Password comparison result:", {
-        isValid: isPasswordValid,
-        passwordHashPrefix: user.password.substring(0, 20),
-      });
-    }
 
     if (!isPasswordValid) {
       return NextResponse.json(
@@ -106,7 +87,13 @@ export async function POST(request: NextRequest) {
     }
 
     // Create signed auth cookie
-    const token = await createAuthToken({ userId: user.id, email: user.email });
+    // Bind the cookie to the exact hash that was just verified. If a password
+    // reset wins the race before this cookie is used, credential-version
+    // validation rejects it instead of granting the old password a new session.
+    const token = await createAuthToken(
+      { userId: user.id, email: user.email },
+      user.password,
+    );
     const res = NextResponse.json(
       {
         message: "Login successful",

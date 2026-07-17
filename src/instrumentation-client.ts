@@ -3,17 +3,24 @@
 // https://docs.sentry.io/platforms/javascript/guides/nextjs/
 
 import * as Sentry from "@sentry/nextjs";
+import {
+  redactSentryBreadcrumb,
+  redactSentryEvent,
+} from "@/lib/sentryPrivacy";
 
 // Only initialize Sentry on the client when DSN is present
 if (process.env.NEXT_PUBLIC_SENTRY_DSN) {
   Sentry.init({
     dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
-    integrations: [Sentry.replayIntegration()],
+    // Replay is intentionally disabled. Its underlying rrweb metadata records
+    // window.location before React can remove a one-time reset capability from
+    // the URL, and beforeAddRecordingEvent cannot rewrite those base events.
     tracesSampleRate: 1,
     enableLogs: process.env.NODE_ENV !== "production",
-    replaysSessionSampleRate: 0.1,
-    replaysOnErrorSampleRate: 1.0,
-    sendDefaultPii: true,
+    sendDefaultPii: false,
+    beforeSend: redactSentryEvent,
+    beforeSendTransaction: redactSentryEvent,
+    beforeBreadcrumb: redactSentryBreadcrumb,
   });
 }
 
