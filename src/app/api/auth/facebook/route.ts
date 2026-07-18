@@ -5,6 +5,7 @@ import {
   getFacebookOAuthRedirectUri,
   isFacebookAuthConfigured,
 } from "@/lib/facebookAuth";
+import { OAUTH_REMEMBER_COOKIE_NAME } from "@/lib/authSession";
 
 export async function GET(request: NextRequest) {
   if (!isFacebookAuthConfigured()) {
@@ -26,6 +27,17 @@ export async function GET(request: NextRequest) {
     path: "/",
     maxAge: 60 * 10,
   });
+  response.cookies.set(
+    OAUTH_REMEMBER_COOKIE_NAME,
+    request.nextUrl.searchParams.get("rememberMe") === "true" ? "1" : "0",
+    {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      path: "/",
+      maxAge: 60 * 10,
+    },
+  );
 
   return response;
 }

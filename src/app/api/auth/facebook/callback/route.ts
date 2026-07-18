@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAuthToken } from "@/lib/auth";
 import {
+  authCookieOptions,
+  authTokenTtlSeconds,
+  OAUTH_REMEMBER_COOKIE_NAME,
+} from "@/lib/authSession";
+import {
   exchangeFacebookCode,
   fetchFacebookUserProfile,
   findOrCreateFacebookUser,
@@ -25,6 +30,8 @@ export async function GET(request: NextRequest) {
   const code = searchParams.get("code");
   const state = searchParams.get("state");
   const storedState = request.cookies.get("facebook_oauth_state")?.value;
+  const rememberMe =
+    request.cookies.get(OAUTH_REMEMBER_COOKIE_NAME)?.value === "1";
   const oauthError = searchParams.get("error");
   const oauthErrorDetail =
     searchParams.get("error_description") ||
@@ -61,6 +68,7 @@ export async function GET(request: NextRequest) {
         email: user.email,
       },
       user.password,
+      authTokenTtlSeconds(rememberMe),
     );
 
     const dashboardUrl = request.nextUrl.clone();
@@ -68,14 +76,9 @@ export async function GET(request: NextRequest) {
     dashboardUrl.search = "";
 
     const response = NextResponse.redirect(dashboardUrl);
-    response.cookies.set("auth", token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      path: "/",
-      maxAge: 60 * 60 * 24 * 7,
-    });
+    response.cookies.set("auth", token, authCookieOptions(rememberMe));
     response.cookies.delete("facebook_oauth_state");
+    response.cookies.delete(OAUTH_REMEMBER_COOKIE_NAME);
     return response;
   } catch (error) {
     console.error("Facebook OAuth callback error:", error);

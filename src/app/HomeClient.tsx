@@ -110,11 +110,13 @@ export default function HomeClient() {
     formData.password === formData.confirmPassword;
 
   const handleGoogleLogin = () => {
-    window.location.href = `${process.env.NEXT_PUBLIC_API_BASE_URL || "/api"}/auth/google`;
+    const params = rememberMe ? "?rememberMe=true" : "";
+    window.location.href = `${process.env.NEXT_PUBLIC_API_BASE_URL || "/api"}/auth/google${params}`;
   };
 
   const handleFacebookLogin = () => {
-    window.location.href = `${process.env.NEXT_PUBLIC_API_BASE_URL || "/api"}/auth/facebook`;
+    const params = rememberMe ? "?rememberMe=true" : "";
+    window.location.href = `${process.env.NEXT_PUBLIC_API_BASE_URL || "/api"}/auth/facebook${params}`;
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -149,6 +151,7 @@ export default function HomeClient() {
           body: JSON.stringify({
             email: formData.email,
             password: formData.password,
+            rememberMe,
           }),
         });
 
