@@ -150,6 +150,16 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(url, 307);
   }
 
+  if (pathname === "/") {
+    const token = req.cookies.get("auth")?.value;
+    if (await verify(token)) {
+      const url = req.nextUrl.clone();
+      url.pathname = "/dashboard";
+      url.search = "";
+      return NextResponse.redirect(url);
+    }
+  }
+
   if (pathname.startsWith("/dashboard")) {
     const token = req.cookies.get("auth")?.value;
     const ok = await verify(token);
