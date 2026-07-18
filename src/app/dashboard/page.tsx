@@ -78,6 +78,7 @@ interface FlashcardSet {
 }
 
 type ViewMode = "sets" | "cards" | "library" | "liveHistory";
+const AI_GENERATED_TAG = "AI Generated";
 
 export default function Dashboard() {
   const { t, locale, setLocale } = useI18n();
@@ -736,18 +737,6 @@ export default function Dashboard() {
             <DailyRewardButton onCoinsUpdate={fetchCoins} />
           </div>
 
-          {viewMode === "cards" && selectedSet && (
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium text-gray-600 dark:text-gray-400">
-                {t("nav.currentCard")}
-              </span>
-              <span className="text-xl font-semibold text-gray-900 dark:text-white">
-                {selectedSet.words.length > 0
-                  ? `${currentIndex + 1} / ${selectedSet.words.length}`
-                  : "0 / 0"}
-              </span>
-            </div>
-          )}
         </div>
 
         {/* Navigation Links */}
@@ -1171,9 +1160,11 @@ export default function Dashboard() {
                 {(() => {
                   const allTags = new Set<string>();
                   flashcardSets.forEach((set) => {
-                    const aiGeneratedTag = t("dashboard.aiGenerated");
-                    if (set.isAIGenerated) allTags.add(aiGeneratedTag);
-                    set.tags?.forEach((tag) => allTags.add(tag));
+                    if (set.isAIGenerated) allTags.add(AI_GENERATED_TAG);
+                    set.tags?.forEach((tag) => {
+                      const normalizedTag = tag.trim();
+                      if (normalizedTag) allTags.add(normalizedTag);
+                    });
                   });
                   const tagsArray = Array.from(allTags).sort();
                   if (tagsArray.length === 0) return null;
@@ -1207,12 +1198,14 @@ export default function Dashboard() {
                           className={`px-3 py-1 text-xs rounded-full transition-colors ${
                             selectedTags.includes(tag)
                               ? "bg-blue-600 text-white shadow-sm shadow-blue-600/30"
-                              : tag === "AI Generated"
+                              : tag === AI_GENERATED_TAG
                                 ? "bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 hover:bg-purple-200 dark:hover:bg-purple-900/50"
                                 : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
                           }`}
                         >
-                          {tag === "AI Generated" ? t("dashboard.aiGenerated") : tag}
+                          {tag === AI_GENERATED_TAG
+                            ? t("dashboard.aiGenerated")
+                            : tag}
                         </button>
                       ))}
                       {(hiddenCount > 0 || showAllTags) && (
@@ -1311,7 +1304,7 @@ export default function Dashboard() {
                   if (selectedTags.length > 0) {
                     filteredSets = filteredSets.filter((set) => {
                       const setTags = new Set<string>();
-                      if (set.isAIGenerated) setTags.add("AI Generated");
+                      if (set.isAIGenerated) setTags.add(AI_GENERATED_TAG);
                       set.tags?.forEach((tag) => setTags.add(tag));
 
                       // Check if any selected tag matches
@@ -1352,7 +1345,7 @@ export default function Dashboard() {
                       if (selectedTags.length > 0) {
                         filteredSets = filteredSets.filter((set) => {
                           const setTags = new Set<string>();
-                          if (set.isAIGenerated) setTags.add("AI Generated");
+                          if (set.isAIGenerated) setTags.add(AI_GENERATED_TAG);
                           set.tags?.forEach((tag) => setTags.add(tag));
 
                           // Check if any selected tag matches
@@ -1381,17 +1374,20 @@ export default function Dashboard() {
                           </div>
                           {/* Tags */}
                           {(() => {
-                            const displayTags: string[] = [];
-                            // Always include AI Generated tag if set is AI-generated
+                            const displayTags = Array.from(
+                              new Set(
+                                (set.tags || [])
+                                  .map((tag) => tag.trim())
+                                  .filter(Boolean),
+                              ),
+                            );
+                            // Keep one canonical AI tag even for older sets
+                            // where it was derived instead of stored.
                             if (
                               set.isAIGenerated &&
-                              !set.tags?.includes("AI Generated")
+                              !displayTags.includes(AI_GENERATED_TAG)
                             ) {
-                              displayTags.push("AI Generated");
-                            }
-                            // Add other tags
-                            if (set.tags && set.tags.length > 0) {
-                              displayTags.push(...set.tags);
+                              displayTags.unshift(AI_GENERATED_TAG);
                             }
                             return displayTags.length > 0 ? (
                               <div className="flex flex-wrap items-center gap-1.5 mb-2">
@@ -1399,12 +1395,12 @@ export default function Dashboard() {
                                   <span
                                     key={idx}
                                     className={`px-2 py-0.5 rounded-full text-xs ${
-                                      tag === "AI Generated"
+                                      tag === AI_GENERATED_TAG
                                         ? "bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300"
                                         : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300"
                                     }`}
                                   >
-                                    {tag === "AI Generated"
+                                    {tag === AI_GENERATED_TAG
                                       ? t("dashboard.aiGenerated")
                                       : tag}
                                   </span>
@@ -1789,11 +1785,11 @@ export default function Dashboard() {
           </div>
         ) : (
           <div className="flex-1 min-h-0 flex flex-col overflow-hidden px-6 py-4">
-            {/* Header: back, set name, loading status */}
-            <div className="shrink-0 grid grid-cols-[auto_1fr_auto] gap-x-3 gap-y-0.5 mb-3 items-center">
+            {/* Header: back, set name, progress, loading status */}
+            <div className="shrink-0 grid grid-cols-[auto_minmax(0,1fr)_auto] gap-x-3 mb-3 items-center">
               <button
                 onClick={handleBackToSets}
-                className="row-span-2 self-center flex items-center text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors cursor-pointer active:scale-[0.98] shrink-0"
+                className="self-center flex items-center text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors cursor-pointer active:scale-[0.98] shrink-0"
               >
                 <svg
                   className="w-5 h-5 mr-1"
@@ -1813,52 +1809,62 @@ export default function Dashboard() {
               <h2 className="col-start-2 text-lg font-semibold text-gray-900 dark:text-white truncate leading-tight">
                 {selectedSet?.name}
               </h2>
-              {mediaLoading && (
-                <div
-                  className="col-start-3 row-start-1 flex items-center gap-1.5 rounded-md bg-white/95 dark:bg-gray-800/95 backdrop-blur px-2.5 py-1 border border-gray-200 dark:border-gray-600"
-                  role="status"
-                  aria-live="polite"
+              <div className="col-start-3 flex items-center justify-end gap-2">
+                <span
+                  className="rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium tabular-nums text-gray-500 dark:bg-gray-700/70 dark:text-gray-300"
+                  aria-label={`${t("nav.currentCard")} ${
+                    selectedSet && selectedSet.words.length > 0
+                      ? `${currentIndex + 1} / ${selectedSet.words.length}`
+                      : "0 / 0"
+                  }`}
                 >
-                  <svg
-                    className="animate-spin h-3.5 w-3.5 text-blue-600 dark:text-blue-400 shrink-0"
-                    xmlns="http://www.w3.org/2000/svg"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    aria-hidden="true"
+                  {selectedSet && selectedSet.words.length > 0
+                    ? `${currentIndex + 1}/${selectedSet.words.length}`
+                    : "0/0"}
+                </span>
+                {mediaLoading && (
+                  <div
+                    className="flex items-center gap-1.5 rounded-md bg-white/95 dark:bg-gray-800/95 backdrop-blur px-2.5 py-1 border border-gray-200 dark:border-gray-600"
+                    role="status"
+                    aria-live="polite"
                   >
-                    <circle
-                      className="opacity-25"
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                    />
-                    <path
-                      className="opacity-75"
-                      fill="currentColor"
-                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                    />
-                  </svg>
-                  <span className="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">
-                    {mediaLoadProgress.imageTotal > 0 &&
-                    mediaLoadProgress.audioTotal > 0
-                      ? t("dashboard.loadingImagesAudio")
-                      : mediaLoadProgress.imageTotal > 0
-                        ? t("dashboard.loadingImages")
-                        : mediaLoadProgress.audioTotal > 0
-                          ? t("dashboard.loadingAudio")
-                          : t("common.loading")}
-                    {mediaLoadProgress.total > 0
-                      ? ` (${mediaLoadProgress.loaded}/${mediaLoadProgress.total})`
-                      : ""}
-                  </span>
-                </div>
-              )}
-              <p className="col-start-2 row-start-2 text-xs text-gray-500 dark:text-gray-500">
-                {selectedSet?.words.length || 0}{" "}
-                {(selectedSet?.words.length || 0) === 1 ? t("dashboard.card") : t("dashboard.cards")}
-              </p>
+                    <svg
+                      className="animate-spin h-3.5 w-3.5 text-blue-600 dark:text-blue-400 shrink-0"
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      aria-hidden="true"
+                    >
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      />
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                      />
+                    </svg>
+                    <span className="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">
+                      {mediaLoadProgress.imageTotal > 0 &&
+                      mediaLoadProgress.audioTotal > 0
+                        ? t("dashboard.loadingImagesAudio")
+                        : mediaLoadProgress.imageTotal > 0
+                          ? t("dashboard.loadingImages")
+                          : mediaLoadProgress.audioTotal > 0
+                            ? t("dashboard.loadingAudio")
+                            : t("common.loading")}
+                      {mediaLoadProgress.total > 0
+                        ? ` (${mediaLoadProgress.loaded}/${mediaLoadProgress.total})`
+                        : ""}
+                    </span>
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Flashcard display — fills remaining viewport height */}
