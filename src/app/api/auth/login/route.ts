@@ -13,12 +13,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { comparePassword, isValidEmail, createAuthToken } from "@/lib/auth";
+import { authCookieOptions, authTokenTtlSeconds } from "@/lib/authSession";
 import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 
 // Define the expected request body structure
 interface LoginRequest {
   email: string;
   password: string;
+  rememberMe?: boolean;
 }
 
 export async function POST(request: NextRequest) {
@@ -38,11 +40,22 @@ export async function POST(request: NextRequest) {
     // Parse JSON from request body
     const body: LoginRequest = await request.json();
     const { email, password } = body;
+    const rememberMe = body.rememberMe === true;
 
     // Validate input data
     if (!email || !password) {
       return NextResponse.json(
         { error: "Email and password are required", code: "REQUIRED_EMAIL_PASSWORD" },
+        { status: 400 },
+      );
+    }
+
+    if (
+      body.rememberMe !== undefined &&
+      typeof body.rememberMe !== "boolean"
+    ) {
+      return NextResponse.json(
+        { error: "Remember me must be a boolean", code: "INVALID_REMEMBER_ME" },
         { status: 400 },
       );
     }
@@ -93,6 +106,7 @@ export async function POST(request: NextRequest) {
     const token = await createAuthToken(
       { userId: user.id, email: user.email },
       user.password,
+      authTokenTtlSeconds(rememberMe),
     );
     const res = NextResponse.json(
       {
@@ -107,13 +121,7 @@ export async function POST(request: NextRequest) {
       },
       { status: 200 },
     );
-    res.cookies.set("auth", token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      path: "/",
-      maxAge: 60 * 60 * 24 * 7, // 7 days
-    });
+    res.cookies.set("auth", token, authCookieOptions(rememberMe));
     return res;
   } catch (error: unknown) {
     console.error("Login error:", error);
