@@ -17,6 +17,7 @@ import { LanguageSelect } from "@/components/LanguageSwitcher";
 import { useI18n } from "@/i18n/I18nProvider";
 import { translateApiError } from "@/i18n/translate";
 import { isLocale, type Locale } from "@/i18n/types";
+import { getPendingLandingLocale } from "@/i18n/storage";
 import { apiFetch, parseApiError } from "@/lib/apiUrl";
 
 export default function HomeClient() {
@@ -132,6 +133,12 @@ export default function HomeClient() {
   };
 
   const applyUserLocale = (userLocale?: string) => {
+    const pendingLandingLocale = getPendingLandingLocale();
+    if (pendingLandingLocale) {
+      setLocale(pendingLandingLocale, { persist: true, sync: false });
+      return;
+    }
+
     if (isLocale(userLocale)) {
       setLocale(userLocale, { persist: true, sync: false });
     }

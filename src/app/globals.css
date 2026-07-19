@@ -136,6 +136,195 @@ body {
   transform: rotateY(180deg);
 }
 
+/* Set completion and AI coin reward celebration */
+.completion-card-enter {
+  animation: completion-card-enter 420ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.completion-badge-pop {
+  animation: completion-badge-pop 560ms 100ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.completion-badge-pulse {
+  animation: completion-badge-pulse 900ms 580ms ease-out both;
+}
+
+.completion-spark {
+  animation: completion-spark 2.4s ease-in-out infinite;
+}
+
+.completion-spark-delay-1 {
+  animation-delay: 180ms;
+}
+
+.completion-spark-delay-2 {
+  animation-delay: 360ms;
+}
+
+.completion-spark-delay-3 {
+  animation-delay: 540ms;
+}
+
+.reward-card-enter {
+  animation: reward-card-enter 480ms 180ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.reward-coin-float {
+  animation: reward-coin-float 2.2s ease-in-out infinite;
+}
+
+.reward-shine::after {
+  position: absolute;
+  inset: -40%;
+  content: "";
+  background: linear-gradient(110deg, transparent 34%, rgb(255 255 255 / 55%) 50%, transparent 66%);
+  transform: translateX(-65%) rotate(12deg);
+  animation: reward-shine 2.6s ease-in-out infinite;
+}
+
+.reward-burst-coin {
+  left: 50%;
+  top: 50%;
+  opacity: 0;
+  animation: reward-burst 820ms var(--coin-delay) cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.reward-success-pop {
+  animation: reward-success-pop 540ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes completion-card-enter {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes completion-badge-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.45) rotate(-14deg);
+  }
+  70% {
+    transform: scale(1.08) rotate(2deg);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) rotate(0);
+  }
+}
+
+@keyframes completion-badge-pulse {
+  from {
+    opacity: 0.65;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(1.55);
+  }
+}
+
+@keyframes completion-spark {
+  0%,
+  100% {
+    opacity: 0.4;
+    transform: translateY(0) rotate(8deg) scale(0.8);
+  }
+  50% {
+    opacity: 1;
+    transform: translateY(-7px) rotate(34deg) scale(1.08);
+  }
+}
+
+@keyframes reward-card-enter {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes reward-coin-float {
+  0%,
+  100% {
+    transform: translateY(0) rotate(-2deg);
+  }
+  50% {
+    transform: translateY(-5px) rotate(2deg);
+  }
+}
+
+@keyframes reward-shine {
+  0%,
+  28% {
+    transform: translateX(-65%) rotate(12deg);
+  }
+  62%,
+  100% {
+    transform: translateX(65%) rotate(12deg);
+  }
+}
+
+@keyframes reward-burst {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.3) rotate(0deg);
+  }
+  18% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(
+        calc(-50% + var(--coin-x)),
+        calc(-50% + var(--coin-y))
+      )
+      scale(0.9)
+      rotate(var(--coin-rotate));
+  }
+}
+
+@keyframes reward-success-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.65);
+  }
+  72% {
+    opacity: 1;
+    transform: scale(1.08);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .completion-card-enter,
+  .completion-badge-pop,
+  .completion-badge-pulse,
+  .completion-spark,
+  .reward-card-enter,
+  .reward-coin-float,
+  .reward-shine::after,
+  .reward-burst-coin,
+  .reward-success-pop {
+    animation: none;
+  }
+
+  .reward-burst-coin {
+    display: none;
+  }
+}
+
 /* Fast study feedback: enough motion to register a new card without slowing study. */
 @keyframes flashcard-enter {
   from {

@@ -24,9 +24,8 @@ export default function SettingsModal({
   onOpenLiveGameHistory,
 }: SettingsModalProps) {
   const { t } = useI18n();
-  const [backendSource, setBackendSource] = useState<ApiBackendSource>(
-    getApiBackendSource,
-  );
+  const [backendSource, setBackendSource] =
+    useState<ApiBackendSource>(getApiBackendSource);
   const vercelForced = isVercelBackendForced();
 
   useEffect(() => subscribeApiBackendSource(setBackendSource), []);
@@ -65,37 +64,85 @@ export default function SettingsModal({
         <div className="flex items-center justify-between border-b border-gray-200 bg-gradient-to-r from-blue-50 to-purple-50 px-6 py-5 dark:border-gray-700 dark:from-blue-900/20 dark:to-purple-900/20">
           <div className="flex items-center gap-3">
             <div className="rounded-xl bg-blue-100 p-2 text-blue-600 dark:bg-blue-900/40 dark:text-blue-400">
-              <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.983 5.02a1.5 1.5 0 012.91 0 1.5 1.5 0 002.24.93 1.5 1.5 0 012.058 2.058 1.5 1.5 0 00.93 2.24 1.5 1.5 0 010 2.91 1.5 1.5 0 00-.93 2.24 1.5 1.5 0 01-2.058 2.058 1.5 1.5 0 00-2.24.93 1.5 1.5 0 01-2.91 0 1.5 1.5 0 00-2.24-.93 1.5 1.5 0 01-2.058-2.058 1.5 1.5 0 00-.93-2.24 1.5 1.5 0 010-2.91 1.5 1.5 0 00.93-2.24A1.5 1.5 0 019.743 5.95a1.5 1.5 0 002.24-.93z" />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11.703a3 3 0 11-6 0 3 3 0 016 0z" />
+              <svg
+                className="h-5 w-5 transition-transform duration-300 group-hover:rotate-45"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+                />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                />
               </svg>
             </div>
             <div>
-              <h2 id="settings-title" className="text-xl font-bold text-gray-900 dark:text-white">
+              <h2
+                id="settings-title"
+                className="text-xl font-bold text-gray-900 dark:text-white"
+              >
                 {t("settings.title")}
               </h2>
-              <p className="text-sm text-gray-500 dark:text-gray-400">{t("settings.subtitle")}</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                {t("settings.subtitle")}
+              </p>
             </div>
           </div>
-          <button type="button" onClick={onClose} className="rounded-lg p-2 text-gray-400 hover:bg-white/70 hover:text-gray-700 dark:hover:bg-gray-700 dark:hover:text-white">
-            <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-lg p-2 text-gray-400 hover:bg-white/70 hover:text-gray-700 dark:hover:bg-gray-700 dark:hover:text-white"
+          >
+            <svg
+              className="h-5 w-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M6 18L18 6M6 6l12 12"
+              />
             </svg>
           </button>
         </div>
 
         <div className="max-h-[calc(90vh-88px)] space-y-4 overflow-y-auto p-6">
           <section className="rounded-xl border border-gray-200 p-4 dark:border-gray-700">
-            <h3 className="mb-1 font-semibold text-gray-900 dark:text-white">{t("settings.appLanguage")}</h3>
-            <p className="mb-3 text-sm text-gray-500 dark:text-gray-400">{t("settings.appLanguageHint")}</p>
+            <h3 className="mb-1 font-semibold text-gray-900 dark:text-white">
+              {t("settings.appLanguage")}
+            </h3>
+            <p className="mb-3 text-sm text-gray-500 dark:text-gray-400">
+              {t("settings.appLanguageHint")}
+            </p>
             <LanguageSwitcher compact />
           </section>
 
           <section className="rounded-xl border border-gray-200 p-4 dark:border-gray-700">
             <div className="flex items-start gap-3">
               <div className="rounded-xl bg-emerald-100 p-2.5 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">
-                <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7h16M4 12h16M4 17h16M6 5v4m0 2v4m0 2v2" />
+                <svg
+                  className="h-6 w-6"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M4 7h16M4 12h16M4 17h16M6 5v4m0 2v4m0 2v2"
+                  />
                 </svg>
               </div>
               <div className="min-w-0 flex-1">
@@ -139,15 +186,31 @@ export default function SettingsModal({
             className="group flex w-full items-center gap-4 rounded-xl border border-gray-200 p-4 text-left transition-colors hover:border-purple-300 hover:bg-purple-50 dark:border-gray-700 dark:hover:border-purple-700 dark:hover:bg-purple-900/20"
           >
             <div className="rounded-xl bg-purple-100 p-2.5 text-purple-600 dark:bg-purple-900/40 dark:text-purple-400">
-              <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8V7m0 9v1m9-5a9 9 0 11-18 0 9 9 0 0118 0z" />
+              <svg
+                className="h-6 w-6"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8V7m0 9v1m9-5a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
               </svg>
             </div>
             <div className="min-w-0 flex-1">
-              <h3 className="font-semibold text-gray-900 dark:text-white">{t("settings.aiCoinsTitle")}</h3>
-              <p className="text-sm text-gray-500 dark:text-gray-400">{t("settings.aiCoinsHint")}</p>
+              <h3 className="font-semibold text-gray-900 dark:text-white">
+                {t("settings.aiCoinsTitle")}
+              </h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                {t("settings.aiCoinsHint")}
+              </p>
             </div>
-            <span className="text-xl text-gray-300 transition-transform group-hover:translate-x-1 group-hover:text-purple-500 dark:text-gray-600">→</span>
+            <span className="text-xl text-gray-300 transition-transform group-hover:translate-x-1 group-hover:text-purple-500 dark:text-gray-600">
+              →
+            </span>
           </button>
 
           <button
@@ -156,15 +219,31 @@ export default function SettingsModal({
             className="group flex w-full items-center gap-4 rounded-xl border border-gray-200 p-4 text-left transition-colors hover:border-blue-300 hover:bg-blue-50 dark:border-gray-700 dark:hover:border-blue-700 dark:hover:bg-blue-900/20"
           >
             <div className="rounded-xl bg-blue-100 p-2.5 text-blue-600 dark:bg-blue-900/40 dark:text-blue-400">
-              <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              <svg
+                className="h-6 w-6"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
               </svg>
             </div>
             <div className="min-w-0 flex-1">
-              <h3 className="font-semibold text-gray-900 dark:text-white">{t("settings.liveGameHistoryTitle")}</h3>
-              <p className="text-sm text-gray-500 dark:text-gray-400">{t("settings.liveGameHistoryHint")}</p>
+              <h3 className="font-semibold text-gray-900 dark:text-white">
+                {t("settings.liveGameHistoryTitle")}
+              </h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                {t("settings.liveGameHistoryHint")}
+              </p>
             </div>
-            <span className="text-xl text-gray-300 transition-transform group-hover:translate-x-1 group-hover:text-blue-500 dark:text-gray-600">→</span>
+            <span className="text-xl text-gray-300 transition-transform group-hover:translate-x-1 group-hover:text-blue-500 dark:text-gray-600">
+              →
+            </span>
           </button>
         </div>
       </div>

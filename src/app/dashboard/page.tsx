@@ -14,8 +14,12 @@ import PublicLibraryPanel from "@/components/PublicLibraryPanel";
 import LiveGameHistoryPanel from "@/components/LiveGameHistoryPanel";
 import Notification from "@/components/Notification";
 import SettingsModal from "@/components/SettingsModal";
-import { useI18n } from "@/i18n/I18nProvider";
+import { syncLocaleToServer, useI18n } from "@/i18n/I18nProvider";
 import { isLocale } from "@/i18n/types";
+import {
+  clearPendingLandingLocale,
+  getPendingLandingLocale,
+} from "@/i18n/storage";
 import { getLanguageFlag } from "@/lib/flags";
 import { getLanguageLabel, LANGUAGES } from "@/lib/languages";
 import { getGuestLiveGameBaseUrl } from "@/lib/publicUrls";
@@ -190,10 +194,20 @@ export default function Dashboard() {
       new CustomEvent("dashboardLoading", { detail: { loading: true } })
     );
 
-    const applyUserLocale = (nextUser: User) => {
+    const applyUserLocale = (nextUser: User): User => {
+      const pendingLandingLocale = getPendingLandingLocale();
+      if (pendingLandingLocale) {
+        setLocale(pendingLandingLocale, { persist: true, sync: false });
+        void syncLocaleToServer(pendingLandingLocale).then((synced) => {
+          if (synced) clearPendingLandingLocale();
+        });
+        return { ...nextUser, locale: pendingLandingLocale };
+      }
+
       if (isLocale(nextUser.locale)) {
         setLocale(nextUser.locale, { persist: true, sync: false });
       }
+      return nextUser;
     };
 
     const loadSession = async () => {
@@ -205,9 +219,9 @@ export default function Dashboard() {
           throw new Error("Unauthorized");
         }
         const data = await response.json();
-        localStorage.setItem("user", JSON.stringify(data.user));
-        setUser(data.user);
-        applyUserLocale(data.user);
+        const nextUser = applyUserLocale(data.user);
+        localStorage.setItem("user", JSON.stringify(nextUser));
+        setUser(nextUser);
         fetchFlashcardSets();
         fetchCoins();
         fetchClaimedRewards();
@@ -226,7 +240,7 @@ export default function Dashboard() {
     };
 
     loadSession();
-  }, [router]);
+  }, [router, setLocale]);
 
   // Listen for coin updates from AI chat
   useEffect(() => {
@@ -1911,11 +1925,20 @@ export default function Dashboard() {
               ) : selectedSet &&
                 selectedSet.words.length > 0 &&
                 studyQueue.length === 0 ? (
-                <>
-                  <div className="w-full max-w-lg rounded-3xl border border-emerald-200 bg-white/90 px-6 py-10 text-center shadow-xl backdrop-blur dark:border-emerald-800 dark:bg-gray-800/90">
-                    <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100 text-emerald-600 dark:bg-emerald-900/40 dark:text-emerald-300">
+                <div className="completion-card-enter relative max-h-full w-full max-w-xl overflow-y-auto rounded-[2rem] border border-emerald-200/80 bg-white/95 p-5 text-center shadow-2xl shadow-emerald-900/10 backdrop-blur dark:border-emerald-800/80 dark:bg-gray-900/95 dark:shadow-black/30 sm:p-8">
+                  <div className="pointer-events-none absolute inset-x-0 top-0 h-40 bg-gradient-to-b from-emerald-100/80 via-violet-50/40 to-transparent dark:from-emerald-950/60 dark:via-violet-950/20" />
+                  <div className="pointer-events-none absolute -left-12 top-16 h-32 w-32 rounded-full bg-emerald-300/20 blur-3xl" />
+                  <div className="pointer-events-none absolute -right-10 top-6 h-32 w-32 rounded-full bg-violet-400/20 blur-3xl" />
+                  <div className="completion-spark pointer-events-none absolute left-[10%] top-12 h-2 w-2 rotate-12 rounded-sm bg-amber-400" />
+                  <div className="completion-spark completion-spark-delay-1 pointer-events-none absolute right-[12%] top-20 h-2.5 w-1.5 -rotate-12 rounded-sm bg-violet-400" />
+                  <div className="completion-spark completion-spark-delay-2 pointer-events-none absolute left-[18%] top-32 h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                  <div className="completion-spark completion-spark-delay-3 pointer-events-none absolute right-[21%] top-10 h-1.5 w-1.5 rotate-45 bg-sky-400" />
+
+                  <div className="relative">
+                    <div className="completion-badge-pop relative mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 text-white shadow-xl shadow-emerald-500/30 ring-8 ring-emerald-100/80 dark:ring-emerald-900/40">
+                      <span className="completion-badge-pulse absolute inset-0 rounded-full bg-white/20 motion-reduce:hidden" />
                       <svg
-                        className="h-9 w-9"
+                        className="relative h-10 w-10"
                         fill="none"
                         stroke="currentColor"
                         viewBox="0 0 24 24"
@@ -1929,39 +1952,90 @@ export default function Dashboard() {
                         />
                       </svg>
                     </div>
-                    <p className="mb-2 text-sm font-semibold uppercase tracking-widest text-emerald-600 dark:text-emerald-400">
-                      {t("flashcard.learned")} {studyTotal}/{studyTotal}
+
+                    <p className="mb-2 text-xs font-extrabold uppercase tracking-[0.24em] text-emerald-700 dark:text-emerald-300">
+                      {t("flashcard.completionEyebrow")}
                     </p>
-                    <h3 className="mb-3 text-3xl font-bold text-gray-900 dark:text-white">
+                    <h3 className="text-balance text-3xl font-black tracking-tight text-gray-900 dark:text-white sm:text-4xl">
                       {t("flashcard.allLearned")}
                     </h3>
-                    <p className="mb-7 text-gray-600 dark:text-gray-300">
+                    <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-gray-600 dark:text-gray-300 sm:text-base">
                       {t("flashcard.studyComplete")}
                     </p>
-                    <div className="flex flex-col justify-center gap-3 sm:flex-row">
+
+                    <div className="my-5 flex justify-center">
+                      <div className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-bold text-emerald-700 shadow-sm dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300">
+                        <svg
+                          className="h-4 w-4"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          aria-hidden="true"
+                        >
+                          <path
+                            d="M8 21h8M12 17v4M7 4h10v4a5 5 0 0 1-10 0V4Zm0 2H4v1a4 4 0 0 0 4 4m9-5h3v1a4 4 0 0 1-4 4"
+                            strokeWidth="1.8"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                        </svg>
+                        {t("flashcard.cardsMastered", { count: studyTotal })}
+                      </div>
+                    </div>
+
+                    <MoneyBagReward
+                      rewardAmount={getRewardAmount(selectedSet.words.length)}
+                      onClaim={handleClaimReward}
+                      isLastCard={true}
+                      isAlreadyClaimed={claimedRewards.has(selectedSet.id)}
+                    />
+
+                    <div className="mt-4 flex flex-col justify-center gap-2 sm:flex-row">
                       <button
                         type="button"
                         onClick={handleRestartStudy}
-                        className="rounded-xl bg-emerald-600 px-6 py-3 font-semibold text-white shadow-lg transition hover:bg-emerald-700 active:scale-95"
+                        className="inline-flex items-center justify-center gap-2 rounded-xl px-5 py-2.5 text-sm font-bold text-gray-600 transition hover:bg-gray-100 hover:text-gray-900 active:scale-[0.98] dark:text-gray-300 dark:hover:bg-gray-800 dark:hover:text-white"
                       >
+                        <svg
+                          className="h-4 w-4"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          aria-hidden="true"
+                        >
+                          <path
+                            d="M4 12a8 8 0 1 0 2.34-5.66L4 8.68M4 4v4.68h4.68"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                        </svg>
                         {t("flashcard.studyAgain")}
                       </button>
                       <button
                         type="button"
                         onClick={handleBackToSets}
-                        className="rounded-xl border border-gray-200 bg-white px-6 py-3 font-semibold text-gray-700 shadow-sm transition hover:bg-gray-50 active:scale-95 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 dark:hover:bg-gray-600"
+                        className="inline-flex items-center justify-center gap-2 rounded-xl px-5 py-2.5 text-sm font-bold text-gray-600 transition hover:bg-gray-100 hover:text-gray-900 active:scale-[0.98] dark:text-gray-300 dark:hover:bg-gray-800 dark:hover:text-white"
                       >
+                        <svg
+                          className="h-4 w-4"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          aria-hidden="true"
+                        >
+                          <path
+                            d="m15 18-6-6 6-6"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                        </svg>
                         {t("flashcard.backToDashboard")}
                       </button>
                     </div>
                   </div>
-                  <MoneyBagReward
-                    rewardAmount={getRewardAmount(selectedSet.words.length)}
-                    onClaim={handleClaimReward}
-                    isLastCard={true}
-                    isAlreadyClaimed={claimedRewards.has(selectedSet.id)}
-                  />
-                </>
+                </div>
               ) : (
                 <div className="text-center">
                   <svg
