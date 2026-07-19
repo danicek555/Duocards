@@ -140,8 +140,15 @@ export const en = {
     special: "contains special characters (!@#$%^&*)",
   },
   mobile: {
-    title: "DuoCards needs a larger screen",
-    body: "This app needs a wide enough window (small tablets and phones are too cramped). Please open DuoCards on a computer or large tablet to sign in and use your flashcards.",
+    title: "The app is better on iPhone",
+    body: "The DuoCards web experience is made for computers only. Use the more comfortable iOS app on your phone.",
+    desktopOnly: "Desktop web only",
+    mobileApp: "Mobile app",
+    downloadOn: "Download on the",
+    downloadAppStore: "Download DuoCards on the App Store",
+    comingSoon: "Coming soon to the",
+    comingSoonAppStore: "DuoCards is coming soon to the App Store",
+    computerHint: "Open the web app on your computer at app.duocards.xyz.",
   },
   nav: {
     flashcardSets: "Flashcard Sets",

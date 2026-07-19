@@ -139,8 +139,15 @@ export const cs = {
     special: "obsahuje speciální znaky (!@#$%^&*)",
   },
   mobile: {
-    title: "DuoCards potřebuje větší obrazovku",
-    body: "Aplikace potřebuje dostatečně široké okno (telefony a malé tablety jsou příliš stísněné). Otevři DuoCards na počítači nebo velkém tabletu.",
+    title: "Na iPhonu je nejlepší aplikace",
+    body: "Webová verze DuoCards je vytvořená pouze pro počítače. Na telefonu používej pohodlnější iOS aplikaci.",
+    desktopOnly: "Web pouze pro počítač",
+    mobileApp: "Mobilní aplikace",
+    downloadOn: "Stáhnout v",
+    downloadAppStore: "Stáhnout DuoCards v App Store",
+    comingSoon: "Již brzy v",
+    comingSoonAppStore: "DuoCards bude brzy v App Store",
+    computerHint: "Webovou aplikaci otevři na počítači na adrese app.duocards.xyz.",
   },
   nav: {
     flashcardSets: "Balíčky kartiček",
