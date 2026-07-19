@@ -10,10 +10,14 @@ interface FlashcardProps {
   pronunciation?: string | null;
   imageUrl?: string | null;
   audioUrl?: string | null;
-  onNext: () => void;
-  onPrevious: () => void;
-  hasNext: boolean;
-  hasPrevious: boolean;
+  onDontKnow?: () => void;
+  onKnow?: () => void;
+  learnedCount?: number;
+  totalCount?: number;
+  onNext?: () => void;
+  onPrevious?: () => void;
+  hasNext?: boolean;
+  hasPrevious?: boolean;
 }
 
 export default function Flashcard({
@@ -23,13 +27,18 @@ export default function Flashcard({
   pronunciation,
   imageUrl,
   audioUrl,
+  onDontKnow,
+  onKnow,
+  learnedCount = 0,
+  totalCount = 0,
   onNext,
   onPrevious,
-  hasNext,
-  hasPrevious,
+  hasNext = false,
+  hasPrevious = false,
 }: FlashcardProps) {
   const { t } = useI18n();
   const [isFlipped, setIsFlipped] = useState(false);
+  const isStudyMode = Boolean(onDontKnow && onKnow);
 
   // Reset flip when word or translation changes to ensure we always start with English side
   useEffect(() => {
@@ -37,8 +46,50 @@ export default function Flashcard({
   }, [word, translation]);
 
   const handleFlip = () => {
-    setIsFlipped(!isFlipped);
+    setIsFlipped((flipped) => !flipped);
   };
+
+  const markDontKnow = () => {
+    setIsFlipped(false);
+    onDontKnow?.();
+  };
+
+  const markKnow = () => {
+    setIsFlipped(false);
+    onKnow?.();
+  };
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (
+        target?.isContentEditable ||
+        target?.tagName === "INPUT" ||
+        target?.tagName === "TEXTAREA" ||
+        target?.tagName === "SELECT"
+      ) {
+        return;
+      }
+
+      if (event.code === "Space") {
+        event.preventDefault();
+        setIsFlipped((flipped) => !flipped);
+      } else if (event.key === "ArrowLeft") {
+        if (!onDontKnow) return;
+        event.preventDefault();
+        setIsFlipped(false);
+        onDontKnow();
+      } else if (event.key === "ArrowRight") {
+        if (!onKnow) return;
+        event.preventDefault();
+        setIsFlipped(false);
+        onKnow();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [onDontKnow, onKnow]);
 
   const playAudio = () => {
     if (audioUrl) {
@@ -368,31 +419,97 @@ export default function Flashcard({
         </div>
       </div>
 
-      {/* Navigation buttons */}
-      <div className="flex gap-4 mt-4 shrink-0">
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            setIsFlipped(false);
-            onPrevious();
-          }}
-          disabled={!hasPrevious}
-          className="px-8 py-3 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-300 dark:hover:bg-gray-600 transition-all duration-200 font-semibold shadow-lg hover:shadow-xl active:scale-95"
-        >
-          {t("flashcard.previous")}
-        </button>
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            setIsFlipped(false);
-            onNext();
-          }}
-          disabled={!hasNext}
-          className="px-8 py-3 bg-blue-600 text-white rounded-xl disabled:opacity-50 disabled:cursor-not-allowed hover:bg-blue-700 transition-all duration-200 font-semibold shadow-lg hover:shadow-xl active:scale-95"
-        >
-          {t("flashcard.next")}
-        </button>
-      </div>
+      {isStudyMode ? (
+        /* DuoCards-style study controls */
+        <div className="mt-4 w-full max-w-xl shrink-0">
+        <div className="mb-2 flex items-center justify-center text-sm font-semibold text-emerald-600 dark:text-emerald-400">
+          <svg
+            className="mr-1.5 h-4 w-4"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            aria-hidden="true"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2.5}
+              d="M5 13l4 4L19 7"
+            />
+          </svg>
+          {t("flashcard.learned")} {learnedCount}/{totalCount}
+        </div>
+        <div className="grid grid-cols-3 gap-2 sm:gap-3">
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              markDontKnow();
+            }}
+            className="rounded-xl border border-rose-200 bg-rose-50 px-2 py-3 font-semibold text-rose-700 shadow-sm transition hover:bg-rose-100 active:scale-95 dark:border-rose-800 dark:bg-rose-950/40 dark:text-rose-300 dark:hover:bg-rose-900/50 sm:px-5"
+          >
+            <span className="block text-base">←</span>
+            <span className="text-xs sm:text-sm">
+              {t("flashcard.dontKnow")}
+            </span>
+          </button>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleFlip();
+            }}
+            className="rounded-xl bg-blue-600 px-2 py-3 font-semibold text-white shadow-md transition hover:bg-blue-700 active:scale-95 sm:px-5"
+            aria-pressed={isFlipped}
+          >
+            <span className="block text-base">↻</span>
+            <span className="text-xs sm:text-sm">{t("flashcard.flip")}</span>
+          </button>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              markKnow();
+            }}
+            className="rounded-xl border border-emerald-200 bg-emerald-50 px-2 py-3 font-semibold text-emerald-700 shadow-sm transition hover:bg-emerald-100 active:scale-95 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300 dark:hover:bg-emerald-900/50 sm:px-5"
+          >
+            <span className="block text-base">→</span>
+            <span className="text-xs sm:text-sm">{t("flashcard.know")}</span>
+          </button>
+        </div>
+        <p className="mt-2 hidden text-center text-[11px] text-gray-400 sm:block dark:text-gray-500">
+          {t("flashcard.keyboardHint")}
+        </p>
+        </div>
+      ) : (
+        /* Standard navigation used by live-game practice mode */
+        <div className="mt-4 flex shrink-0 gap-4">
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              setIsFlipped(false);
+              onPrevious?.();
+            }}
+            disabled={!hasPrevious}
+            className="rounded-xl bg-gray-200 px-8 py-3 font-semibold text-gray-800 shadow-lg transition-all duration-200 hover:bg-gray-300 hover:shadow-xl active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
+          >
+            {t("flashcard.previous")}
+          </button>
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              setIsFlipped(false);
+              onNext?.();
+            }}
+            disabled={!hasNext}
+            className="rounded-xl bg-blue-600 px-8 py-3 font-semibold text-white shadow-lg transition-all duration-200 hover:bg-blue-700 hover:shadow-xl active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {t("flashcard.next")}
+          </button>
+        </div>
+      )}
     </div>
   );
 }

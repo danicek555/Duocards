@@ -85,7 +85,7 @@ export default function Dashboard() {
   const [user, setUser] = useState<User | null>(null);
   const [flashcardSets, setFlashcardSets] = useState<FlashcardSet[]>([]);
   const [selectedSet, setSelectedSet] = useState<FlashcardSet | null>(null);
-  const [currentIndex, setCurrentIndex] = useState(0);
+  const [studyQueue, setStudyQueue] = useState<number[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [showAIGenerateForm, setShowAIGenerateForm] = useState(false);
@@ -360,7 +360,7 @@ export default function Dashboard() {
       words: shuffleArray(set.words),
     };
     setSelectedSet(shuffledSet);
-    setCurrentIndex(0);
+    setStudyQueue(shuffledSet.words.map((word) => word.id));
     setViewMode("cards");
 
     try {
@@ -390,20 +390,26 @@ export default function Dashboard() {
 
   const handleBackToSets = () => {
     setSelectedSet(null);
+    setStudyQueue([]);
     setViewMode("sets");
-    setCurrentIndex(0);
   };
 
-  const handleNext = () => {
-    if (selectedSet && currentIndex < selectedSet.words.length - 1) {
-      setCurrentIndex(currentIndex + 1);
-    }
+  const handleDontKnow = () => {
+    setStudyQueue((queue) =>
+      queue.length > 1 ? [...queue.slice(1), queue[0]] : queue
+    );
   };
 
-  const handlePrevious = () => {
-    if (currentIndex > 0) {
-      setCurrentIndex(currentIndex - 1);
-    }
+  const handleKnow = () => {
+    setStudyQueue((queue) => queue.slice(1));
+  };
+
+  const handleRestartStudy = () => {
+    if (!selectedSet) return;
+
+    const shuffledWords = shuffleArray(selectedSet.words);
+    setSelectedSet({ ...selectedSet, words: shuffledWords });
+    setStudyQueue(shuffledWords.map((word) => word.id));
   };
 
   // Calculate reward amount based on flashcard count
@@ -522,7 +528,17 @@ export default function Dashboard() {
     (sum, set) => sum + set.words.length,
     0
   );
-  const currentWord = selectedSet?.words[currentIndex];
+  const studyTotal = selectedSet?.words.length ?? 0;
+  const learnedCount = Math.max(0, studyTotal - studyQueue.length);
+  const currentWord = selectedSet?.words.find(
+    (word) => word.id === studyQueue[0]
+  );
+  const displayedCardNumber =
+    studyTotal === 0
+      ? 0
+      : studyQueue.length > 0
+        ? Math.min(learnedCount + 1, studyTotal)
+        : studyTotal;
 
   // Prefetch all images and audio for the open set (stored separately from word records)
   useEffect(() => {
@@ -1814,12 +1830,12 @@ export default function Dashboard() {
                   className="rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium tabular-nums text-gray-500 dark:bg-gray-700/70 dark:text-gray-300"
                   aria-label={`${t("nav.currentCard")} ${
                     selectedSet && selectedSet.words.length > 0
-                      ? `${currentIndex + 1} / ${selectedSet.words.length}`
+                      ? `${displayedCardNumber} / ${selectedSet.words.length}`
                       : "0 / 0"
                   }`}
                 >
                   {selectedSet && selectedSet.words.length > 0
-                    ? `${currentIndex + 1}/${selectedSet.words.length}`
+                    ? `${displayedCardNumber}/${selectedSet.words.length}`
                     : "0/0"}
                 </span>
                 {mediaLoading && (
@@ -1886,20 +1902,56 @@ export default function Dashboard() {
                         ? audioCache[currentWord.audioId] || null
                         : null
                     }
-                    onNext={handleNext}
-                    onPrevious={handlePrevious}
-                    hasNext={currentIndex < selectedSet.words.length - 1}
-                    hasPrevious={currentIndex > 0}
+                    onDontKnow={handleDontKnow}
+                    onKnow={handleKnow}
+                    learnedCount={learnedCount}
+                    totalCount={studyTotal}
                   />
-                  {/* Money Bag Reward - appears on last flashcard */}
-                  {currentIndex === selectedSet.words.length - 1 && (
-                    <MoneyBagReward
-                      rewardAmount={getRewardAmount(selectedSet.words.length)}
-                      onClaim={handleClaimReward}
-                      isLastCard={true}
-                      isAlreadyClaimed={claimedRewards.has(selectedSet.id)}
-                    />
-                  )}
+                </>
+              ) : selectedSet &&
+                selectedSet.words.length > 0 &&
+                studyQueue.length === 0 ? (
+                <>
+                  <div className="w-full max-w-lg rounded-3xl border border-emerald-200 bg-white/90 px-6 py-10 text-center shadow-xl backdrop-blur dark:border-emerald-800 dark:bg-gray-800/90">
+                    <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100 text-emerald-600 dark:bg-emerald-900/40 dark:text-emerald-300">
+                      <svg
+                        className="h-9 w-9"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                        aria-hidden="true"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2.5}
+                          d="M5 13l4 4L19 7"
+                        />
+                      </svg>
+                    </div>
+                    <p className="mb-2 text-sm font-semibold uppercase tracking-widest text-emerald-600 dark:text-emerald-400">
+                      {t("flashcard.learned")} {studyTotal}/{studyTotal}
+                    </p>
+                    <h3 className="mb-3 text-3xl font-bold text-gray-900 dark:text-white">
+                      {t("flashcard.allLearned")}
+                    </h3>
+                    <p className="mb-7 text-gray-600 dark:text-gray-300">
+                      {t("flashcard.studyComplete")}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={handleRestartStudy}
+                      className="rounded-xl bg-emerald-600 px-6 py-3 font-semibold text-white shadow-lg transition hover:bg-emerald-700 active:scale-95"
+                    >
+                      {t("flashcard.studyAgain")}
+                    </button>
+                  </div>
+                  <MoneyBagReward
+                    rewardAmount={getRewardAmount(selectedSet.words.length)}
+                    onClaim={handleClaimReward}
+                    isLastCard={true}
+                    isAlreadyClaimed={claimedRewards.has(selectedSet.id)}
+                  />
                 </>
               ) : (
                 <div className="text-center">
