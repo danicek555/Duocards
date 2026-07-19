@@ -135,3 +135,119 @@ body {
 .rotate-y-180 {
   transform: rotateY(180deg);
 }
+
+/* Fast study feedback: enough motion to register a new card without slowing study. */
+@keyframes flashcard-enter {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 12px, 0) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+@keyframes flashcard-exit-know {
+  to {
+    opacity: 0;
+    transform: translate3d(64px, -4px, 0) rotate(2deg) scale(0.98);
+  }
+}
+
+@keyframes flashcard-exit-dont-know {
+  to {
+    opacity: 0;
+    transform: translate3d(-52px, 4px, 0) rotate(-2deg) scale(0.98);
+  }
+}
+
+@keyframes study-success-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.55) rotate(-5deg);
+  }
+  42% {
+    opacity: 1;
+    transform: scale(1.12) rotate(2deg);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.96) rotate(0deg);
+  }
+}
+
+@keyframes study-spark {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 0, 0) scale(0.4);
+  }
+  35% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(var(--spark-x), var(--spark-y), 0) scale(1.1);
+  }
+}
+
+.flashcard-enter {
+  animation: flashcard-enter 160ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.flashcard-exit-know {
+  animation: flashcard-exit-know 210ms cubic-bezier(0.4, 0, 1, 1) both;
+}
+
+.flashcard-exit-dont-know {
+  animation: flashcard-exit-dont-know 210ms cubic-bezier(0.4, 0, 1, 1) both;
+}
+
+.study-success-pop {
+  animation: study-success-pop 300ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.study-spark {
+  --spark-x: 0px;
+  --spark-y: 0px;
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 8px;
+  height: 8px;
+  border-radius: 9999px;
+  background: #34d399;
+  animation: study-spark 310ms ease-out both;
+}
+
+.study-spark-one {
+  --spark-x: -74px;
+  --spark-y: -54px;
+}
+
+.study-spark-two {
+  --spark-x: 76px;
+  --spark-y: -42px;
+  background: #fbbf24;
+}
+
+.study-spark-three {
+  --spark-x: -62px;
+  --spark-y: 52px;
+  background: #818cf8;
+}
+
+.study-spark-four {
+  --spark-x: 70px;
+  --spark-y: 48px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .flashcard-enter,
+  .flashcard-exit-know,
+  .flashcard-exit-dont-know,
+  .study-success-pop,
+  .study-spark {
+    animation-duration: 1ms;
+  }
+}

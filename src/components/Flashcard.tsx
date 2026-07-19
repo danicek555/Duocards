@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useI18n } from "@/i18n/I18nProvider";
 
 interface FlashcardProps {
@@ -38,26 +38,51 @@ export default function Flashcard({
 }: FlashcardProps) {
   const { t } = useI18n();
   const [isFlipped, setIsFlipped] = useState(false);
+  const [decision, setDecision] = useState<"know" | "dontKnow" | null>(null);
+  const decisionTimerRef = useRef<number | null>(null);
   const isStudyMode = Boolean(onDontKnow && onKnow);
 
   // Reset flip when word or translation changes to ensure we always start with English side
   useEffect(() => {
     setIsFlipped(false);
+    setDecision(null);
   }, [word, translation]);
 
+  useEffect(
+    () => () => {
+      if (decisionTimerRef.current !== null) {
+        window.clearTimeout(decisionTimerRef.current);
+      }
+    },
+    []
+  );
+
   const handleFlip = () => {
+    if (decision) return;
     setIsFlipped((flipped) => !flipped);
   };
 
-  const markDontKnow = () => {
-    setIsFlipped(false);
-    onDontKnow?.();
-  };
+  const runDecision = useCallback(
+    (nextDecision: "know" | "dontKnow", action?: () => void) => {
+      if (!action || decision) return;
 
-  const markKnow = () => {
-    setIsFlipped(false);
-    onKnow?.();
-  };
+      setIsFlipped(false);
+      setDecision(nextDecision);
+      decisionTimerRef.current = window.setTimeout(() => {
+        setDecision(null);
+        action();
+      }, 210);
+    },
+    [decision]
+  );
+
+  const markDontKnow = useCallback(() => {
+    runDecision("dontKnow", onDontKnow);
+  }, [onDontKnow, runDecision]);
+
+  const markKnow = useCallback(() => {
+    runDecision("know", onKnow);
+  }, [onKnow, runDecision]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -72,24 +97,23 @@ export default function Flashcard({
       }
 
       if (event.code === "Space") {
+        if (decision) return;
         event.preventDefault();
         setIsFlipped((flipped) => !flipped);
       } else if (event.key === "ArrowLeft") {
         if (!onDontKnow) return;
         event.preventDefault();
-        setIsFlipped(false);
-        onDontKnow();
+        markDontKnow();
       } else if (event.key === "ArrowRight") {
         if (!onKnow) return;
         event.preventDefault();
-        setIsFlipped(false);
-        onKnow();
+        markKnow();
       }
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [onDontKnow, onKnow]);
+  }, [decision, markDontKnow, markKnow, onDontKnow, onKnow]);
 
   const playAudio = () => {
     if (audioUrl) {
@@ -190,7 +214,13 @@ export default function Flashcard({
         <div className="relative w-full flex-1 min-h-[200px] max-h-[min(380px,calc(100vh-12rem))]">
           <div
             key={`card-${word}-${translation}`}
-            className={`relative w-full h-full perspective-1000 cursor-pointer`}
+            className={`relative h-full w-full cursor-pointer perspective-1000 ${
+              decision === "know"
+                ? "flashcard-exit-know"
+                : decision === "dontKnow"
+                  ? "flashcard-exit-dont-know"
+                  : "flashcard-enter"
+            }`}
             onClick={handleFlip}
           >
             <div
@@ -416,6 +446,24 @@ export default function Flashcard({
               </div>
             </div>
           </div>
+          {decision === "know" && (
+            <div
+              className="pointer-events-none absolute inset-0 z-40 flex items-center justify-center"
+              role="status"
+              aria-live="polite"
+            >
+              <div className="study-success-pop rounded-2xl bg-emerald-500 px-5 py-3 text-lg font-extrabold text-white shadow-2xl shadow-emerald-500/40">
+                <span className="mr-2" aria-hidden="true">
+                  ✓
+                </span>
+                {t("flashcard.great")}
+              </div>
+              <span className="study-spark study-spark-one" aria-hidden="true" />
+              <span className="study-spark study-spark-two" aria-hidden="true" />
+              <span className="study-spark study-spark-three" aria-hidden="true" />
+              <span className="study-spark study-spark-four" aria-hidden="true" />
+            </div>
+          )}
         </div>
       </div>
 
@@ -446,6 +494,7 @@ export default function Flashcard({
               e.stopPropagation();
               markDontKnow();
             }}
+            disabled={decision !== null}
             className="rounded-xl border border-rose-200 bg-rose-50 px-2 py-3 font-semibold text-rose-700 shadow-sm transition hover:bg-rose-100 active:scale-95 dark:border-rose-800 dark:bg-rose-950/40 dark:text-rose-300 dark:hover:bg-rose-900/50 sm:px-5"
           >
             <span className="block text-base">←</span>
@@ -459,6 +508,7 @@ export default function Flashcard({
               e.stopPropagation();
               handleFlip();
             }}
+            disabled={decision !== null}
             className="rounded-xl bg-blue-600 px-2 py-3 font-semibold text-white shadow-md transition hover:bg-blue-700 active:scale-95 sm:px-5"
             aria-pressed={isFlipped}
           >
@@ -471,6 +521,7 @@ export default function Flashcard({
               e.stopPropagation();
               markKnow();
             }}
+            disabled={decision !== null}
             className="rounded-xl border border-emerald-200 bg-emerald-50 px-2 py-3 font-semibold text-emerald-700 shadow-sm transition hover:bg-emerald-100 active:scale-95 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300 dark:hover:bg-emerald-900/50 sm:px-5"
           >
             <span className="block text-base">→</span>

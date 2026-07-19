@@ -1938,13 +1938,22 @@ export default function Dashboard() {
                     <p className="mb-7 text-gray-600 dark:text-gray-300">
                       {t("flashcard.studyComplete")}
                     </p>
-                    <button
-                      type="button"
-                      onClick={handleRestartStudy}
-                      className="rounded-xl bg-emerald-600 px-6 py-3 font-semibold text-white shadow-lg transition hover:bg-emerald-700 active:scale-95"
-                    >
-                      {t("flashcard.studyAgain")}
-                    </button>
+                    <div className="flex flex-col justify-center gap-3 sm:flex-row">
+                      <button
+                        type="button"
+                        onClick={handleRestartStudy}
+                        className="rounded-xl bg-emerald-600 px-6 py-3 font-semibold text-white shadow-lg transition hover:bg-emerald-700 active:scale-95"
+                      >
+                        {t("flashcard.studyAgain")}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleBackToSets}
+                        className="rounded-xl border border-gray-200 bg-white px-6 py-3 font-semibold text-gray-700 shadow-sm transition hover:bg-gray-50 active:scale-95 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 dark:hover:bg-gray-600"
+                      >
+                        {t("flashcard.backToDashboard")}
+                      </button>
+                    </div>
                   </div>
                   <MoneyBagReward
                     rewardAmount={getRewardAmount(selectedSet.words.length)}

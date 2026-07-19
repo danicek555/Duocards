@@ -440,6 +440,8 @@ export const en = {
     allLearned: "You learned them all!",
     studyComplete: "You completed every card in this set.",
     studyAgain: "Study again",
+    backToDashboard: "Back to dashboard",
+    great: "Great!",
   },
   coins: {
     title: "AI Coins Guide",

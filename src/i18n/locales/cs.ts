@@ -439,6 +439,8 @@ export const cs = {
     allLearned: "Všechno umíš!",
     studyComplete: "Prošel jsi všechny kartičky v tomto balíčku.",
     studyAgain: "Procvičit znovu",
+    backToDashboard: "Zpět na dashboard",
+    great: "Super!",
   },
   coins: {
     title: "Průvodce AI mincemi",
