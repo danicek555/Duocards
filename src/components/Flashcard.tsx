@@ -448,20 +448,17 @@ export default function Flashcard({
           </div>
           {decision === "know" && (
             <div
-              className="pointer-events-none absolute inset-0 z-40 flex items-center justify-center"
-              role="status"
-              aria-live="polite"
+              className="pointer-events-none absolute -inset-4 z-40 overflow-hidden rounded-[2rem]"
+              aria-hidden="true"
             >
-              <div className="study-success-pop rounded-2xl bg-emerald-500 px-5 py-3 text-lg font-extrabold text-white shadow-2xl shadow-emerald-500/40">
-                <span className="mr-2" aria-hidden="true">
-                  ✓
-                </span>
-                {t("flashcard.great")}
-              </div>
-              <span className="study-spark study-spark-one" aria-hidden="true" />
-              <span className="study-spark study-spark-two" aria-hidden="true" />
-              <span className="study-spark study-spark-three" aria-hidden="true" />
-              <span className="study-spark study-spark-four" aria-hidden="true" />
+              <span className="study-confetti study-confetti-1" />
+              <span className="study-confetti study-confetti-2" />
+              <span className="study-confetti study-confetti-3" />
+              <span className="study-confetti study-confetti-4" />
+              <span className="study-confetti study-confetti-5" />
+              <span className="study-confetti study-confetti-6" />
+              <span className="study-confetti study-confetti-7" />
+              <span className="study-confetti study-confetti-8" />
             </div>
           )}
         </div>
@@ -561,6 +558,121 @@ export default function Flashcard({
           </button>
         </div>
       )}
+      <style jsx>{`
+        @keyframes study-confetti {
+          0% {
+            opacity: 0;
+            transform: translate3d(0, 0, 0) rotate(0deg) scale(0.6);
+          }
+          22% {
+            opacity: 1;
+          }
+          100% {
+            opacity: 0;
+            transform: translate3d(
+                var(--confetti-x),
+                var(--confetti-y),
+                0
+              )
+              rotate(var(--confetti-rotate)) scale(1);
+          }
+        }
+
+        .study-confetti {
+          --confetti-x: 0px;
+          --confetti-y: 0px;
+          --confetti-rotate: 120deg;
+          position: absolute;
+          width: 7px;
+          height: 11px;
+          border-radius: 2px;
+          animation: study-confetti 320ms ease-out both;
+        }
+
+        .study-confetti-1 {
+          --confetti-x: -22px;
+          --confetti-y: -24px;
+          left: 7%;
+          top: 20%;
+          background: #34d399;
+        }
+
+        .study-confetti-2 {
+          --confetti-x: -28px;
+          --confetti-y: 20px;
+          --confetti-rotate: -150deg;
+          left: 4%;
+          top: 68%;
+          background: #fbbf24;
+        }
+
+        .study-confetti-3 {
+          --confetti-x: 18px;
+          --confetti-y: -28px;
+          --confetti-rotate: 190deg;
+          right: 7%;
+          top: 18%;
+          background: #818cf8;
+        }
+
+        .study-confetti-4 {
+          --confetti-x: 28px;
+          --confetti-y: 22px;
+          --confetti-rotate: -130deg;
+          right: 5%;
+          top: 70%;
+          background: #fb7185;
+        }
+
+        .study-confetti-5 {
+          --confetti-x: -12px;
+          --confetti-y: -25px;
+          --confetti-rotate: 160deg;
+          left: 28%;
+          top: 4%;
+          height: 7px;
+          border-radius: 999px;
+          background: #60a5fa;
+          animation-delay: 25ms;
+        }
+
+        .study-confetti-6 {
+          --confetti-x: 15px;
+          --confetti-y: -24px;
+          --confetti-rotate: -180deg;
+          right: 27%;
+          top: 3%;
+          background: #fbbf24;
+          animation-delay: 35ms;
+        }
+
+        .study-confetti-7 {
+          --confetti-x: -10px;
+          --confetti-y: 24px;
+          left: 30%;
+          bottom: 3%;
+          background: #a78bfa;
+          animation-delay: 20ms;
+        }
+
+        .study-confetti-8 {
+          --confetti-x: 12px;
+          --confetti-y: 26px;
+          --confetti-rotate: -160deg;
+          right: 29%;
+          bottom: 4%;
+          height: 7px;
+          border-radius: 999px;
+          background: #34d399;
+          animation-delay: 30ms;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          .study-confetti {
+            animation-duration: 1ms;
+          }
+        }
+      `}</style>
     </div>
   );
 }
