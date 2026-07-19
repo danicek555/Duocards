@@ -3,6 +3,62 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useI18n } from "@/i18n/I18nProvider";
 
+type StudySound = "flip" | "know" | "dontKnow";
+
+let studyAudioContext: AudioContext | null = null;
+
+function playStudySound(sound: StudySound) {
+  if (typeof window === "undefined") return;
+
+  try {
+    studyAudioContext ??= new AudioContext();
+    const context = studyAudioContext;
+    if (context.state === "suspended") void context.resume();
+    const now = context.currentTime;
+    const notes: Array<{
+      frequency: number;
+      endFrequency?: number;
+      start: number;
+      duration: number;
+    }> =
+      sound === "know"
+        ? [
+            { frequency: 523.25, start: 0, duration: 0.09 },
+            { frequency: 659.25, start: 0.065, duration: 0.13 },
+          ]
+        : sound === "dontKnow"
+          ? [{ frequency: 245, endFrequency: 190, start: 0, duration: 0.13 }]
+          : [{ frequency: 430, endFrequency: 510, start: 0, duration: 0.06 }];
+
+    notes.forEach(({ frequency, endFrequency, start, duration }) => {
+      const oscillator = context.createOscillator();
+      const gain = context.createGain();
+      const startsAt = now + start;
+      const endsAt = startsAt + duration;
+
+      oscillator.type = sound === "know" ? "sine" : "triangle";
+      oscillator.frequency.setValueAtTime(frequency, startsAt);
+      if (endFrequency) {
+        oscillator.frequency.exponentialRampToValueAtTime(endFrequency, endsAt);
+      }
+
+      gain.gain.setValueAtTime(0.0001, startsAt);
+      gain.gain.exponentialRampToValueAtTime(
+        sound === "know" ? 0.045 : 0.025,
+        startsAt + 0.012
+      );
+      gain.gain.exponentialRampToValueAtTime(0.0001, endsAt);
+
+      oscillator.connect(gain);
+      gain.connect(context.destination);
+      oscillator.start(startsAt);
+      oscillator.stop(endsAt + 0.01);
+    });
+  } catch {
+    // Audio feedback is optional; studying must continue if sound is blocked.
+  }
+}
+
 interface FlashcardProps {
   word: string;
   translation: string;
@@ -59,6 +115,7 @@ export default function Flashcard({
 
   const handleFlip = () => {
     if (decision) return;
+    playStudySound("flip");
     setIsFlipped((flipped) => !flipped);
   };
 
@@ -77,12 +134,14 @@ export default function Flashcard({
   );
 
   const markDontKnow = useCallback(() => {
+    if (!decision && onDontKnow) playStudySound("dontKnow");
     runDecision("dontKnow", onDontKnow);
-  }, [onDontKnow, runDecision]);
+  }, [decision, onDontKnow, runDecision]);
 
   const markKnow = useCallback(() => {
+    if (!decision && onKnow) playStudySound("know");
     runDecision("know", onKnow);
-  }, [onKnow, runDecision]);
+  }, [decision, onKnow, runDecision]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -99,6 +158,7 @@ export default function Flashcard({
       if (event.code === "Space") {
         if (decision) return;
         event.preventDefault();
+        playStudySound("flip");
         setIsFlipped((flipped) => !flipped);
       } else if (event.key === "ArrowLeft") {
         if (!onDontKnow) return;
