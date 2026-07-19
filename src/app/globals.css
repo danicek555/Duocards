@@ -135,3 +135,308 @@ body {
 .rotate-y-180 {
   transform: rotateY(180deg);
 }
+
+/* Set completion and AI coin reward celebration */
+.completion-card-enter {
+  animation: completion-card-enter 420ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.completion-badge-pop {
+  animation: completion-badge-pop 560ms 100ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.completion-badge-pulse {
+  animation: completion-badge-pulse 900ms 580ms ease-out both;
+}
+
+.completion-spark {
+  animation: completion-spark 2.4s ease-in-out infinite;
+}
+
+.completion-spark-delay-1 {
+  animation-delay: 180ms;
+}
+
+.completion-spark-delay-2 {
+  animation-delay: 360ms;
+}
+
+.completion-spark-delay-3 {
+  animation-delay: 540ms;
+}
+
+.reward-card-enter {
+  animation: reward-card-enter 480ms 180ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.reward-coin-float {
+  animation: reward-coin-float 2.2s ease-in-out infinite;
+}
+
+.reward-shine::after {
+  position: absolute;
+  inset: -40%;
+  content: "";
+  background: linear-gradient(110deg, transparent 34%, rgb(255 255 255 / 55%) 50%, transparent 66%);
+  transform: translateX(-65%) rotate(12deg);
+  animation: reward-shine 2.6s ease-in-out infinite;
+}
+
+.reward-burst-coin {
+  left: 50%;
+  top: 50%;
+  opacity: 0;
+  animation: reward-burst 820ms var(--coin-delay) cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.reward-success-pop {
+  animation: reward-success-pop 540ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes completion-card-enter {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes completion-badge-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.45) rotate(-14deg);
+  }
+  70% {
+    transform: scale(1.08) rotate(2deg);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) rotate(0);
+  }
+}
+
+@keyframes completion-badge-pulse {
+  from {
+    opacity: 0.65;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(1.55);
+  }
+}
+
+@keyframes completion-spark {
+  0%,
+  100% {
+    opacity: 0.4;
+    transform: translateY(0) rotate(8deg) scale(0.8);
+  }
+  50% {
+    opacity: 1;
+    transform: translateY(-7px) rotate(34deg) scale(1.08);
+  }
+}
+
+@keyframes reward-card-enter {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes reward-coin-float {
+  0%,
+  100% {
+    transform: translateY(0) rotate(-2deg);
+  }
+  50% {
+    transform: translateY(-5px) rotate(2deg);
+  }
+}
+
+@keyframes reward-shine {
+  0%,
+  28% {
+    transform: translateX(-65%) rotate(12deg);
+  }
+  62%,
+  100% {
+    transform: translateX(65%) rotate(12deg);
+  }
+}
+
+@keyframes reward-burst {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.3) rotate(0deg);
+  }
+  18% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(
+        calc(-50% + var(--coin-x)),
+        calc(-50% + var(--coin-y))
+      )
+      scale(0.9)
+      rotate(var(--coin-rotate));
+  }
+}
+
+@keyframes reward-success-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.65);
+  }
+  72% {
+    opacity: 1;
+    transform: scale(1.08);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .completion-card-enter,
+  .completion-badge-pop,
+  .completion-badge-pulse,
+  .completion-spark,
+  .reward-card-enter,
+  .reward-coin-float,
+  .reward-shine::after,
+  .reward-burst-coin,
+  .reward-success-pop {
+    animation: none;
+  }
+
+  .reward-burst-coin {
+    display: none;
+  }
+}
+
+/* Fast study feedback: enough motion to register a new card without slowing study. */
+@keyframes flashcard-enter {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 12px, 0) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+@keyframes flashcard-exit-know {
+  to {
+    opacity: 0;
+    transform: translate3d(64px, -4px, 0) rotate(2deg) scale(0.98);
+  }
+}
+
+@keyframes flashcard-exit-dont-know {
+  to {
+    opacity: 0;
+    transform: translate3d(-52px, 4px, 0) rotate(-2deg) scale(0.98);
+  }
+}
+
+@keyframes study-success-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.55) rotate(-5deg);
+  }
+  42% {
+    opacity: 1;
+    transform: scale(1.12) rotate(2deg);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.96) rotate(0deg);
+  }
+}
+
+@keyframes study-spark {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 0, 0) scale(0.4);
+  }
+  35% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(var(--spark-x), var(--spark-y), 0) scale(1.1);
+  }
+}
+
+.flashcard-enter {
+  animation: flashcard-enter 160ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.flashcard-exit-know {
+  animation: flashcard-exit-know 210ms cubic-bezier(0.4, 0, 1, 1) both;
+}
+
+.flashcard-exit-dont-know {
+  animation: flashcard-exit-dont-know 210ms cubic-bezier(0.4, 0, 1, 1) both;
+}
+
+.study-success-pop {
+  animation: study-success-pop 300ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.study-spark {
+  --spark-x: 0px;
+  --spark-y: 0px;
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 8px;
+  height: 8px;
+  border-radius: 9999px;
+  background: #34d399;
+  animation: study-spark 310ms ease-out both;
+}
+
+.study-spark-one {
+  --spark-x: -74px;
+  --spark-y: -54px;
+}
+
+.study-spark-two {
+  --spark-x: 76px;
+  --spark-y: -42px;
+  background: #fbbf24;
+}
+
+.study-spark-three {
+  --spark-x: -62px;
+  --spark-y: 52px;
+  background: #818cf8;
+}
+
+.study-spark-four {
+  --spark-x: 70px;
+  --spark-y: 48px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .flashcard-enter,
+  .flashcard-exit-know,
+  .flashcard-exit-dont-know,
+  .study-success-pop,
+  .study-spark {
+    animation-duration: 1ms;
+  }
+}

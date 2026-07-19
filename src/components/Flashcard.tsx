@@ -1,7 +1,63 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useI18n } from "@/i18n/I18nProvider";
+
+type StudySound = "flip" | "know" | "dontKnow";
+
+let studyAudioContext: AudioContext | null = null;
+
+function playStudySound(sound: StudySound) {
+  if (typeof window === "undefined") return;
+
+  try {
+    studyAudioContext ??= new AudioContext();
+    const context = studyAudioContext;
+    if (context.state === "suspended") void context.resume();
+    const now = context.currentTime;
+    const notes: Array<{
+      frequency: number;
+      endFrequency?: number;
+      start: number;
+      duration: number;
+    }> =
+      sound === "know"
+        ? [
+            { frequency: 523.25, start: 0, duration: 0.09 },
+            { frequency: 659.25, start: 0.065, duration: 0.13 },
+          ]
+        : sound === "dontKnow"
+          ? [{ frequency: 245, endFrequency: 190, start: 0, duration: 0.13 }]
+          : [{ frequency: 430, endFrequency: 510, start: 0, duration: 0.06 }];
+
+    notes.forEach(({ frequency, endFrequency, start, duration }) => {
+      const oscillator = context.createOscillator();
+      const gain = context.createGain();
+      const startsAt = now + start;
+      const endsAt = startsAt + duration;
+
+      oscillator.type = sound === "know" ? "sine" : "triangle";
+      oscillator.frequency.setValueAtTime(frequency, startsAt);
+      if (endFrequency) {
+        oscillator.frequency.exponentialRampToValueAtTime(endFrequency, endsAt);
+      }
+
+      gain.gain.setValueAtTime(0.0001, startsAt);
+      gain.gain.exponentialRampToValueAtTime(
+        sound === "know" ? 0.045 : 0.025,
+        startsAt + 0.012
+      );
+      gain.gain.exponentialRampToValueAtTime(0.0001, endsAt);
+
+      oscillator.connect(gain);
+      gain.connect(context.destination);
+      oscillator.start(startsAt);
+      oscillator.stop(endsAt + 0.01);
+    });
+  } catch {
+    // Audio feedback is optional; studying must continue if sound is blocked.
+  }
+}
 
 interface FlashcardProps {
   word: string;
@@ -10,10 +66,14 @@ interface FlashcardProps {
   pronunciation?: string | null;
   imageUrl?: string | null;
   audioUrl?: string | null;
-  onNext: () => void;
-  onPrevious: () => void;
-  hasNext: boolean;
-  hasPrevious: boolean;
+  onDontKnow?: () => void;
+  onKnow?: () => void;
+  learnedCount?: number;
+  totalCount?: number;
+  onNext?: () => void;
+  onPrevious?: () => void;
+  hasNext?: boolean;
+  hasPrevious?: boolean;
 }
 
 export default function Flashcard({
@@ -23,22 +83,97 @@ export default function Flashcard({
   pronunciation,
   imageUrl,
   audioUrl,
+  onDontKnow,
+  onKnow,
+  learnedCount = 0,
+  totalCount = 0,
   onNext,
   onPrevious,
-  hasNext,
-  hasPrevious,
+  hasNext = false,
+  hasPrevious = false,
 }: FlashcardProps) {
   const { t } = useI18n();
   const [isFlipped, setIsFlipped] = useState(false);
+  const [decision, setDecision] = useState<"know" | "dontKnow" | null>(null);
+  const decisionTimerRef = useRef<number | null>(null);
+  const isStudyMode = Boolean(onDontKnow && onKnow);
 
   // Reset flip when word or translation changes to ensure we always start with English side
   useEffect(() => {
     setIsFlipped(false);
+    setDecision(null);
   }, [word, translation]);
 
+  useEffect(
+    () => () => {
+      if (decisionTimerRef.current !== null) {
+        window.clearTimeout(decisionTimerRef.current);
+      }
+    },
+    []
+  );
+
   const handleFlip = () => {
-    setIsFlipped(!isFlipped);
+    if (decision) return;
+    playStudySound("flip");
+    setIsFlipped((flipped) => !flipped);
   };
+
+  const runDecision = useCallback(
+    (nextDecision: "know" | "dontKnow", action?: () => void) => {
+      if (!action || decision) return;
+
+      setIsFlipped(false);
+      setDecision(nextDecision);
+      decisionTimerRef.current = window.setTimeout(() => {
+        setDecision(null);
+        action();
+      }, 210);
+    },
+    [decision]
+  );
+
+  const markDontKnow = useCallback(() => {
+    if (!decision && onDontKnow) playStudySound("dontKnow");
+    runDecision("dontKnow", onDontKnow);
+  }, [decision, onDontKnow, runDecision]);
+
+  const markKnow = useCallback(() => {
+    if (!decision && onKnow) playStudySound("know");
+    runDecision("know", onKnow);
+  }, [decision, onKnow, runDecision]);
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (
+        target?.isContentEditable ||
+        target?.tagName === "INPUT" ||
+        target?.tagName === "TEXTAREA" ||
+        target?.tagName === "SELECT"
+      ) {
+        return;
+      }
+
+      if (event.code === "Space") {
+        if (decision) return;
+        event.preventDefault();
+        playStudySound("flip");
+        setIsFlipped((flipped) => !flipped);
+      } else if (event.key === "ArrowLeft") {
+        if (!onDontKnow) return;
+        event.preventDefault();
+        markDontKnow();
+      } else if (event.key === "ArrowRight") {
+        if (!onKnow) return;
+        event.preventDefault();
+        markKnow();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [decision, markDontKnow, markKnow, onDontKnow, onKnow]);
 
   const playAudio = () => {
     if (audioUrl) {
@@ -139,7 +274,13 @@ export default function Flashcard({
         <div className="relative w-full flex-1 min-h-[200px] max-h-[min(380px,calc(100vh-12rem))]">
           <div
             key={`card-${word}-${translation}`}
-            className={`relative w-full h-full perspective-1000 cursor-pointer`}
+            className={`relative h-full w-full cursor-pointer perspective-1000 ${
+              decision === "know"
+                ? "flashcard-exit-know"
+                : decision === "dontKnow"
+                  ? "flashcard-exit-dont-know"
+                  : "flashcard-enter"
+            }`}
             onClick={handleFlip}
           >
             <div
@@ -365,34 +506,233 @@ export default function Flashcard({
               </div>
             </div>
           </div>
+          {decision === "know" && (
+            <div
+              className="pointer-events-none absolute -inset-4 z-40 overflow-hidden rounded-[2rem]"
+              aria-hidden="true"
+            >
+              <span className="study-confetti study-confetti-1" />
+              <span className="study-confetti study-confetti-2" />
+              <span className="study-confetti study-confetti-3" />
+              <span className="study-confetti study-confetti-4" />
+              <span className="study-confetti study-confetti-5" />
+              <span className="study-confetti study-confetti-6" />
+              <span className="study-confetti study-confetti-7" />
+              <span className="study-confetti study-confetti-8" />
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Navigation buttons */}
-      <div className="flex gap-4 mt-4 shrink-0">
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            setIsFlipped(false);
-            onPrevious();
-          }}
-          disabled={!hasPrevious}
-          className="px-8 py-3 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-300 dark:hover:bg-gray-600 transition-all duration-200 font-semibold shadow-lg hover:shadow-xl active:scale-95"
-        >
-          {t("flashcard.previous")}
-        </button>
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            setIsFlipped(false);
-            onNext();
-          }}
-          disabled={!hasNext}
-          className="px-8 py-3 bg-blue-600 text-white rounded-xl disabled:opacity-50 disabled:cursor-not-allowed hover:bg-blue-700 transition-all duration-200 font-semibold shadow-lg hover:shadow-xl active:scale-95"
-        >
-          {t("flashcard.next")}
-        </button>
-      </div>
+      {isStudyMode ? (
+        /* DuoCards-style study controls */
+        <div className="mt-4 w-full max-w-xl shrink-0">
+        <div className="mb-2 flex items-center justify-center text-sm font-semibold text-emerald-600 dark:text-emerald-400">
+          <svg
+            className="mr-1.5 h-4 w-4"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            aria-hidden="true"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2.5}
+              d="M5 13l4 4L19 7"
+            />
+          </svg>
+          {t("flashcard.learned")} {learnedCount}/{totalCount}
+        </div>
+        <div className="grid grid-cols-3 gap-2 sm:gap-3">
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              markDontKnow();
+            }}
+            disabled={decision !== null}
+            className="rounded-xl border border-rose-200 bg-rose-50 px-2 py-3 font-semibold text-rose-700 shadow-sm transition hover:bg-rose-100 active:scale-95 dark:border-rose-800 dark:bg-rose-950/40 dark:text-rose-300 dark:hover:bg-rose-900/50 sm:px-5"
+          >
+            <span className="block text-base">←</span>
+            <span className="text-xs sm:text-sm">
+              {t("flashcard.dontKnow")}
+            </span>
+          </button>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleFlip();
+            }}
+            disabled={decision !== null}
+            className="rounded-xl bg-blue-600 px-2 py-3 font-semibold text-white shadow-md transition hover:bg-blue-700 active:scale-95 sm:px-5"
+            aria-pressed={isFlipped}
+          >
+            <span className="block text-base">↻</span>
+            <span className="text-xs sm:text-sm">{t("flashcard.flip")}</span>
+          </button>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              markKnow();
+            }}
+            disabled={decision !== null}
+            className="rounded-xl border border-emerald-200 bg-emerald-50 px-2 py-3 font-semibold text-emerald-700 shadow-sm transition hover:bg-emerald-100 active:scale-95 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300 dark:hover:bg-emerald-900/50 sm:px-5"
+          >
+            <span className="block text-base">→</span>
+            <span className="text-xs sm:text-sm">{t("flashcard.know")}</span>
+          </button>
+        </div>
+        <p className="mt-2 hidden text-center text-[11px] text-gray-400 sm:block dark:text-gray-500">
+          {t("flashcard.keyboardHint")}
+        </p>
+        </div>
+      ) : (
+        /* Standard navigation used by live-game practice mode */
+        <div className="mt-4 flex shrink-0 gap-4">
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              setIsFlipped(false);
+              onPrevious?.();
+            }}
+            disabled={!hasPrevious}
+            className="rounded-xl bg-gray-200 px-8 py-3 font-semibold text-gray-800 shadow-lg transition-all duration-200 hover:bg-gray-300 hover:shadow-xl active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
+          >
+            {t("flashcard.previous")}
+          </button>
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              setIsFlipped(false);
+              onNext?.();
+            }}
+            disabled={!hasNext}
+            className="rounded-xl bg-blue-600 px-8 py-3 font-semibold text-white shadow-lg transition-all duration-200 hover:bg-blue-700 hover:shadow-xl active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {t("flashcard.next")}
+          </button>
+        </div>
+      )}
+      <style jsx>{`
+        @keyframes study-confetti {
+          0% {
+            opacity: 0;
+            transform: translate3d(0, 0, 0) rotate(0deg) scale(0.6);
+          }
+          22% {
+            opacity: 1;
+          }
+          100% {
+            opacity: 0;
+            transform: translate3d(
+                var(--confetti-x),
+                var(--confetti-y),
+                0
+              )
+              rotate(var(--confetti-rotate)) scale(1);
+          }
+        }
+
+        .study-confetti {
+          --confetti-x: 0px;
+          --confetti-y: 0px;
+          --confetti-rotate: 120deg;
+          position: absolute;
+          width: 7px;
+          height: 11px;
+          border-radius: 2px;
+          animation: study-confetti 320ms ease-out both;
+        }
+
+        .study-confetti-1 {
+          --confetti-x: -22px;
+          --confetti-y: -24px;
+          left: 7%;
+          top: 20%;
+          background: #34d399;
+        }
+
+        .study-confetti-2 {
+          --confetti-x: -28px;
+          --confetti-y: 20px;
+          --confetti-rotate: -150deg;
+          left: 4%;
+          top: 68%;
+          background: #fbbf24;
+        }
+
+        .study-confetti-3 {
+          --confetti-x: 18px;
+          --confetti-y: -28px;
+          --confetti-rotate: 190deg;
+          right: 7%;
+          top: 18%;
+          background: #818cf8;
+        }
+
+        .study-confetti-4 {
+          --confetti-x: 28px;
+          --confetti-y: 22px;
+          --confetti-rotate: -130deg;
+          right: 5%;
+          top: 70%;
+          background: #fb7185;
+        }
+
+        .study-confetti-5 {
+          --confetti-x: -12px;
+          --confetti-y: -25px;
+          --confetti-rotate: 160deg;
+          left: 28%;
+          top: 4%;
+          height: 7px;
+          border-radius: 999px;
+          background: #60a5fa;
+          animation-delay: 25ms;
+        }
+
+        .study-confetti-6 {
+          --confetti-x: 15px;
+          --confetti-y: -24px;
+          --confetti-rotate: -180deg;
+          right: 27%;
+          top: 3%;
+          background: #fbbf24;
+          animation-delay: 35ms;
+        }
+
+        .study-confetti-7 {
+          --confetti-x: -10px;
+          --confetti-y: 24px;
+          left: 30%;
+          bottom: 3%;
+          background: #a78bfa;
+          animation-delay: 20ms;
+        }
+
+        .study-confetti-8 {
+          --confetti-x: 12px;
+          --confetti-y: 26px;
+          --confetti-rotate: -160deg;
+          right: 29%;
+          bottom: 4%;
+          height: 7px;
+          border-radius: 999px;
+          background: #34d399;
+          animation-delay: 30ms;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          .study-confetti {
+            animation-duration: 1ms;
+          }
+        }
+      `}</style>
     </div>
   );
 }

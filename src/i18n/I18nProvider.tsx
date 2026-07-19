@@ -21,15 +21,17 @@ interface I18nContextValue {
 
 const I18nContext = createContext<I18nContextValue | null>(null);
 
-async function syncLocaleToServer(locale: Locale) {
+export async function syncLocaleToServer(locale: Locale) {
   try {
-    await fetch("/api/user/locale", {
+    const response = await fetch("/api/user/locale", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ locale }),
     });
+    return response.ok;
   } catch {
     // Guest users or offline — locale stays in localStorage only
+    return false;
   }
 }
 
@@ -56,7 +58,7 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
       setLocaleState(nextLocale);
       document.documentElement.dir = isRtlLocale(nextLocale) ? "rtl" : "ltr";
       if (persist) {
-        persistLocale(nextLocale);
+        persistLocale(nextLocale, { clearPendingLandingLocale: sync });
       } else {
         document.documentElement.lang = nextLocale;
       }

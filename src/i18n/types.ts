@@ -46,6 +46,8 @@ export const LOCALE_LABELS: Record<Locale, string> = {
 
 export const LOCALE_COOKIE = "locale";
 export const LOCALE_STORAGE_KEY = "locale";
+export const SHARED_LOCALE_COOKIE = "duocards-locale";
+export const PENDING_LANDING_LOCALE_COOKIE = "duocards-locale-pending";
 
 export function isLocale(value: string | null | undefined): value is Locale {
   return typeof value === "string" && (LOCALES as string[]).includes(value);
