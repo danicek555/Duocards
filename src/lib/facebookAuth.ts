@@ -3,8 +3,10 @@ import { prisma } from "@/lib/prisma";
 import { hashPassword } from "@/lib/auth";
 import { getPublicAppUrl } from "@/lib/publicUrls";
 import { createOAuthState } from "@/lib/googleAuth";
+import { COIN_TRANSACTION_TYPES } from "@/lib/coinEconomy";
 
 const FACEBOOK_API_VERSION = "v21.0";
+const WELCOME_COINS = 100;
 
 export interface FacebookUserProfile {
   id: string;
@@ -160,6 +162,13 @@ export async function findOrCreateFacebookUser(profile: FacebookUserProfile) {
       nickname: deriveNickname(profile, email),
       facebookId: profile.id,
       emailVerified: true,
+      coinTransactions: {
+        create: {
+          amount: WELCOME_COINS,
+          balanceAfter: WELCOME_COINS,
+          type: COIN_TRANSACTION_TYPES.welcomeBonus,
+        },
+      },
     },
     select: {
       id: true,

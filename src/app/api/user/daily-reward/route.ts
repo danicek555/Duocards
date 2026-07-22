@@ -5,6 +5,11 @@ import {
   parseTimezoneOffsetHeader,
   secondsUntilNextLocalMidnight,
 } from "@/lib/dailyReward";
+import {
+  claimDailyReward,
+  DailyRewardAlreadyClaimedError,
+  UserNotFoundError,
+} from "@/lib/coinEconomy";
 import { prisma } from "@/lib/prisma";
 
 const DAILY_REWARD_COINS = 100;
@@ -76,57 +81,39 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const user = await prisma.user.findUnique({
-      where: { id: payload.userId },
-      select: { lastDailyReward: true, coins: true },
-    });
-
-    if (!user) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
-    }
-
     const now = new Date();
     const tzOffset = getTimezoneOffset(request);
-    const canClaim =
-      !user.lastDailyReward ||
-      isNewLocalDay(user.lastDailyReward, now, tzOffset);
-
-    if (!canClaim) {
-      const timeUntilNextReward = secondsUntilNextLocalMidnight(now, tzOffset);
-
-      return NextResponse.json(
-        {
-          error: "Daily reward already claimed",
-          timeUntilNextReward,
-        },
-        { status: 400 }
-      );
-    }
-
-    const updatedUser = await prisma.user.update({
-      where: { id: payload.userId },
-      data: {
-        coins: {
-          increment: DAILY_REWARD_COINS,
-        },
-        lastDailyReward: now,
-      },
-      select: {
-        coins: true,
-        lastDailyReward: true,
-      },
+    const result = await claimDailyReward(prisma, {
+      userId: payload.userId,
+      amount: DAILY_REWARD_COINS,
+      timezoneOffsetMinutes: tzOffset,
+      now,
     });
 
     return NextResponse.json(
       {
-        coins: updatedUser.coins,
+        coins: result.coins,
         rewardAmount: DAILY_REWARD_COINS,
-        lastDailyReward:
-          updatedUser.lastDailyReward?.toISOString() || undefined,
+        lastDailyReward: result.lastDailyReward.toISOString(),
       },
       { status: 200 }
     );
   } catch (error) {
+    if (error instanceof DailyRewardAlreadyClaimedError) {
+      const now = new Date();
+      const tzOffset = getTimezoneOffset(request);
+      return NextResponse.json(
+        {
+          error: error.message,
+          timeUntilNextReward: secondsUntilNextLocalMidnight(now, tzOffset),
+        },
+        { status: 400 },
+      );
+    }
+    if (error instanceof UserNotFoundError) {
+      return NextResponse.json({ error: error.message }, { status: 404 });
+    }
+
     console.error("Error claiming daily reward:", error);
     return NextResponse.json(
       {

@@ -15,6 +15,7 @@ import LiveGameHistoryPanel from "@/components/LiveGameHistoryPanel";
 import Notification from "@/components/Notification";
 import SettingsModal from "@/components/SettingsModal";
 import { syncLocaleToServer, useI18n } from "@/i18n/I18nProvider";
+import { getCompletionRewardAmount } from "@/lib/completionRewardAmount";
 import { isLocale } from "@/i18n/types";
 import {
   clearPendingLandingLocale,
@@ -24,6 +25,7 @@ import { getLanguageFlag } from "@/lib/flags";
 import { getLanguageLabel, LANGUAGES } from "@/lib/languages";
 import { getGuestLiveGameBaseUrl } from "@/lib/publicUrls";
 import { apiFetch } from "@/lib/apiUrl";
+import { STUDY_RATINGS, type StudyRating } from "@/lib/studySrs";
 
 interface User {
   id: number;
@@ -63,6 +65,25 @@ interface Word {
   audio: WordAudio | null;
   createdAt: string;
   updatedAt: string;
+  reviewIntervalDays?: number;
+  reviewEase?: number;
+  reviewStreak?: number;
+  reviewCount?: number;
+  correctReviewCount?: number;
+  lapseCount?: number;
+  lastReviewedAt?: string | null;
+  nextReviewAt?: string | null;
+}
+
+interface StudySummary {
+  dueToday: number;
+  dueBySet: Record<string, number>;
+  reviewedToday: number;
+  correctToday: number;
+  accuracyToday: number;
+  streakDays: number;
+  masteredWords: number;
+  totalReviews: number;
 }
 
 interface FlashcardSet {
@@ -90,6 +111,15 @@ export default function Dashboard() {
   const [flashcardSets, setFlashcardSets] = useState<FlashcardSet[]>([]);
   const [selectedSet, setSelectedSet] = useState<FlashcardSet | null>(null);
   const [studyQueue, setStudyQueue] = useState<number[]>([]);
+  const [studySessionId, setStudySessionId] = useState<string | null>(null);
+  const [studySessionWordIds, setStudySessionWordIds] = useState<number[]>([]);
+  const [studySessionIsFullSet, setStudySessionIsFullSet] = useState(false);
+  const [studySessionCompleted, setStudySessionCompleted] = useState(false);
+  const [studySessionStarting, setStudySessionStarting] = useState(false);
+  const [studySessionFinalizing, setStudySessionFinalizing] = useState(false);
+  const [studySummary, setStudySummary] = useState<StudySummary | null>(null);
+  const studySessionRequestRef = useRef(0);
+  const studyReviewChainRef = useRef<Promise<void>>(Promise.resolve());
   const [loading, setLoading] = useState(true);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [showAIGenerateForm, setShowAIGenerateForm] = useState(false);
@@ -188,6 +218,21 @@ export default function Dashboard() {
     }
   };
 
+  const fetchStudySummary = async () => {
+    try {
+      const response = await fetch("/api/study/summary", {
+        headers: {
+          "X-Timezone-Offset": String(new Date().getTimezoneOffset()),
+        },
+      });
+      if (response.ok) {
+        setStudySummary(await response.json());
+      }
+    } catch (error) {
+      console.error("Error fetching study summary:", error);
+    }
+  };
+
   useEffect(() => {
     // Dispatch loading event for AI button
     window.dispatchEvent(
@@ -225,6 +270,7 @@ export default function Dashboard() {
         fetchFlashcardSets();
         fetchCoins();
         fetchClaimedRewards();
+        fetchStudySummary();
       } catch {
         localStorage.removeItem("user");
         try {
@@ -367,6 +413,54 @@ export default function Dashboard() {
     return shuffled;
   };
 
+  const startStudySession = async (set: FlashcardSet) => {
+    const requestId = ++studySessionRequestRef.current;
+    setStudySessionStarting(true);
+    setStudySessionFinalizing(false);
+    setStudySessionId(null);
+    setStudySessionWordIds([]);
+    setStudySessionIsFullSet(false);
+    setStudySessionCompleted(false);
+    setStudyQueue([]);
+
+    try {
+      const response = await fetch("/api/study/sessions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ flashcardSetId: set.id }),
+      });
+      if (!response.ok) throw new Error("Could not start study session");
+      const data = (await response.json()) as {
+        sessionId: string;
+        wordIds: number[];
+        isFullSet: boolean;
+      };
+      if (studySessionRequestRef.current !== requestId) return;
+
+      const wordIds = shuffleArray(data.wordIds);
+      setStudySessionId(data.sessionId);
+      setStudySessionWordIds(wordIds);
+      setStudySessionIsFullSet(data.isFullSet);
+      setStudyQueue(wordIds);
+    } catch (error) {
+      console.error("Error starting study session:", error);
+      if (studySessionRequestRef.current !== requestId) return;
+
+      const fallbackWordIds = shuffleArray(set.words.map((word) => word.id));
+      setStudySessionWordIds(fallbackWordIds);
+      setStudyQueue(fallbackWordIds);
+      setNotification({
+        message: t("study.sessionStartFailed"),
+        type: "warning",
+        isVisible: true,
+      });
+    } finally {
+      if (studySessionRequestRef.current === requestId) {
+        setStudySessionStarting(false);
+      }
+    }
+  };
+
   const handleSetClick = async (set: FlashcardSet) => {
     // Open cards immediately; images/audio load in the background via prefetch
     const shuffledSet = {
@@ -374,8 +468,8 @@ export default function Dashboard() {
       words: shuffleArray(set.words),
     };
     setSelectedSet(shuffledSet);
-    setStudyQueue(shuffledSet.words.map((word) => word.id));
     setViewMode("cards");
+    void startStudySession(shuffledSet);
 
     try {
       const response = await apiFetch(`/flashcard-sets/${set.id}`);
@@ -383,10 +477,7 @@ export default function Dashboard() {
         const data = await response.json();
         setSelectedSet((prev) => {
           if (!prev || prev.id !== set.id) {
-            return {
-              ...data.flashcardSet,
-              words: shuffleArray(data.flashcardSet.words),
-            };
+            return prev;
           }
           const wordById = new Map(
             data.flashcardSet.words.map((w: Word) => [w.id, w])
@@ -403,47 +494,147 @@ export default function Dashboard() {
   };
 
   const handleBackToSets = () => {
+    studySessionRequestRef.current += 1;
     setSelectedSet(null);
     setStudyQueue([]);
+    setStudySessionId(null);
+    setStudySessionWordIds([]);
+    setStudySessionIsFullSet(false);
+    setStudySessionCompleted(false);
+    setStudySessionStarting(false);
+    setStudySessionFinalizing(false);
     setViewMode("sets");
   };
 
+  const saveStudyReview = async (
+    sessionId: string,
+    wordId: number,
+    rating: StudyRating,
+  ) => {
+    const idempotencyKey = crypto.randomUUID();
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      try {
+        const response = await fetch("/api/study/reviews", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            sessionId,
+            wordId,
+            rating,
+            idempotencyKey,
+          }),
+        });
+        if (response.ok) return true;
+        if (response.status < 500) break;
+      } catch (error) {
+        console.error("Error saving study review:", error);
+      }
+    }
+
+    setNotification({
+      message: t("study.reviewSaveFailed"),
+      type: "error",
+      isVisible: true,
+    });
+    return false;
+  };
+
+  const recordStudyReview = (
+    sessionId: string,
+    wordId: number,
+    rating: StudyRating,
+  ) => {
+    const queuedReview = studyReviewChainRef.current.then(() =>
+      saveStudyReview(sessionId, wordId, rating),
+    );
+    studyReviewChainRef.current = queuedReview.then(
+      () => undefined,
+      () => undefined,
+    );
+    return queuedReview;
+  };
+
   const handleDontKnow = () => {
+    const wordId = studyQueue[0];
+    const sessionId = studySessionId;
+    if (!wordId) return;
     setStudyQueue((queue) =>
       queue.length > 1 ? [...queue.slice(1), queue[0]] : queue
     );
+    if (sessionId) {
+      void recordStudyReview(sessionId, wordId, STUDY_RATINGS.again);
+    }
   };
 
   const handleKnow = () => {
+    const wordId = studyQueue[0];
+    const sessionId = studySessionId;
+    const isLastWord = studyQueue.length === 1;
+    if (!wordId) return;
+    if (isLastWord && sessionId) setStudySessionFinalizing(true);
     setStudyQueue((queue) => queue.slice(1));
+
+    if (!sessionId) return;
+    void (async () => {
+      const saved = await recordStudyReview(
+        sessionId,
+        wordId,
+        STUDY_RATINGS.know,
+      );
+      if (!saved) {
+        setStudyQueue((queue) =>
+          queue.includes(wordId) ? queue : [wordId, ...queue],
+        );
+        setStudySessionFinalizing(false);
+        return;
+      }
+      if (!isLastWord) {
+        return;
+      }
+
+      try {
+        const response = await fetch(
+          `/api/study/sessions/${sessionId}/complete`,
+          { method: "POST" },
+        );
+        if (!response.ok) throw new Error("Could not complete study session");
+        setStudySessionCompleted(true);
+        void fetchStudySummary();
+      } catch (error) {
+        console.error("Error completing study session:", error);
+        setStudyQueue((queue) =>
+          queue.includes(wordId) ? queue : [wordId, ...queue],
+        );
+        setNotification({
+          message: t("study.completeFailed"),
+          type: "error",
+          isVisible: true,
+        });
+      } finally {
+        setStudySessionFinalizing(false);
+      }
+    })();
   };
 
   const handleRestartStudy = () => {
     if (!selectedSet) return;
 
     const shuffledWords = shuffleArray(selectedSet.words);
-    setSelectedSet({ ...selectedSet, words: shuffledWords });
-    setStudyQueue(shuffledWords.map((word) => word.id));
-  };
-
-  // Calculate reward amount based on flashcard count
-  const getRewardAmount = (flashcardCount: number): number => {
-    if (flashcardCount < 5) {
-      return 1;
-    } else if (flashcardCount < 10) {
-      return 5;
-    } else if (flashcardCount < 25) {
-      return 10;
-    } else {
-      return 25;
-    }
+    const nextSet = { ...selectedSet, words: shuffledWords };
+    setSelectedSet(nextSet);
+    void startStudySession(nextSet);
   };
 
   // Handle claiming reward for completing a flashcard set
   const handleClaimReward = async () => {
-    if (!selectedSet) return;
-
-    const rewardAmount = getRewardAmount(selectedSet.words.length);
+    if (
+      !selectedSet ||
+      !studySessionId ||
+      !studySessionCompleted ||
+      !studySessionIsFullSet
+    ) {
+      return;
+    }
 
     try {
       const response = await fetch("/api/flashcard-sets/complete-reward", {
@@ -453,7 +644,7 @@ export default function Dashboard() {
         },
         body: JSON.stringify({
           flashcardSetId: selectedSet.id,
-          rewardAmount,
+          studySessionId,
         }),
       });
 
@@ -542,7 +733,7 @@ export default function Dashboard() {
     (sum, set) => sum + set.words.length,
     0
   );
-  const studyTotal = selectedSet?.words.length ?? 0;
+  const studyTotal = studySessionWordIds.length;
   const learnedCount = Math.max(0, studyTotal - studyQueue.length);
   const currentWord = selectedSet?.words.find(
     (word) => word.id === studyQueue[0]
@@ -553,6 +744,58 @@ export default function Dashboard() {
       : studyQueue.length > 0
         ? Math.min(learnedCount + 1, studyTotal)
         : studyTotal;
+
+  // Applies a regenerated translation/image from the study card to local
+  // state so the fix is visible immediately without refetching the set.
+  const handleWordRegenerated = async (result: {
+    type: "image" | "translation";
+    translation?: string;
+    imageId?: number;
+  }) => {
+    const wordId = currentWord?.id;
+    const setId = selectedSet?.id;
+    if (!wordId || !setId) return;
+
+    const mapWords = (words: Word[]) =>
+      words.map((w) => {
+        if (w.id !== wordId) return w;
+        if (result.type === "translation" && result.translation) {
+          return { ...w, translation: result.translation };
+        }
+        if (result.type === "image" && result.imageId) {
+          return { ...w, imageId: result.imageId };
+        }
+        return w;
+      });
+
+    setSelectedSet((prev) =>
+      prev ? { ...prev, words: mapWords(prev.words) } : prev
+    );
+    setFlashcardSets((prev) =>
+      prev.map((s) => (s.id === setId ? { ...s, words: mapWords(s.words) } : s))
+    );
+
+    if (result.type === "image" && result.imageId) {
+      const newImageId = result.imageId;
+      try {
+        const response = await apiFetch(`/word-images/${newImageId}`);
+        if (response.ok) {
+          const data = await response.json();
+          if (data?.image?.dataUrl) {
+            setImageCache((prev) => ({
+              ...prev,
+              [newImageId]: data.image.dataUrl,
+            }));
+            imageCacheRef.current[newImageId] = data.image.dataUrl;
+          }
+        }
+      } catch (error) {
+        console.error("Error fetching regenerated image:", error);
+      }
+    }
+
+    fetchCoins();
+  };
 
   // Prefetch all images and audio for the open set (stored separately from word records)
   useEffect(() => {
@@ -1044,6 +1287,57 @@ export default function Dashboard() {
               </div>
             )}
 
+            {studySummary && (
+              <div className="mb-6 grid grid-cols-2 gap-3 xl:grid-cols-4">
+                {[
+                  {
+                    label: t("study.dueToday"),
+                    value: studySummary.dueToday,
+                    detail: t("study.cardsWaiting"),
+                    color: "from-blue-500 to-indigo-500",
+                  },
+                  {
+                    label: t("study.streak"),
+                    value: studySummary.streakDays,
+                    detail: t("study.daysInRow"),
+                    color: "from-orange-400 to-rose-500",
+                  },
+                  {
+                    label: t("study.reviewedToday"),
+                    value: studySummary.reviewedToday,
+                    detail: t("study.answersToday"),
+                    color: "from-emerald-400 to-teal-500",
+                  },
+                  {
+                    label: t("study.accuracy"),
+                    value: `${studySummary.accuracyToday}%`,
+                    detail: t("study.masteredTotal", {
+                      count: studySummary.masteredWords,
+                    }),
+                    color: "from-violet-500 to-fuchsia-500",
+                  },
+                ].map((stat) => (
+                  <div
+                    key={stat.label}
+                    className="relative overflow-hidden rounded-2xl border border-white/70 bg-white/75 p-4 shadow-sm backdrop-blur dark:border-gray-700 dark:bg-gray-800/70"
+                  >
+                    <div
+                      className={`absolute inset-y-0 left-0 w-1 bg-gradient-to-b ${stat.color}`}
+                    />
+                    <p className="text-xs font-bold uppercase tracking-[0.12em] text-gray-500 dark:text-gray-400">
+                      {stat.label}
+                    </p>
+                    <p className="mt-1 text-2xl font-black text-gray-900 dark:text-white">
+                      {stat.value}
+                    </p>
+                    <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                      {stat.detail}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
+
             {/* Filters toolbar */}
             {flashcardSets.length > 0 && (
               <div className="mb-6 rounded-2xl bg-white/70 dark:bg-gray-800/60 backdrop-blur border border-gray-200 dark:border-gray-700 p-4 space-y-3">
@@ -1397,9 +1691,21 @@ export default function Dashboard() {
                             <h3 className="text-lg font-semibold text-gray-900 dark:text-white min-w-0 break-words">
                               {set.name}
                             </h3>
-                            <div className="bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-300 px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap shrink-0">
-                              {set.words.length}{" "}
-                              {set.words.length === 1 ? t("dashboard.card") : t("dashboard.cards")}
+                            <div className="flex shrink-0 flex-col items-end gap-1.5">
+                              <div className="whitespace-nowrap rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-600 dark:bg-blue-900/30 dark:text-blue-300">
+                                {set.words.length}{" "}
+                                {set.words.length === 1
+                                  ? t("dashboard.card")
+                                  : t("dashboard.cards")}
+                              </div>
+                              {(studySummary?.dueBySet[String(set.id)] ?? 0) > 0 && (
+                                <div className="whitespace-nowrap rounded-full bg-orange-50 px-2.5 py-1 text-[11px] font-bold text-orange-700 dark:bg-orange-950/40 dark:text-orange-300">
+                                  {t("study.dueBadge", {
+                                    count:
+                                      studySummary?.dueBySet[String(set.id)] ?? 0,
+                                  })}
+                                </div>
+                              )}
                             </div>
                           </div>
                           {/* Tags */}
@@ -1843,13 +2149,13 @@ export default function Dashboard() {
                 <span
                   className="rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium tabular-nums text-gray-500 dark:bg-gray-700/70 dark:text-gray-300"
                   aria-label={`${t("nav.currentCard")} ${
-                    selectedSet && selectedSet.words.length > 0
-                      ? `${displayedCardNumber} / ${selectedSet.words.length}`
+                    selectedSet && studyTotal > 0
+                      ? `${displayedCardNumber} / ${studyTotal}`
                       : "0 / 0"
                   }`}
                 >
-                  {selectedSet && selectedSet.words.length > 0
-                    ? `${displayedCardNumber}/${selectedSet.words.length}`
+                  {selectedSet && studyTotal > 0
+                    ? `${displayedCardNumber}/${studyTotal}`
                     : "0/0"}
                 </span>
                 {mediaLoading && (
@@ -1899,7 +2205,17 @@ export default function Dashboard() {
 
             {/* Flashcard display — fills remaining viewport height */}
             <div className="flex-1 min-h-0 flex items-center justify-center relative">
-              {selectedSet && currentWord ? (
+              {selectedSet &&
+              (studySessionStarting || studySessionFinalizing) ? (
+                <div className="text-center">
+                  <div className="mx-auto mb-4 h-11 w-11 animate-spin rounded-full border-4 border-blue-100 border-t-blue-600 dark:border-gray-700 dark:border-t-blue-400" />
+                  <p className="font-semibold text-gray-700 dark:text-gray-200">
+                    {studySessionFinalizing
+                      ? t("study.finalizing")
+                      : t("study.preparing")}
+                  </p>
+                </div>
+              ) : selectedSet && currentWord ? (
                 <>
                   <Flashcard
                     word={currentWord.word}
@@ -1920,6 +2236,8 @@ export default function Dashboard() {
                     onKnow={handleKnow}
                     learnedCount={learnedCount}
                     totalCount={studyTotal}
+                    wordId={currentWord.id}
+                    onRegenerated={handleWordRegenerated}
                   />
                 </>
               ) : selectedSet &&
@@ -1954,13 +2272,19 @@ export default function Dashboard() {
                     </div>
 
                     <p className="mb-2 text-xs font-extrabold uppercase tracking-[0.24em] text-emerald-700 dark:text-emerald-300">
-                      {t("flashcard.completionEyebrow")}
+                      {studySessionIsFullSet
+                        ? t("flashcard.completionEyebrow")
+                        : t("study.reviewCompleteEyebrow")}
                     </p>
                     <h3 className="text-balance text-3xl font-black tracking-tight text-gray-900 dark:text-white sm:text-4xl">
-                      {t("flashcard.allLearned")}
+                      {studySessionIsFullSet
+                        ? t("flashcard.allLearned")
+                        : t("study.reviewCompleteTitle")}
                     </h3>
                     <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-gray-600 dark:text-gray-300 sm:text-base">
-                      {t("flashcard.studyComplete")}
+                      {studySessionIsFullSet
+                        ? t("flashcard.studyComplete")
+                        : t("study.reviewCompleteHint")}
                     </p>
 
                     <div className="my-5 flex justify-center">
@@ -1983,12 +2307,16 @@ export default function Dashboard() {
                       </div>
                     </div>
 
-                    <MoneyBagReward
-                      rewardAmount={getRewardAmount(selectedSet.words.length)}
-                      onClaim={handleClaimReward}
-                      isLastCard={true}
-                      isAlreadyClaimed={claimedRewards.has(selectedSet.id)}
-                    />
+                    {studySessionIsFullSet && studySessionCompleted && (
+                      <MoneyBagReward
+                        rewardAmount={getCompletionRewardAmount(
+                          selectedSet.words.length,
+                        )}
+                        onClaim={handleClaimReward}
+                        isLastCard={true}
+                        isAlreadyClaimed={claimedRewards.has(selectedSet.id)}
+                      />
+                    )}
 
                     <div className="mt-4 flex flex-col justify-center gap-2 sm:flex-row">
                       <button

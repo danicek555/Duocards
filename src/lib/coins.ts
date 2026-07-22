@@ -1,4 +1,15 @@
 import { prisma } from "./prisma";
+import {
+  COIN_TRANSACTION_TYPES,
+  creditCoins,
+  spendCoins,
+  type CoinTransactionType,
+} from "./coinEconomy";
+
+export {
+  COIN_TRANSACTION_TYPES,
+  InsufficientCoinsError,
+} from "./coinEconomy";
 
 /**
  * Check if user has enough coins for an operation
@@ -28,19 +39,11 @@ export async function checkCoins(
  */
 export async function deductCoins(
   userId: number,
-  amount: number
+  amount: number,
+  type: CoinTransactionType,
+  referenceId?: string,
 ): Promise<number> {
-  const user = await prisma.user.update({
-    where: { id: userId },
-    data: {
-      coins: {
-        decrement: amount,
-      },
-    },
-    select: { coins: true },
-  });
-
-  return user.coins;
+  return spendCoins(prisma, userId, amount, type, referenceId);
 }
 
 /**
@@ -49,19 +52,11 @@ export async function deductCoins(
  */
 export async function addCoins(
   userId: number,
-  amount: number
+  amount: number,
+  type: CoinTransactionType = COIN_TRANSACTION_TYPES.manualAdjustment,
+  referenceId?: string,
 ): Promise<number> {
-  const user = await prisma.user.update({
-    where: { id: userId },
-    data: {
-      coins: {
-        increment: amount,
-      },
-    },
-    select: { coins: true },
-  });
-
-  return user.coins;
+  return creditCoins(prisma, userId, amount, type, referenceId);
 }
 
 /**

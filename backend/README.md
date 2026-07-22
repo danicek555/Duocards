@@ -76,6 +76,25 @@ host or the Mac's LAN address and configure the development transport policy.
 | GET | `/api/v1/user/coins` | Cookie | `{ coins }` |
 | GET | `/api/v1/word-images/:id` | Cookie + ownership | `{ image }` |
 | GET | `/api/v1/word-audio/:id` | Cookie + ownership | `{ audio }` |
+| POST | `/api/v1/live/sessions` | Host cookie + set ownership | `{ session, hostToken }` (201) |
+| POST | `/api/v1/live/sessions/join` | No account | `{ session, participant, playerToken }` (201) |
+| GET | `/api/v1/live/sessions/:id` | Host/player bearer token | reconnect snapshot |
+| POST | `/api/v1/live/sessions/:id/start` | Host bearer token | first authoritative round |
+| POST | `/api/v1/live/sessions/:id/answers` | Player bearer token | idempotent scored answer (201) |
+| POST | `/api/v1/live/sessions/:id/advance` | Host bearer token | reveal or next round |
+| POST | `/api/v1/live/sessions/:id/leave` | Player bearer token | remove player presence (204) |
+| POST | `/api/v1/live/sessions/:id/finish` | Host bearer token | final snapshot |
+
+Live Game v2 uses contract version `1`. Creating a room requires an authenticated
+host and verifies ownership of every selected set. Joiners receive a signed,
+six-hour player capability; host and player tokens are role-scoped and accepted
+only for their session. Correct answers remain server-side until the session is
+in `REVEAL`. Every player can submit at most one answer per round, while the
+`idempotencyKey` safely returns the original result for a retried request.
+
+This foundation currently exposes authoritative HTTPS commands and reconnect
+snapshots. Realtime delivery will publish these server decisions through a
+room-scoped Ably channel; clients must never publish score or reveal events.
 
 Registration request bodies remain stable:
 

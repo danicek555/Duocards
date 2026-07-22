@@ -83,6 +83,11 @@
   --foreground: #12192b;
 }
 
+html {
+  min-height: 100%;
+  background: #e0e7ff;
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -95,9 +100,14 @@
     --background: #0a0f1e;
     --foreground: #eef2f8;
   }
+
+  html {
+    background: #1d2739;
+  }
 }
 
 body {
+  min-height: 100%;
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;

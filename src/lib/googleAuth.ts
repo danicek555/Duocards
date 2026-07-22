@@ -2,6 +2,9 @@ import { randomBytes } from "crypto";
 import { prisma } from "@/lib/prisma";
 import { hashPassword } from "@/lib/auth";
 import { getPublicAppUrl } from "@/lib/publicUrls";
+import { COIN_TRANSACTION_TYPES } from "@/lib/coinEconomy";
+
+const WELCOME_COINS = 100;
 
 export interface GoogleUserProfile {
   sub: string;
@@ -160,6 +163,13 @@ export async function findOrCreateGoogleUser(profile: GoogleUserProfile) {
       nickname: deriveNickname(profile, email),
       googleId: profile.sub,
       emailVerified: true,
+      coinTransactions: {
+        create: {
+          amount: WELCOME_COINS,
+          balanceAfter: WELCOME_COINS,
+          type: COIN_TRANSACTION_TYPES.welcomeBonus,
+        },
+      },
     },
     select: {
       id: true,

@@ -6,6 +6,7 @@ import { createAuthToken, hashPassword, isValidEmail } from "@/lib/auth";
 import { validatePassword } from "@/lib/passwordValidation";
 import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 import { parseRequestLocale } from "@/lib/locale";
+import { COIN_TRANSACTION_TYPES } from "@/lib/coinEconomy";
 import {
   generatePasswordResetToken,
   generateVerificationCode,
@@ -14,6 +15,15 @@ import {
   sendPasswordResetEmail,
   sendVerificationEmail,
 } from "@/lib/emailVerification";
+
+const WELCOME_COINS = 100;
+const welcomeCoinTransaction = {
+  create: {
+    amount: WELCOME_COINS,
+    balanceAfter: WELCOME_COINS,
+    type: COIN_TRANSACTION_TYPES.welcomeBonus,
+  },
+} as const;
 
 function jsonError(error: string, status: number, code?: string) {
   return NextResponse.json({ error, ...(code ? { code } : {}) }, { status });
@@ -41,7 +51,14 @@ export async function fallbackRegister(request: NextRequest) {
     const locale = parseRequestLocale(body.locale);
     if (process.env.SKIP_EMAIL_VERIFICATION === "true") {
       const user = await prisma.user.create({
-        data: { email, password, nickname, locale, emailVerified: true },
+        data: {
+          email,
+          password,
+          nickname,
+          locale,
+          emailVerified: true,
+          coinTransactions: welcomeCoinTransaction,
+        },
         select: { id: true, email: true, nickname: true, locale: true, emailVerified: true, createdAt: true },
       });
       const token = await createAuthToken({ userId: user.id, email: user.email }, password);
@@ -87,7 +104,14 @@ export async function fallbackVerify(request: NextRequest) {
 
     const user = await prisma.$transaction(async (tx) => {
       const created = await tx.user.create({
-        data: { email, password: pending.password, nickname: pending.nickname, locale: pending.locale, emailVerified: true },
+        data: {
+          email,
+          password: pending.password,
+          nickname: pending.nickname,
+          locale: pending.locale,
+          emailVerified: true,
+          coinTransactions: welcomeCoinTransaction,
+        },
         select: { id: true, email: true, nickname: true, locale: true, emailVerified: true, createdAt: true },
       });
       await tx.pendingRegistration.delete({ where: { email } });

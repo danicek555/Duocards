@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyAuthToken } from "@/lib/auth";
-import { checkCoins, deductCoins } from "@/lib/coins";
+import {
+  checkCoins,
+  COIN_TRANSACTION_TYPES,
+  deductCoins,
+  InsufficientCoinsError,
+} from "@/lib/coins";
 import { COIN_COSTS } from "@/lib/coin-costs";
 import { chatContainsBlockedContent } from "@/lib/chatContentFilter";
 import {
@@ -156,11 +161,20 @@ export async function POST(request: NextRequest) {
     // Deduct coins after successful chat
     const remainingCoins = await deductCoins(
       payload.userId,
-      COIN_COSTS.AI_CHAT
+      COIN_COSTS.AI_CHAT,
+      COIN_TRANSACTION_TYPES.aiChat,
     );
 
     return NextResponse.json({ response, remainingCoins }, { status: 200 });
   } catch (error) {
+    if (error instanceof InsufficientCoinsError) {
+      return NextResponse.json(
+        {
+          error: `Insufficient AI coins. This operation costs ${error.requiredCoins} AI coins, but you only have ${error.currentCoins} AI coins.`,
+        },
+        { status: 402 },
+      );
+    }
     console.error("Error in AI chat:", error);
     return NextResponse.json(
       {

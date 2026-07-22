@@ -1,0 +1,173 @@
+import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+import { verifyAuthToken } from "@/lib/auth";
+import { checkCoins, COIN_TRANSACTION_TYPES } from "@/lib/coins";
+import { spendCoinsInTransaction } from "@/lib/coinEconomy";
+import { COIN_COSTS } from "@/lib/coin-costs";
+import { OPENAI_CHAT_MODEL, OPENAI_IMAGE_MODEL } from "@/lib/openaiModels";
+import { generateFlashcardImage } from "@/lib/openaiImage";
+
+// Initialize OpenAI client lazily to avoid build-time errors
+async function getOpenAIClient() {
+  if (!process.env.OPENAI_API_KEY) {
+    throw new Error("OPENAI_API_KEY is not configured");
+  }
+  const { default: OpenAI } = await import("openai");
+  return new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY,
+  });
+}
+
+// POST - Regenerate a single word's image or translation when the AI
+// produced a bad one. Charges the same per-item coin cost as generation.
+export async function POST(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const token = request.cookies.get("auth")?.value;
+    const payload = await verifyAuthToken(token);
+
+    if (!payload) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { id } = await params;
+    const wordId = parseInt(id, 10);
+    if (Number.isNaN(wordId)) {
+      return NextResponse.json({ error: "Invalid word id" }, { status: 400 });
+    }
+
+    const body: { type?: string } = await request.json();
+    const type = body.type;
+    if (type !== "image" && type !== "translation") {
+      return NextResponse.json(
+        { error: "type must be 'image' or 'translation'" },
+        { status: 400 }
+      );
+    }
+
+    const word = await prisma.word.findFirst({
+      where: { id: wordId, userId: payload.userId },
+      include: { flashcardSet: { select: { toLanguage: true, fromLanguage: true } } },
+    });
+
+    if (!word) {
+      return NextResponse.json({ error: "Word not found" }, { status: 404 });
+    }
+
+    if (!process.env.OPENAI_API_KEY) {
+      return NextResponse.json(
+        { error: "AI service is not configured." },
+        { status: 500 }
+      );
+    }
+
+    const cost =
+      type === "image"
+        ? COIN_COSTS.IMAGE_GENERATION
+        : COIN_COSTS.WORD_TRANSLATION;
+
+    const coinCheck = await checkCoins(payload.userId, cost);
+    if (!coinCheck.hasEnough) {
+      return NextResponse.json(
+        {
+          error: `Insufficient AI coins. This operation costs ${cost} AI coins, but you only have ${coinCheck.currentCoins}.`,
+        },
+        { status: 402 }
+      );
+    }
+
+    const openai = await getOpenAIClient();
+    const toLanguage = word.flashcardSet?.toLanguage || "the target language";
+    const fromLanguage = word.flashcardSet?.fromLanguage || "the source language";
+
+    if (type === "image") {
+      const imageUrl = await generateFlashcardImage(
+        openai,
+        OPENAI_IMAGE_MODEL,
+        `A simple, clear illustration representing the word "${word.translation}" in ${toLanguage}. The image should be educational and suitable for language learning flashcards. CRITICAL: The image must contain absolutely NO text, NO letters, NO words, NO characters, NO symbols that could be read as text, NO written language, NO numbers, and NO typography whatsoever. The image must be purely visual - only illustrations, drawings, or photographs without any written elements.`
+      );
+
+      if (!imageUrl) {
+        return NextResponse.json(
+          { error: "Image generation failed. No coins were charged." },
+          { status: 502 }
+        );
+      }
+
+      const mimeType = imageUrl.startsWith("data:")
+        ? imageUrl.split(";")[0].split(":")[1] || "image/png"
+        : "image/png";
+
+      const oldImageId = word.imageId;
+      const newImageId = await prisma.$transaction(async (tx) => {
+        await spendCoinsInTransaction(
+          tx,
+          payload.userId,
+          cost,
+          COIN_TRANSACTION_TYPES.flashcardGeneration
+        );
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const image = await (tx as any).wordImage.create({
+          data: { dataUrl: imageUrl, mimeType },
+        });
+        await tx.word.update({
+          where: { id: word.id },
+          data: { imageId: image.id },
+        });
+        if (oldImageId) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          await (tx as any).wordImage.delete({ where: { id: oldImageId } });
+        }
+        return image.id as number;
+      });
+
+      return NextResponse.json({ success: true, type, imageId: newImageId });
+    }
+
+    // type === "translation"
+    const completion = await openai.chat.completions.create({
+      model: OPENAI_CHAT_MODEL,
+      messages: [
+        {
+          role: "user",
+          content: `Translate the ${fromLanguage} word "${word.word}" into ${toLanguage}. The previous translation "${word.translation}" was wrong or low quality — provide the most accurate, natural translation instead. Return ONLY the translation text, no quotes, no explanation.`,
+        },
+      ],
+    });
+
+    const newTranslation = completion.choices[0]?.message?.content?.trim();
+    if (!newTranslation) {
+      return NextResponse.json(
+        { error: "Translation failed. No coins were charged." },
+        { status: 502 }
+      );
+    }
+
+    await prisma.$transaction(async (tx) => {
+      await spendCoinsInTransaction(
+        tx,
+        payload.userId,
+        cost,
+        COIN_TRANSACTION_TYPES.wordTranslation
+      );
+      await tx.word.update({
+        where: { id: word.id },
+        data: { translation: newTranslation.slice(0, 200) },
+      });
+    });
+
+    return NextResponse.json({
+      success: true,
+      type,
+      translation: newTranslation.slice(0, 200),
+    });
+  } catch (error) {
+    console.error("Error regenerating word content:", error);
+    return NextResponse.json(
+      { error: "Failed to regenerate. Please try again." },
+      { status: 500 }
+    );
+  }
+}

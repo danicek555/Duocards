@@ -1,0 +1,116 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  web:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: duocards_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d duocards_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DIRECT_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/duocards_ci
+      PRISMA_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/duocards_ci
+      AUTH_SECRET: ci-only-auth-secret-with-at-least-32-bytes
+      NEXT_PUBLIC_SHARED_API_BASE_URL: /shared-api
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate and validate Prisma client
+        run: |
+          npx prisma generate
+          npx prisma validate
+
+      # The repository has a legacy production-baselined migration history that
+      # cannot be replayed chronologically on an empty database. db push creates
+      # the disposable integration schema; the new migration is tested below in
+      # its own temporary PostgreSQL schema.
+      - name: Prepare disposable integration database
+        run: npx prisma db push --skip-generate
+
+      - name: Test coin migration against PostgreSQL
+        env:
+          NODE_ENV: test
+        run: npm run test:coins:migration
+
+      - name: Test study migration against PostgreSQL
+        env:
+          NODE_ENV: test
+        run: npm run test:study:migration
+
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      - name: Lint
+        run: npm run lint -- --quiet
+
+      - name: Test coin economy
+        run: npm run test:coins
+
+      - name: Test spaced repetition engine
+        run: npm run test:study
+
+      - name: Test coin economy against PostgreSQL
+        env:
+          NODE_ENV: test
+        run: npm run test:coins:integration
+
+      - name: Build Next.js without deploying migrations
+        run: npx next build
+
+  backend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      DIRECT_DATABASE_URL: postgresql://ci:ci@127.0.0.1:5432/duocards_ci
+      DATABASE_URL: postgresql://ci:ci@127.0.0.1:5432/duocards_ci
+      AUTH_SECRET: ci-only-auth-secret-with-at-least-32-bytes
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci --prefix backend
+
+      - name: Validate Prisma schema
+        run: npm --prefix backend run prisma:validate
+
+      - name: Typecheck
+        run: npm --prefix backend run typecheck
+
+      - name: Test
+        run: npm --prefix backend test
+
+      - name: Build
+        run: npm --prefix backend run build

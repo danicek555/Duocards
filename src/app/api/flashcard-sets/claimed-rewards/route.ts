@@ -13,13 +13,12 @@ export async function GET(request: NextRequest) {
     }
 
     const now = new Date();
-    // Get start of today (midnight) for checking same-day claims
+    // Completion rewards use a UTC claim date so every server instance agrees.
     const startOfToday = new Date(now);
-    startOfToday.setHours(0, 0, 0, 0);
+    startOfToday.setUTCHours(0, 0, 0, 0);
 
     // Get all completion rewards claimed today
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const todayRewards = await (prisma as any).completionReward.findMany({
+    const todayRewards = await prisma.completionReward.findMany({
       where: {
         userId: payload.userId,
         createdAt: {
@@ -33,9 +32,7 @@ export async function GET(request: NextRequest) {
     });
 
     // Return array of flashcard set IDs that were claimed today
-    const claimedSetIds = todayRewards.map(
-      (reward: { flashcardSetId: number }) => reward.flashcardSetId
-    );
+    const claimedSetIds = todayRewards.map((reward) => reward.flashcardSetId);
 
     return NextResponse.json(
       {

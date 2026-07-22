@@ -37,6 +37,7 @@ export default function InlineAIGenerateForm({
   const [includeImage, setIncludeImage] = useState(false);
   const [includeVoice, setIncludeVoice] = useState(false);
   const [includePronunciation, setIncludePronunciation] = useState(false);
+  const [onlyNewWords, setOnlyNewWords] = useState(true);
   const [isPublic, setIsPublic] = useState(false);
   const [publicCode, setPublicCode] = useState<string | null>(null);
   const [generatingCode, setGeneratingCode] = useState(false);
@@ -162,6 +163,7 @@ export default function InlineAIGenerateForm({
           includeImage,
           includeVoice,
           includePronunciation,
+          onlyNewWords,
           isPublic,
           previewCode: publicCode, // Send the preview code so it stays the same
         }),
@@ -547,6 +549,33 @@ export default function InlineAIGenerateForm({
                 />
               </svg>
               {t("createSet.pronunciation")}
+            </button>
+
+            {/* Only New Words Toggle */}
+            <button
+              type="button"
+              onClick={() => setOnlyNewWords(!onlyNewWords)}
+              title={t("createSet.onlyNewWordsHint")}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                onlyNewWords
+                  ? "bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 border-2 border-purple-400 dark:border-purple-500"
+                  : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-2 border-gray-300 dark:border-gray-600 hover:border-purple-300 dark:hover:border-purple-600"
+              } cursor-pointer active:scale-95`}
+            >
+              <svg
+                className="w-3.5 h-3.5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M5 13l4 4L19 7"
+                />
+              </svg>
+              {t("createSet.onlyNewWords")}
             </button>
           </div>
         </div>

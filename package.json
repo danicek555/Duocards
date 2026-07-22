@@ -8,6 +8,11 @@
     "dev:backend": "npm --prefix backend run dev",
     "build": "prisma migrate deploy && prisma generate && next build",
     "build:backend": "npm --prefix backend run build",
+    "test:coins": "node --import tsx --test src/lib/coinEconomy.test.ts",
+    "test:coins:integration": "node --import tsx --test src/lib/coinEconomy.integration.test.ts",
+    "test:coins:migration": "tsx scripts/test-coin-migration.ts",
+    "test:study": "node --import tsx --test src/lib/studySrs.test.ts",
+    "test:study:migration": "tsx scripts/test-study-migration.ts",
     "test:backend": "npm --prefix backend test",
     "build:prod": "prisma migrate deploy && prisma generate && next build",
     "build:vercel": "prisma migrate deploy && prisma generate && next build",
@@ -47,6 +52,7 @@
     "eslint-config-next": "15.5.4",
     "prisma": "^7.1.0",
     "tailwindcss": "^4.0.0",
+    "tsx": "^4.23.1",
     "typescript": "^5.0.0"
   }
 }
