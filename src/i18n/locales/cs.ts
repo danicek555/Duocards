@@ -810,4 +810,15 @@ export const cs = {
     LIVE_SESSION_MODE_INVALID: "Hra používá neplatný režim.",
     LIVE_SESSION_STATE_INVALID: "Hra je v neplatném stavu.",
   },
+  notes: {
+    title: "Poznámky",
+    open: "Otevřít poznámky",
+    close: "Zavřít poznámky",
+    placeholder: "Piš si sem cokoliv, co si chceš zapamatovat — třeba neznámá slovíčka na pozdější kartičky...",
+    saving: "Ukládám…",
+    saved: "Uloženo",
+    saveFailed: "Poznámky se nepodařilo uložit. Text zůstává tady — zkus úpravu znovu.",
+    loadFailed: "Poznámky se nepodařilo načíst. Zavři panel a zkus to znovu.",
+    charCount: "{count} / {max}",
+  },
 } as const;
