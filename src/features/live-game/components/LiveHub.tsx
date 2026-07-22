@@ -77,7 +77,7 @@ export default function LiveHub({
             </Link>
           )}
           {!joinOnly && (
-            <Link href="/dashboard?view=live-history" className="rounded-xl border border-white/15 bg-white/5 px-4 py-2 text-sm font-medium text-slate-200 transition hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 cursor-pointer">
+            <Link href="/live-game/history" className="rounded-xl border border-white/15 bg-white/5 px-4 py-2 text-sm font-medium text-slate-200 transition hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 cursor-pointer">
               {t("liveGameV2.history")}
             </Link>
           )}

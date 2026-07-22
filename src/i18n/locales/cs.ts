@@ -529,6 +529,9 @@ export const cs = {
     resultsSaving: "Ukládám výsledky do historie her…",
     resultsSaved: "Výsledky uloženy do historie her.",
     resultsSaveFailed: "Uložení výsledků se nepovedlo. Tabulka výše je i tak kompletní.",
+    copyCode: "Zkopírovat kód",
+    stay: "Zůstat",
+    endConfirmHint: "Hra skončí pro všechny hráče a dosavadní výsledky se uloží do historie.",
   },
   flashcard: {
     previous: "Předchozí",

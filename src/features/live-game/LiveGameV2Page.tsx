@@ -368,7 +368,7 @@ function LiveGameV2Content() {
       active?.role === "host" &&
       snapshot?.status !== "FINISHED"
     ) {
-      if (!window.confirm(t("liveGameV2.endConfirm"))) return;
+      // Potvrzení řeší vlastní dialog v LiveSessionView (requestLeave).
       setAction("finish");
       setPageError(null);
       try {
@@ -391,7 +391,7 @@ function LiveGameV2Content() {
     setConnectionError(null);
     setPageError(null);
     router.replace(hubPath(), { scroll: false });
-  }, [active, hubPath, localizedError, router, snapshot?.status, t]);
+  }, [active, hubPath, localizedError, router, snapshot?.status]);
 
   const inviteUrl = useMemo(() => {
     if (!snapshot || typeof window === "undefined") return null;

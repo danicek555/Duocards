@@ -530,6 +530,9 @@ export const en = {
     resultsSaving: "Saving results to your game history…",
     resultsSaved: "Results saved to your game history.",
     resultsSaveFailed: "Saving the results failed. The scoreboard above is still complete.",
+    copyCode: "Copy code",
+    stay: "Stay",
+    endConfirmHint: "The game will end for all players and the results so far will be saved to your history.",
   },
   flashcard: {
     previous: "Previous",

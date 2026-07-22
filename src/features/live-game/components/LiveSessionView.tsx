@@ -182,6 +182,8 @@ export default function LiveSessionView({
   const { t } = useI18n();
   const [clock, setClock] = useState(() => Date.now());
   const [muted, setMuted] = useState(() => isLiveSoundMuted());
+  const [codeCopied, setCodeCopied] = useState(false);
+  const [confirming, setConfirming] = useState<"finish" | "leave" | null>(null);
   const isHost = role === "host";
   const question = session.currentQuestion;
   const viewerAnswer = session.viewer?.currentAnswer ?? null;
@@ -226,8 +228,23 @@ export default function LiveSessionView({
     });
   };
 
+  const copyRoomCode = async () => {
+    try {
+      await navigator.clipboard.writeText(session.roomCode);
+      setCodeCopied(true);
+      window.setTimeout(() => setCodeCopied(false), 2_000);
+    } catch {
+      // Klávesová alternativa: kód je viditelný a dá se označit ručně.
+    }
+  };
+
+  const requestLeave = () => {
+    if (isHost && session.status !== "FINISHED") setConfirming("leave");
+    else onLeave();
+  };
+
   const leaveButton = (
-    <button type="button" onClick={onLeave} disabled={action !== null} className="rounded-xl border border-white/15 px-3 py-2 text-sm font-bold text-slate-200 transition hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer">
+    <button type="button" onClick={requestLeave} disabled={action !== null} className="rounded-xl border border-white/15 px-3 py-2 text-sm font-bold text-slate-200 transition hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer">
       {session.status === "FINISHED" ? t("liveGameV2.backToHub") : t("liveGameV2.leave")}
     </button>
   );
@@ -266,9 +283,7 @@ export default function LiveSessionView({
             {isHost && session.status !== "FINISHED" && session.status !== "LOBBY" && (
               <button
                 type="button"
-                onClick={() => {
-                  if (window.confirm(t("liveGameV2.endConfirm"))) onFinish();
-                }}
+                onClick={() => setConfirming("finish")}
                 disabled={action !== null}
                 className="rounded-xl border border-red-300/20 px-3 py-2 text-sm font-bold text-red-200 transition hover:bg-red-400/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
               >
@@ -290,8 +305,26 @@ export default function LiveSessionView({
             <div className="rounded-3xl border border-blue-300/20 bg-gradient-to-br from-blue-500/20 to-violet-500/10 p-7 shadow-2xl shadow-blue-950/30 sm:p-9">
               <p className="text-xs font-bold uppercase tracking-[0.26em] text-cyan-300">{t("liveGameV2.lobby")}</p>
               <h1 className="mt-4 text-3xl font-black sm:text-5xl">{t("liveGameV2.shareCode")}</h1>
-              <div className="my-8 rounded-3xl border border-white/15 bg-slate-950/55 px-5 py-7 text-center font-mono text-4xl font-black tracking-[0.22em] text-white sm:text-6xl">
+              <div className="relative my-8 rounded-3xl border border-white/15 bg-slate-950/55 px-5 py-7 text-center font-mono text-4xl font-black tracking-[0.22em] text-white sm:text-6xl">
                 {session.roomCode}
+                <button
+                  type="button"
+                  onClick={() => void copyRoomCode()}
+                  aria-label={t("liveGameV2.copyCode")}
+                  className="absolute end-3 top-3 flex items-center gap-1.5 rounded-xl border border-white/15 bg-white/10 px-3 py-2 font-sans text-xs font-bold tracking-normal text-slate-200 transition hover:bg-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 cursor-pointer"
+                >
+                  {codeCopied ? (
+                    <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4 text-emerald-300" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="m4.5 12.5 5 5 10-11" />
+                    </svg>
+                  ) : (
+                    <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="9" y="9" width="11" height="11" rx="2" />
+                      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                    </svg>
+                  )}
+                  {codeCopied ? t("liveGameV2.copied") : t("liveGameV2.copyCode")}
+                </button>
               </div>
               {isHost ? (
                 <>
@@ -448,6 +481,47 @@ export default function LiveSessionView({
               )}
             </div>
           </section>
+        )}
+
+        {confirming && (
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="live-confirm-title"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 px-4 backdrop-blur-sm"
+            onClick={() => setConfirming(null)}
+          >
+            <div
+              className="w-full max-w-md rounded-3xl border border-white/15 bg-slate-900 p-7 shadow-2xl shadow-black/50"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <p className="text-xs font-bold uppercase tracking-[0.24em] text-red-300">{t("liveGameV2.endGame")}</p>
+              <h2 id="live-confirm-title" className="mt-3 text-2xl font-black text-white">{t("liveGameV2.endConfirm")}</h2>
+              <p className="mt-3 text-sm leading-6 text-slate-300">{t("liveGameV2.endConfirmHint")}</p>
+              <div className="mt-7 flex flex-wrap justify-end gap-3">
+                <button
+                  type="button"
+                  autoFocus
+                  onClick={() => setConfirming(null)}
+                  className="rounded-2xl border border-white/15 px-5 py-2.5 font-bold text-slate-200 transition hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 cursor-pointer"
+                >
+                  {t("liveGameV2.stay")}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const kind = confirming;
+                    setConfirming(null);
+                    if (kind === "finish") onFinish();
+                    else onLeave();
+                  }}
+                  className="rounded-2xl bg-red-500 px-5 py-2.5 font-black text-white transition hover:bg-red-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300 cursor-pointer"
+                >
+                  {t("liveGameV2.endGame")}
+                </button>
+              </div>
+            </div>
+          </div>
         )}
       </div>
     </main>
