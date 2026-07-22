@@ -1,133 +1,71 @@
 # DuoCards
 
-DuoCards používá tři samostatně nasaditelné části, jednu PostgreSQL databázi a
-jeden verzovaný API kontrakt:
+Flashcard app for learning languages. Create your own sets (or let AI generate them), practice with flip cards, share sets through public codes, and play live multiplayer sessions with friends.
 
-```text
-web (Next.js) ----\
-                  >---- backend (Fastify /api/v1) ---- PostgreSQL
-iOS (SwiftUI) ----/
-```
+Built with [Next.js](https://nextjs.org) (App Router), [Prisma](https://www.prisma.io) + PostgreSQL, Tailwind CSS, [Ably](https://ably.com) (live games) and the OpenAI API (AI generation).
 
-Tento repozitář obsahuje web a lokální kopii backendu pro vývoj a záložní
-provoz. Produkční backend a iOS aplikace mají vlastní repozitáře:
+## Getting Started
 
-- [duocards-backend](https://github.com/danicek555/duocards-backend)
-- [duocards-ios](https://github.com/danicek555/duocards-ios)
-
-## Struktura
-
-- `src/` – existující web v Next.js;
-- `backend/` – lokální Fastify + TypeScript + Prisma backend;
-- `prisma/` – databázový model webového Vercel fallbacku.
-
-## Lokální spuštění celé vertikály
-
-### 1. Backend
-
-```sh
-cp backend/.env.example backend/.env
-npm install --prefix backend
-npm --prefix backend run prisma:generate
-npm run dev:backend
-```
-
-Do `backend/.env` doplň stejnou databázovou adresu a stejný `AUTH_SECRET`, jaký
-používá web. Pro skutečné ověřovací e-maily nastav `RESEND_API_KEY` a
-`FROM_EMAIL`; čistě lokálně lze s `NODE_ENV=development` explicitně použít
-`VERIFICATION_EMAIL_MODE=console`. `PUBLIC_APP_URL` nastav na veřejný origin
-webu, který bude hostovat odkazy pro obnovu hesla; lokálně typicky
-`http://localhost:3000`. Backend standardně poslouchá na
-`http://localhost:4000`.
-
-Před prvním `prisma migrate deploy` je nutné ověřit zkopírovanou migration
-baseline proti tabulce `_prisma_migrations` cílové databáze. Detailní bezpečný
-postup je v `backend/README.md`.
-
-### 2. Web
-
-Do lokálního root `.env` přidej:
-
-```dotenv
-SHARED_BACKEND_URL=http://127.0.0.1:4000
-NEXT_PUBLIC_SHARED_API_BASE_URL=/shared-api
-# Volitelně vynutí vestavěný Vercel API fallback:
-NEXT_PUBLIC_API_BACKEND=vercel
-```
-
-V produkčním buildu web standardně proxyuje `/shared-api` na
-`https://duocards-backend-731652720086.europe-west1.run.app/api/v1`. Obě hodnoty
-lze přepsat proměnnými `SHARED_BACKEND_URL` a
-`NEXT_PUBLIC_SHARED_API_BASE_URL` bez změny zdrojového kódu.
-
-Pokud Cloud Run neodpoví, vrátí 5xx nebo překročí osm sekund, web přepne na
-vlastní Vercel `/api` routy. Před zápisovými požadavky nejdřív kontroluje health
-endpoint, aby zbytečně neposlal stejný zápis na oba backendy. Vercel a Cloud Run
-musí používat stejnou databázi a stejný `AUTH_SECRET`.
-Aktivní backend je vidět v dashboardovém Nastavení podle posledního úspěšného
-API požadavku. Hodnota `NEXT_PUBLIC_API_BACKEND=vercel` Cloud Run pro web úplně
-obejde; bez ní zůstává automatický režim Cloud Run → Vercel fallback.
-
-Potom spusť:
-
-```sh
+```bash
+# install dependencies
 npm install
-npm run dev:web
+
+# run database migrations and generate the Prisma client
+npx prisma migrate deploy
+npx prisma generate
+
+# start the development server
+npm run dev
 ```
 
-Web bude přes same-origin `/shared-api` proxy používat nový backend pro login,
-registraci, ověření e-mailu, resend ověřovacího kódu, session, logout,
-obnovu hesla, seznam/detail sad, coiny a čtení word media. Identity cesty pod
-`/api/auth/*` zůstávají funkční jako Vercel záloha pro výpadek Cloud Run.
-Zatím nepřemigrované AI, public a live mutace zůstávají na původních
-Next.js `/api` routách.
+Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-### 3. iOS v Xcode
+Environment variables are documented in [`docs/ENVIRONMENT_SETUP.md`](docs/ENVIRONMENT_SETUP.md) and [`.env.example`](.env.example).
 
-Nativní aplikaci otevři ze samostatného repozitáře
-[duocards-ios](https://github.com/danicek555/duocards-ios). Její README obsahuje
-postup pro Simulator, fyzický iPhone i lokální fallback backend.
+## Useful Scripts
 
-## Co je hotové v aktuálních řezech
+| Command                   | Purpose                                    |
+| ------------------------- | ------------------------------------------ |
+| `npm run dev`             | Start the dev server                       |
+| `npm run build`           | Production build (with `prisma generate`)  |
+| `npm run lint`            | Run ESLint                                 |
+| `npm run check-users`     | List users in the database                 |
+| `npm run check-ai-health` | Verify AI endpoints are working            |
 
-- oddělený backend s kompatibilní cookie session a jednotným `/api/v1` error
-  kontraktem;
-- webový adaptér, same-origin proxy a bezpečné compatibility identity aliasy;
-- iOS session restore, login/logout, dashboard, coiny, detail sady a základní
-  studium karet;
-- bezpečná e-mailová registrace na webu i iOS, šest číslic, resend a
-  automatické přihlášení po ověření;
-- jednotná veřejná odpověď při vyžádání obnovy hesla, jednorázový 30minutový
-  reset token a nativní iOS flow pro vložení tokenu nebo celého HTTPS odkazu;
-- bezpečné backendové a nativní iOS vytvoření, úprava a smazání
-  privátní textové sady včetně stabilních ID kartiček;
-- základ Live Game v2: verzovaný kontrakt, serverové místnosti, host/player
-  tokeny, autoritativní kola, idempotentní odpovědi a bodování;
-- backend unit testy, TypeScript build a iOS unit test target.
+Helper scripts (SQL snippets, Cloud SQL proxy launcher) live in [`scripts/`](scripts/).
 
-Nejde zatím o hotovou 1:1 kopii celé aplikace. Dashboardové filtry a odměny,
-pokročilý editor s AI a médii, veřejná knihovna a live funkcionalita jsou
-další migrační vertikály popsané v implementačním plánu.
+## Project Structure
 
-## Produktové plány
-
-- [Live Game 2.0](docs/LIVE_GAME_PRODUCT_PLAN.md) – herní režimy, nový Live Hub,
-  design, realtime architektura, bezpečnost a postup implementace inspirovaný
-  ověřenými principy Kahootu a Blooketu.
-
-## Vývojová dokumentace
-
-- [Pravidla pro Codex a další agenty](docs/AGENTS.md)
-- [Architektura a datové toky](docs/ARCHITECTURE.md)
-- [Lokální vývoj, kontroly a bezpečnost](docs/DEVELOPMENT.md)
-- [UI a design systém](docs/DESIGN_SYSTEM.md)
-- [Lokalizace](docs/LOCALIZATION.md)
-
-## Kontroly
-
-```sh
-npm --prefix backend run typecheck
-npm run test:backend
-npm run build:backend
-npx tsc --noEmit
 ```
+docs/       Project documentation (setup, deployment, roadmap)
+prisma/     Database schema and migrations
+public/     Static assets
+scripts/    Maintenance and helper scripts
+src/        Application code (app router, components, lib)
+```
+
+## Documentation
+
+All guides live in [`docs/`](docs/):
+
+### Setup
+
+- [Environment setup](docs/ENVIRONMENT_SETUP.md) · [Env files explained](docs/ENV_FILES_EXPLAINED.md)
+- [Database options](docs/DATABASE_OPTIONS.md) · [Database setup](docs/DATABASE_SETUP.md)
+- [Authentication guide](docs/AUTHENTICATION_GUIDE.md)
+- [Email setup (Resend)](docs/EMAIL_SETUP.md) · [Resend domain setup](docs/RESEND_DOMAIN_SETUP.md)
+- [Docker](docs/DOCKER.md)
+
+### Deployment
+
+- [Pre-deployment checklist](docs/PRE_DEPLOYMENT_CHECKLIST.md)
+- [Cloud SQL setup](docs/CLOUD_SQL_SETUP.md) · [Cloud SQL connection](docs/CLOUD_SQL_CONNECTION.md) · [Production Cloud SQL](docs/PRODUCTION_CLOUD_SQL_SETUP.md)
+- [Cloud Run environment variables](docs/CLOUD_RUN_ENV_VARS.md)
+
+### Development
+
+- [Development workflow](docs/DEVELOPMENT_WORKFLOW.md)
+
+### Product
+
+- [Roadmap](docs/ROADMAP.md) · [Improvement ideas](docs/improvements.md)
