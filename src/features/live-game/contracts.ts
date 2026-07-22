@@ -14,7 +14,7 @@ export const LEGACY_GAME_MODE_IDS = [
 export type LegacyGameModeId = (typeof LEGACY_GAME_MODE_IDS)[number];
 
 export const LIVE_GAME_V2_MODE_IDS = contractDefinition.modeIds as unknown as
-  readonly ["classic_arena", "accuracy", "co_op_mission"];
+  readonly ["classic_arena", "accuracy", "co_op_mission", "streak_combo", "survival"];
 
 export type LiveGameV2ModeId = (typeof LIVE_GAME_V2_MODE_IDS)[number];
 
@@ -86,6 +86,13 @@ export interface LiveGameParticipantSnapshot {
   score: number;
   correct: number;
   total: number;
+  /** Consecutive correct answers right now (streak_combo). */
+  streak: number;
+  bestStreak: number;
+  /** Survival: knocked out, but may keep practicing. */
+  eliminated: boolean;
+  practiceCorrect: number;
+  practiceTotal: number;
 }
 
 export interface LiveGameSessionSnapshot {

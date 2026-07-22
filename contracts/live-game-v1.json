@@ -1,6 +1,12 @@
 {
   "contractVersion": 1,
-  "modeIds": ["classic_arena", "accuracy", "co_op_mission"],
+  "modeIds": [
+    "classic_arena",
+    "accuracy",
+    "co_op_mission",
+    "streak_combo",
+    "survival"
+  ],
   "sessionStatuses": [
     "LOBBY",
     "COUNTDOWN",

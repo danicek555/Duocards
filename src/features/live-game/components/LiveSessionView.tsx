@@ -89,15 +89,31 @@ function ResultsTable({ session }: { session: LiveGameSessionSnapshot }) {
             const accuracy = participant.total > 0
               ? Math.round((participant.correct / participant.total) * 100)
               : null;
-            const isWinner = index === 0 && participant.score > 0;
+            const isWinner = index === 0 && participant.score > 0 && !participant.eliminated;
             return (
-              <tr key={participant.id} className={`rounded-2xl ${isWinner ? "bg-amber-400/15" : "bg-white/[0.06]"}`}>
+              <tr key={participant.id} className={`rounded-2xl ${isWinner ? "bg-amber-400/15" : participant.eliminated ? "bg-white/[0.03] opacity-70" : "bg-white/[0.06]"}`}>
                 <td className={`rounded-s-2xl px-3 py-3 font-black ${isWinner ? "text-amber-300" : "text-slate-300"}`}>{index + 1}</td>
                 <td className="min-w-0 break-words px-3 py-3 font-bold text-white">
                   {participant.nickname}
                   {isWinner && (
                     <span className="ms-2 rounded-full bg-amber-400 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-amber-950">
                       {t("liveGameV2.winnerTag")}
+                    </span>
+                  )}
+                  {participant.eliminated && (
+                    <span className="ms-2 rounded-full bg-red-400/15 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-red-300">
+                      {t("liveGameV2.eliminatedTag")}
+                    </span>
+                  )}
+                  {participant.practiceTotal > 0 && (
+                    <span className="mt-1 block text-[11px] font-medium text-slate-400">
+                      {t("liveGameV2.practiceScore", { correct: participant.practiceCorrect, total: participant.practiceTotal })}
+                    </span>
+                  )}
+                  {session.modeId === "streak_combo" && participant.bestStreak > 1 && (
+                    <span className="mt-1 flex items-center gap-1 text-[11px] font-medium text-orange-300">
+                      <StreakFlame className="h-3 w-3" />
+                      {t("liveGameV2.bestStreak", { count: participant.bestStreak })}
                     </span>
                   )}
                 </td>
@@ -113,6 +129,20 @@ function ResultsTable({ session }: { session: LiveGameSessionSnapshot }) {
   );
 }
 
+function StreakFlame({ className }: { className?: string }) {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24" className={className ?? "h-4 w-4"} fill="currentColor">
+      <path d="M12 2c1.2 4.2-3.6 6-3.6 10.4a4.6 4.6 0 0 0 9.2 0C17.6 8.6 13.4 7.4 12 2zm.1 16.6a2.3 2.3 0 0 1-2.3-2.3c0-1.7 1.5-2.5 2.2-4 .8 1.5 2.4 2.3 2.4 4a2.3 2.3 0 0 1-2.3 2.3z" />
+    </svg>
+  );
+}
+
+/** Multiplier the NEXT correct answer will earn (mirrors the backend ladder). */
+function nextStreakMultiplier(streak: number): string {
+  const value = 1 + Math.min(streak, 4) * 0.5;
+  return Number.isInteger(value) ? String(value) : value.toFixed(1);
+}
+
 function Scoreboard({ session }: { session: LiveGameSessionSnapshot }) {
   const { t } = useI18n();
   if (session.participants.length === 0) {
@@ -126,11 +156,24 @@ function Scoreboard({ session }: { session: LiveGameSessionSnapshot }) {
           ? Math.round((participant.correct / participant.total) * 100)
           : 0;
         return (
-          <li key={participant.id} className="grid grid-cols-[auto_1fr_auto] items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.06] px-4 py-3">
-            <span className={`flex h-9 w-9 items-center justify-center rounded-xl text-sm font-black ${index === 0 ? "bg-amber-400 text-amber-950" : "bg-white/10 text-slate-300"}`}>
+          <li key={participant.id} className={`grid grid-cols-[auto_1fr_auto] items-center gap-3 rounded-2xl border border-white/10 px-4 py-3 ${participant.eliminated ? "bg-white/[0.02] opacity-60" : "bg-white/[0.06]"}`}>
+            <span className={`flex h-9 w-9 items-center justify-center rounded-xl text-sm font-black ${index === 0 && !participant.eliminated ? "bg-amber-400 text-amber-950" : "bg-white/10 text-slate-300"}`}>
               {index + 1}
             </span>
-            <span className="min-w-0 break-words font-bold text-white">{participant.nickname}</span>
+            <span className="min-w-0 break-words font-bold text-white">
+              {participant.nickname}
+              {session.modeId === "streak_combo" && participant.streak > 1 && (
+                <span className="ms-2 inline-flex items-center gap-1 rounded-full bg-orange-400/15 px-2 py-0.5 text-[10px] font-black text-orange-300 align-middle">
+                  <StreakFlame className="h-3 w-3" />
+                  {participant.streak}
+                </span>
+              )}
+              {participant.eliminated && (
+                <span className="ms-2 rounded-full bg-red-400/15 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-red-300 align-middle">
+                  {t("liveGameV2.eliminatedTag")}
+                </span>
+              )}
+            </span>
             <span className="text-end">
               <span className="block font-mono text-lg font-black text-cyan-200">{participant.score}</span>
               <span className="block text-[10px] font-medium text-slate-400">{accuracy}%</span>
@@ -187,6 +230,12 @@ export default function LiveSessionView({
   const isHost = role === "host";
   const question = session.currentQuestion;
   const viewerAnswer = session.viewer?.currentAnswer ?? null;
+  const me = session.viewer
+    ? session.participants.find((participant) => participant.id === session.viewer?.participantId) ?? null
+    : null;
+  const aliveCount = session.participants.filter((participant) => !participant.eliminated).length;
+  const isSurvival = session.modeId === "survival";
+  const isStreakMode = session.modeId === "streak_combo";
 
   useEffect(() => {
     if (session.status !== "QUESTION") return;
@@ -373,13 +422,37 @@ export default function LiveSessionView({
         {session.status === "QUESTION" && question && (
           <section className="mx-auto max-w-5xl py-7">
             <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-              <span className="rounded-full border border-white/10 bg-white/[0.06] px-4 py-2 text-sm font-bold text-slate-200">
-                {t("liveGameV2.questionProgress", { current: question.sequence, total: session.totalQuestions })}
+              <span className="flex flex-wrap items-center gap-2">
+                <span className="rounded-full border border-white/10 bg-white/[0.06] px-4 py-2 text-sm font-bold text-slate-200">
+                  {t("liveGameV2.questionProgress", { current: question.sequence, total: session.totalQuestions })}
+                </span>
+                {isSurvival && (
+                  <span className="rounded-full border border-cyan-300/25 bg-cyan-400/10 px-4 py-2 text-sm font-bold text-cyan-200">
+                    {t("liveGameV2.aliveCount", { count: aliveCount })}
+                  </span>
+                )}
+                {isStreakMode && !isHost && me && !me.eliminated && (
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-orange-300/25 bg-orange-400/10 px-4 py-2 text-sm font-black text-orange-300">
+                    <StreakFlame />
+                    {t("liveGameV2.streakBadge", { count: me.streak, multiplier: nextStreakMultiplier(me.streak) })}
+                  </span>
+                )}
               </span>
               <span className={`rounded-2xl px-4 py-2 font-mono text-xl font-black ${secondsLeft > 5 ? "bg-blue-400/15 text-blue-100" : secondsLeft > 0 ? "bg-amber-400/20 text-amber-100" : "bg-red-400/20 text-red-100"}`} aria-live="polite">
                 {secondsLeft > 0 ? t("liveGameV2.timeRemaining", { seconds: secondsLeft }) : t("liveGameV2.timeExpired")}
               </span>
             </div>
+
+            {!isHost && me?.eliminated && (
+              <p className="mb-5 rounded-2xl border border-violet-300/25 bg-violet-500/10 px-4 py-3 text-sm text-violet-100">
+                {t("liveGameV2.eliminatedBanner")}
+                {me.practiceTotal > 0 && (
+                  <span className="ms-2 font-mono font-bold">
+                    {t("liveGameV2.practiceScore", { correct: me.practiceCorrect, total: me.practiceTotal })}
+                  </span>
+                )}
+              </p>
+            )}
 
             <div className="rounded-[2rem] border border-white/10 bg-white/[0.06] p-5 shadow-2xl shadow-black/20 sm:p-8">
               <p className="mb-3 text-center text-xs font-bold uppercase tracking-[0.24em] text-cyan-300">

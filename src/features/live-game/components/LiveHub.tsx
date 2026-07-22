@@ -16,21 +16,20 @@ interface LiveHubProps {
   onCreate: () => void;
 }
 
-function ModeIcon({ mode }: { mode: "classic" | "accuracy" | "coop" }) {
-  if (mode === "accuracy") {
+function ModeIcon({ mode }: { mode: "classic" | "streak" | "survival" }) {
+  if (mode === "streak") {
     return (
       <svg aria-hidden="true" viewBox="0 0 48 48" className="h-8 w-8">
-        <circle cx="24" cy="24" r="17" fill="none" stroke="currentColor" strokeWidth="4" />
-        <path d="m16 24 5 5 11-12" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="4" />
+        <path d="M24 6c2.4 8.4-7.2 12-7.2 20.8a9.2 9.2 0 0 0 18.4 0C35.2 19.2 26.8 16.8 24 6Z" fill="none" stroke="currentColor" strokeLinejoin="round" strokeWidth="4" />
+        <path d="M24 39a5 5 0 0 1-5-5c0-3.4 3-5 5-8 1.6 3 4.9 4.6 4.9 8a5 5 0 0 1-4.9 5Z" fill="currentColor" />
       </svg>
     );
   }
-  if (mode === "coop") {
+  if (mode === "survival") {
     return (
       <svg aria-hidden="true" viewBox="0 0 48 48" className="h-8 w-8">
-        <path d="M11 30c0-6 4-10 9-10s9 4 9 10M25 30c0-5 3-8 7-8s7 3 7 8" fill="none" stroke="currentColor" strokeLinecap="round" strokeWidth="4" />
-        <circle cx="20" cy="14" r="5" fill="none" stroke="currentColor" strokeWidth="4" />
-        <circle cx="33" cy="16" r="4" fill="none" stroke="currentColor" strokeWidth="4" />
+        <path d="M24 5 40 11v12c0 9.6-6.4 16.8-16 20-9.6-3.2-16-10.4-16-20V11Z" fill="none" stroke="currentColor" strokeLinejoin="round" strokeWidth="4" />
+        <path d="m17 24 5 5 9-10" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="4" />
       </svg>
     );
   }
@@ -164,8 +163,8 @@ export default function LiveHub({
             <div className="grid gap-4 md:grid-cols-3">
               {([
                 { id: "classic", title: "liveGameV2.classicTitle", desc: "liveGameV2.classicDesc", pace: "liveGameV2.synchronized", available: true, color: "text-amber-300 bg-amber-400/10 border-amber-300/30" },
-                { id: "accuracy", title: "liveGameV2.accuracyTitle", desc: "liveGameV2.accuracyDesc", pace: "liveGameV2.synchronized", available: false, color: "text-emerald-300 bg-emerald-400/10 border-emerald-300/20" },
-                { id: "coop", title: "liveGameV2.coopTitle", desc: "liveGameV2.coopDesc", pace: "liveGameV2.selfPaced", available: false, color: "text-cyan-300 bg-cyan-400/10 border-cyan-300/20" },
+                { id: "streak", title: "liveGameV2.streakTitle", desc: "liveGameV2.streakDesc", pace: "liveGameV2.synchronized", available: true, color: "text-emerald-300 bg-emerald-400/10 border-emerald-300/20" },
+                { id: "survival", title: "liveGameV2.survivalTitle", desc: "liveGameV2.survivalDesc", pace: "liveGameV2.synchronized", available: true, color: "text-cyan-300 bg-cyan-400/10 border-cyan-300/20" },
               ] as const).map((mode) => (
                 <article key={mode.id} className="rounded-3xl border border-white/10 bg-white/[0.05] p-6">
                   <div className={`mb-5 flex h-14 w-14 items-center justify-center rounded-2xl border ${mode.color}`}>

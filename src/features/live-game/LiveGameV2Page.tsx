@@ -22,6 +22,7 @@ import {
 import CreateLiveGameDialog, {
   type LiveGameSetOption,
 } from "./components/CreateLiveGameDialog";
+import type { SelectableLiveGameModeId } from "./gameModes";
 import LiveHub from "./components/LiveHub";
 import LiveSessionView, {
   type LiveAction,
@@ -65,6 +66,7 @@ function LiveGameV2Content() {
   const [createOpen, setCreateOpen] = useState(false);
   const [sets, setSets] = useState<LiveGameSetOption[]>([]);
   const [selectedSetIds, setSelectedSetIds] = useState<number[]>([]);
+  const [selectedModeId, setSelectedModeId] = useState<SelectableLiveGameModeId>("classic_arena");
   const [questionCount, setQuestionCount] = useState(10);
   const [questionTimeSeconds, setQuestionTimeSeconds] = useState(20);
   const [loadingSets, setLoadingSets] = useState(false);
@@ -266,7 +268,7 @@ function LiveGameV2Content() {
     setCreateError(null);
     try {
       const response = await createLiveSession({
-        modeId: "classic_arena",
+        modeId: selectedModeId,
         flashcardSetIds: selectedSetIds,
         questionCount,
         questionTimeSeconds,
@@ -287,7 +289,7 @@ function LiveGameV2Content() {
     } finally {
       setCreating(false);
     }
-  }, [enterSession, localizedError, questionCount, questionTimeSeconds, selectedSetIds, sets, t]);
+  }, [enterSession, localizedError, questionCount, questionTimeSeconds, selectedModeId, selectedSetIds, sets, t]);
 
   const handleJoin = useCallback(async () => {
     const normalizedCode = normalizeRoomCode(roomCode);
@@ -476,6 +478,7 @@ function LiveGameV2Content() {
           open={createOpen}
           sets={sets}
           selectedSetIds={selectedSetIds}
+          modeId={selectedModeId}
           questionCount={questionCount}
           questionTimeSeconds={questionTimeSeconds}
           loadingSets={loadingSets}
@@ -484,6 +487,7 @@ function LiveGameV2Content() {
           onToggleSet={(id) => setSelectedSetIds((current) =>
             current.includes(id) ? current.filter((setId) => setId !== id) : [...current, id],
           )}
+          onModeChange={setSelectedModeId}
           onQuestionCountChange={setQuestionCount}
           onQuestionTimeChange={setQuestionTimeSeconds}
           onClose={() => setCreateOpen(false)}

@@ -91,4 +91,52 @@ export const LIVE_GAME_DEFINITIONS: Record<
     defaultQuestionCount: 15,
     defaultQuestionTimeSeconds: 30,
   },
+  streak_combo: {
+    id: "streak_combo",
+    version: 1,
+    pacing: "synchronized",
+    category: "quick",
+    minPlayers: 1,
+    recommendedPlayers: [2, 100],
+    defaultQuestionCount: 10,
+    defaultQuestionTimeSeconds: 20,
+  },
+  survival: {
+    id: "survival",
+    version: 1,
+    pacing: "synchronized",
+    category: "strategy",
+    minPlayers: 1,
+    recommendedPlayers: [3, 100],
+    defaultQuestionCount: 15,
+    defaultQuestionTimeSeconds: 15,
+  },
+};
+
+/** Modes the host can start from the create dialog right now. */
+export const SELECTABLE_LIVE_GAME_MODE_IDS = [
+  "classic_arena",
+  "streak_combo",
+  "survival",
+] as const satisfies readonly LiveGameV2ModeId[];
+
+export type SelectableLiveGameModeId =
+  (typeof SELECTABLE_LIVE_GAME_MODE_IDS)[number];
+
+export const LIVE_GAME_MODE_TRANSLATIONS: Record<
+  SelectableLiveGameModeId,
+  { label: string; description: string }
+> = {
+  classic_arena: {
+    label: "liveGameV2.classicTitle",
+    description: "liveGameV2.classicDesc",
+  },
+  streak_combo: {
+    label: "liveGameV2.streakTitle",
+    description: "liveGameV2.streakDesc",
+  },
+  survival: {
+    label: "liveGameV2.survivalTitle",
+    description: "liveGameV2.survivalDesc",
+  },
 };

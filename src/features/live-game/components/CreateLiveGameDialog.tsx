@@ -2,6 +2,11 @@
 
 import { useEffect } from "react";
 import { useI18n } from "@/i18n/I18nProvider";
+import {
+  LIVE_GAME_MODE_TRANSLATIONS,
+  SELECTABLE_LIVE_GAME_MODE_IDS,
+  type SelectableLiveGameModeId,
+} from "../gameModes";
 
 export interface LiveGameSetOption {
   id: number;
@@ -13,12 +18,14 @@ interface CreateLiveGameDialogProps {
   open: boolean;
   sets: LiveGameSetOption[];
   selectedSetIds: number[];
+  modeId: SelectableLiveGameModeId;
   questionCount: number;
   questionTimeSeconds: number;
   loadingSets: boolean;
   creating: boolean;
   error: string | null;
   onToggleSet: (id: number) => void;
+  onModeChange: (modeId: SelectableLiveGameModeId) => void;
   onQuestionCountChange: (value: number) => void;
   onQuestionTimeChange: (value: number) => void;
   onClose: () => void;
@@ -29,12 +36,14 @@ export default function CreateLiveGameDialog({
   open,
   sets,
   selectedSetIds,
+  modeId,
   questionCount,
   questionTimeSeconds,
   loadingSets,
   creating,
   error,
   onToggleSet,
+  onModeChange,
   onQuestionCountChange,
   onQuestionTimeChange,
   onClose,
@@ -71,7 +80,7 @@ export default function CreateLiveGameDialog({
       <div className="max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-3xl border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900">
         <header className="border-b border-slate-200 px-6 py-5 dark:border-slate-700 sm:px-8">
           <p className="text-xs font-bold uppercase tracking-[0.24em] text-blue-600 dark:text-blue-300">
-            {t("liveGameV2.classicTitle")}
+            {t(LIVE_GAME_MODE_TRANSLATIONS[modeId].label)}
           </p>
           <h2 id="live-create-title" className="mt-1 text-2xl font-black text-slate-950 dark:text-white">
             {t("liveGameV2.setupTitle")}
@@ -82,6 +91,38 @@ export default function CreateLiveGameDialog({
         </header>
 
         <div className="space-y-7 px-6 py-6 sm:px-8">
+          <fieldset>
+            <legend className="mb-3 text-sm font-bold text-slate-900 dark:text-white">
+              {t("liveGameV2.chooseMode")}
+            </legend>
+            <div className="grid gap-2 sm:grid-cols-3">
+              {SELECTABLE_LIVE_GAME_MODE_IDS.map((id) => {
+                const selected = id === modeId;
+                return (
+                  <button
+                    key={id}
+                    type="button"
+                    onClick={() => onModeChange(id)}
+                    aria-pressed={selected}
+                    disabled={creating}
+                    className={`rounded-2xl border p-4 text-start transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 cursor-pointer ${
+                      selected
+                        ? "border-blue-500 bg-blue-50 dark:border-blue-400 dark:bg-blue-500/15"
+                        : "border-slate-200 hover:border-blue-300 dark:border-slate-700 dark:hover:border-blue-500/60"
+                    }`}
+                  >
+                    <span className={`block text-sm font-black ${selected ? "text-blue-700 dark:text-blue-200" : "text-slate-900 dark:text-white"}`}>
+                      {t(LIVE_GAME_MODE_TRANSLATIONS[id].label)}
+                    </span>
+                    <span className="mt-1 block text-xs leading-5 text-slate-600 dark:text-slate-300">
+                      {t(LIVE_GAME_MODE_TRANSLATIONS[id].description)}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </fieldset>
+
           <fieldset>
             <legend className="mb-3 text-sm font-bold text-slate-900 dark:text-white">
               {t("liveGameV2.flashcardSets")}
