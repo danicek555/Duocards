@@ -745,6 +745,58 @@ export default function Dashboard() {
         ? Math.min(learnedCount + 1, studyTotal)
         : studyTotal;
 
+  // Applies a regenerated translation/image from the study card to local
+  // state so the fix is visible immediately without refetching the set.
+  const handleWordRegenerated = async (result: {
+    type: "image" | "translation";
+    translation?: string;
+    imageId?: number;
+  }) => {
+    const wordId = currentWord?.id;
+    const setId = selectedSet?.id;
+    if (!wordId || !setId) return;
+
+    const mapWords = (words: Word[]) =>
+      words.map((w) => {
+        if (w.id !== wordId) return w;
+        if (result.type === "translation" && result.translation) {
+          return { ...w, translation: result.translation };
+        }
+        if (result.type === "image" && result.imageId) {
+          return { ...w, imageId: result.imageId };
+        }
+        return w;
+      });
+
+    setSelectedSet((prev) =>
+      prev ? { ...prev, words: mapWords(prev.words) } : prev
+    );
+    setFlashcardSets((prev) =>
+      prev.map((s) => (s.id === setId ? { ...s, words: mapWords(s.words) } : s))
+    );
+
+    if (result.type === "image" && result.imageId) {
+      const newImageId = result.imageId;
+      try {
+        const response = await apiFetch(`/word-images/${newImageId}`);
+        if (response.ok) {
+          const data = await response.json();
+          if (data?.image?.dataUrl) {
+            setImageCache((prev) => ({
+              ...prev,
+              [newImageId]: data.image.dataUrl,
+            }));
+            imageCacheRef.current[newImageId] = data.image.dataUrl;
+          }
+        }
+      } catch (error) {
+        console.error("Error fetching regenerated image:", error);
+      }
+    }
+
+    fetchCoins();
+  };
+
   // Prefetch all images and audio for the open set (stored separately from word records)
   useEffect(() => {
     if (!selectedSet || viewMode !== "cards") {
@@ -2184,6 +2236,8 @@ export default function Dashboard() {
                     onKnow={handleKnow}
                     learnedCount={learnedCount}
                     totalCount={studyTotal}
+                    wordId={currentWord.id}
+                    onRegenerated={handleWordRegenerated}
                   />
                 </>
               ) : selectedSet &&

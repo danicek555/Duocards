@@ -43,7 +43,23 @@ interface GenerateRequest {
   includePronunciation?: boolean;
   isPublic?: boolean;
   previewCode?: string;
+  onlyNewWords?: boolean;
 }
+
+// Collapses case, diacritics, punctuation and extra whitespace so that
+// "Águila!", "aguila" and " Aguila " all count as the same word.
+const normalizeWord = (value: string) =>
+  value
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .replace(/[^\p{L}\p{N}\s]/gu, "")
+    .replace(/\s+/g, " ")
+    .trim();
+
+// Upper bound on how many existing words are listed in the prompt; the
+// post-generation filter still checks against the full vocabulary.
+const PROMPT_EXCLUSION_LIMIT = 300;
 
 // POST - Generate flashcards using AI
 export async function POST(request: NextRequest) {
@@ -131,6 +147,7 @@ export async function POST(request: NextRequest) {
       includePronunciation = false,
       isPublic = false,
       previewCode,
+      onlyNewWords = true,
     } = body;
 
     // Validate input
@@ -211,6 +228,29 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Words the user already has for this language pair; generated words
+    // colliding with them are excluded from the prompt and filtered out
+    // after generation.
+    const existingNormalized = new Set<string>();
+    let promptExclusions: string[] = [];
+    if (onlyNewWords) {
+      const existingWords = await prisma.word.findMany({
+        where: {
+          userId: payload.userId,
+          flashcardSet: { is: { fromLanguage, toLanguage } },
+        },
+        select: { word: true },
+      });
+      for (const existing of existingWords) {
+        const key = normalizeWord(existing.word);
+        if (key) existingNormalized.add(key);
+      }
+      promptExclusions = Array.from(existingNormalized).slice(
+        0,
+        PROMPT_EXCLUSION_LIMIT
+      );
+    }
+
     // Create prompt for OpenAI
     let prompt = `Generate ${wordCount} flashcards for translating from ${fromLanguage} to ${toLanguage} at CEFR ${level} level about the topic: "${topicTrimmed}" (max 20 characters).
 
@@ -253,6 +293,12 @@ Requirements:
 
     if (includePronunciation) {
       prompt += `\n- Include pronunciation guide in IPA (International Phonetic Alphabet) format for the ${toLanguage} translation`;
+    }
+
+    if (promptExclusions.length > 0) {
+      prompt += `\n- CRITICAL: The user already has flashcards for these ${fromLanguage} words, do NOT include any of them or trivial variants of them (plural, different casing or punctuation): ${promptExclusions.join(
+        ", "
+      )}`;
     }
 
     prompt += `\n- Return only valid JSON, no additional text or markdown formatting
@@ -363,6 +409,27 @@ Requirements:
       return NextResponse.json(
         { error: "Failed to parse AI response. Please try again." },
         { status: 500 }
+      );
+    }
+
+    // Drop duplicates: always within the generated batch, and against the
+    // user's existing vocabulary for this language pair when onlyNewWords
+    // is enabled. Matching is diacritics/case/punctuation-insensitive.
+    const seenNormalized = new Set<string>(existingNormalized);
+    words = words.filter((item) => {
+      const key = normalizeWord(item.word);
+      if (!key || seenNormalized.has(key)) return false;
+      seenNormalized.add(key);
+      return true;
+    });
+
+    if (words.length === 0) {
+      return NextResponse.json(
+        {
+          error:
+            "Every generated word duplicates flashcards you already have. Try a different topic, or turn off 'Only new words'. No coins were charged.",
+        },
+        { status: 422 }
       );
     }
 
@@ -567,10 +634,20 @@ Requirements:
     const result = await prisma.$transaction(async (tx) => {
       // The conditional update and ledger entry share this transaction with the
       // generated set, so a concurrent request can never make coins negative.
+      // Charge for what was actually created — dedup may have dropped some
+      // of the requested words. The upfront check used the requested count,
+      // so the user always has at least this much.
+      const perWordCost =
+        1 +
+        (includeImage ? COIN_COSTS.IMAGE_GENERATION : 0) +
+        (includeVoice ? COIN_COSTS.AUDIO_GENERATION : 0) +
+        (includePronunciation ? COIN_COSTS.PRONUNCIATION_GENERATION : 0);
+      const finalCost = wordsWithImageAndAudioIds.length * perWordCost;
+
       await spendCoinsInTransaction(
         tx,
         payload.userId,
-        totalCost,
+        finalCost,
         COIN_TRANSACTION_TYPES.flashcardGeneration,
       );
 

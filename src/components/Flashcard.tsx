@@ -74,6 +74,12 @@ interface FlashcardProps {
   onPrevious?: () => void;
   hasNext?: boolean;
   hasPrevious?: boolean;
+  wordId?: number;
+  onRegenerated?: (result: {
+    type: "image" | "translation";
+    translation?: string;
+    imageId?: number;
+  }) => void;
 }
 
 export default function Flashcard({
@@ -91,9 +97,40 @@ export default function Flashcard({
   onPrevious,
   hasNext = false,
   hasPrevious = false,
+  wordId,
+  onRegenerated,
 }: FlashcardProps) {
   const { t } = useI18n();
   const [isFlipped, setIsFlipped] = useState(false);
+  const [regenerating, setRegenerating] = useState<
+    "image" | "translation" | null
+  >(null);
+
+  const handleRegenerate = async (
+    type: "image" | "translation",
+    e: React.MouseEvent
+  ) => {
+    e.stopPropagation();
+    if (!wordId || regenerating) return;
+    setRegenerating(type);
+    try {
+      const res = await fetch(`/api/words/${wordId}/regenerate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        onRegenerated?.(data);
+      } else {
+        alert(data.error || t("flashcard.regenerateFailed"));
+      }
+    } catch {
+      alert(t("flashcard.regenerateFailed"));
+    } finally {
+      setRegenerating(null);
+    }
+  };
   const [decision, setDecision] = useState<"know" | "dontKnow" | null>(null);
   const decisionTimerRef = useRef<number | null>(null);
   const isStudyMode = Boolean(onDontKnow && onKnow);
@@ -408,6 +445,64 @@ export default function Flashcard({
                       />
                     </svg>
                   </button>
+                )}
+
+                {/* Regenerate controls - fix a bad AI image/translation */}
+                {wordId && onRegenerated && (
+                  <div className="absolute bottom-4 right-4 z-30 flex gap-2">
+                    {imageUrl && (
+                      <button
+                        type="button"
+                        onClick={(e) => handleRegenerate("image", e)}
+                        disabled={regenerating !== null}
+                        className="w-9 h-9 flex items-center justify-center rounded-full bg-white/90 dark:bg-gray-900/80 shadow-lg hover:shadow-xl transition hover:scale-110 active:scale-95 border border-white/40 backdrop-blur cursor-pointer disabled:opacity-50 disabled:cursor-wait"
+                        title={t("flashcard.regenerateImage")}
+                      >
+                        {regenerating === "image" ? (
+                          <div className="w-4 h-4 animate-spin rounded-full border-2 border-purple-300 border-t-purple-600" />
+                        ) : (
+                          <svg
+                            className="w-4 h-4 text-purple-600 dark:text-purple-400"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                            />
+                          </svg>
+                        )}
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={(e) => handleRegenerate("translation", e)}
+                      disabled={regenerating !== null}
+                      className="w-9 h-9 flex items-center justify-center rounded-full bg-white/90 dark:bg-gray-900/80 shadow-lg hover:shadow-xl transition hover:scale-110 active:scale-95 border border-white/40 backdrop-blur cursor-pointer disabled:opacity-50 disabled:cursor-wait"
+                      title={t("flashcard.regenerateTranslation")}
+                    >
+                      {regenerating === "translation" ? (
+                        <div className="w-4 h-4 animate-spin rounded-full border-2 border-purple-300 border-t-purple-600" />
+                      ) : (
+                        <svg
+                          className="w-4 h-4 text-purple-600 dark:text-purple-400"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                          />
+                        </svg>
+                      )}
+                    </button>
+                  </div>
                 )}
 
                 <div className="text-center w-full relative z-10">
