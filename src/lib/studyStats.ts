@@ -11,6 +11,7 @@ export interface StatsReviewRow {
   rating: string;
   responseMs: number | null;
   retrievability: number | null;
+  wordId?: number;
 }
 
 export interface StatsWordRow {
@@ -45,23 +46,72 @@ function shiftDateKey(dateKey: string, days: number) {
   return date.toISOString().slice(0, 10);
 }
 
-/** Continuous per-day activity for the last `days` days (today included). */
+export interface HeatmapDay {
+  date: string;
+  count: number;
+  correct: number;
+  again: number;
+  uniqueWords: number;
+  avgMs: number | null;
+}
+
+/**
+ * Continuous per-day activity for the last `days` days (today included),
+ * with enough detail to power a hover tooltip.
+ */
 export function buildHeatmap(
   reviews: StatsReviewRow[],
   now: Date,
   timezoneOffsetMinutes: number,
   days = STATS_HEATMAP_DAYS,
-) {
-  const counts = new Map<string, number>();
+): HeatmapDay[] {
+  const byDay = new Map<
+    string,
+    {
+      count: number;
+      correct: number;
+      again: number;
+      words: Set<number>;
+      msSum: number;
+      msCount: number;
+    }
+  >();
   for (const review of reviews) {
     const key = localDateKey(review.reviewedAt, timezoneOffsetMinutes);
-    counts.set(key, (counts.get(key) ?? 0) + 1);
+    const entry = byDay.get(key) ?? {
+      count: 0,
+      correct: 0,
+      again: 0,
+      words: new Set<number>(),
+      msSum: 0,
+      msCount: 0,
+    };
+    entry.count += 1;
+    if (review.rating === "KNOW") entry.correct += 1;
+    else entry.again += 1;
+    if (review.wordId != null) entry.words.add(review.wordId);
+    if (review.responseMs != null) {
+      entry.msSum += review.responseMs;
+      entry.msCount += 1;
+    }
+    byDay.set(key, entry);
   }
   const today = localDateKey(now, timezoneOffsetMinutes);
-  const series: { date: string; count: number }[] = [];
+  const series: HeatmapDay[] = [];
   for (let i = days - 1; i >= 0; i -= 1) {
     const key = shiftDateKey(today, -i);
-    series.push({ date: key, count: counts.get(key) ?? 0 });
+    const entry = byDay.get(key);
+    series.push({
+      date: key,
+      count: entry?.count ?? 0,
+      correct: entry?.correct ?? 0,
+      again: entry?.again ?? 0,
+      uniqueWords: entry?.words.size ?? 0,
+      avgMs:
+        entry && entry.msCount > 0
+          ? Math.round(entry.msSum / entry.msCount)
+          : null,
+    });
   }
   return series;
 }

@@ -54,14 +54,23 @@ test("localDateKey respects the timezone offset", () => {
 
 test("heatmap covers every day and counts reviews per local day", () => {
   const series = buildHeatmap(
-    [review({}), review({}), review({ reviewedAt: new Date(now.getTime() - DAY_MS) })],
+    [
+      review({ wordId: 1, responseMs: 2000 }),
+      review({ wordId: 1, rating: "AGAIN", responseMs: 4000 }),
+      review({ reviewedAt: new Date(now.getTime() - DAY_MS), wordId: 2 }),
+    ],
     now,
     0,
     7,
   );
   assert.equal(series.length, 7);
   assert.equal(series[6].count, 2);
+  assert.equal(series[6].correct, 1);
+  assert.equal(series[6].again, 1);
+  assert.equal(series[6].uniqueWords, 1);
+  assert.equal(series[6].avgMs, 3000);
   assert.equal(series[5].count, 1);
+  assert.equal(series[5].avgMs, null);
   assert.equal(series[0].count, 0);
 });
 

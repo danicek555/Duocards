@@ -50,6 +50,7 @@ export async function GET(request: NextRequest) {
           rating: true,
           responseMs: true,
           retrievability: true,
+          wordId: true,
         },
       }),
       prisma.studyReview.findMany({

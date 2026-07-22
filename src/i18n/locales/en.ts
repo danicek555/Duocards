@@ -601,6 +601,11 @@ export const en = {
     lastStudied: "Last studied",
     loadFailed: "Failed to load statistics.",
     retry: "Try again",
+    uniqueWords: "different words",
+    avgTimeShort: "avg. time",
+    noActivity: "No reviews this day",
+    showMore: "Show all",
+    showLess: "Show less",
   },
   study: {
     dueToday: "Due today",

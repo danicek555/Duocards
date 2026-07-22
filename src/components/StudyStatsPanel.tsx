@@ -1,8 +1,17 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useI18n } from "@/i18n/I18nProvider";
+
+interface HeatmapDay {
+  date: string;
+  count: number;
+  correct: number;
+  again: number;
+  uniqueWords: number;
+  avgMs: number | null;
+}
 
 interface StatsResponse {
   generatedAt: string;
@@ -16,7 +25,7 @@ interface StatsResponse {
     matureWords: number;
     matureThresholdDays: number;
   };
-  heatmap: { date: string; count: number }[];
+  heatmap: HeatmapDay[];
   daily: { date: string; reviews: number; correct: number }[];
   forecast: { date: string; due: number }[];
   memory: { unseen: number; learning: number; young: number; mature: number };
@@ -89,7 +98,126 @@ function Tile({ label, value, hint }: { label: string; value: string; hint?: str
   );
 }
 
-function Heatmap({ data }: { data: StatsResponse["heatmap"] }) {
+function StreakTile({
+  days,
+  label,
+  hint,
+}: {
+  days: number;
+  label: string;
+  hint: string;
+}) {
+  const active = days > 0;
+  return (
+    <div
+      className={`relative overflow-hidden rounded-2xl border shadow-md p-4 ${
+        active
+          ? "bg-gradient-to-br from-amber-100 to-orange-100 dark:from-amber-500/15 dark:to-orange-600/15 border-amber-300 dark:border-amber-500/40"
+          : "bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700"
+      }`}
+    >
+      <span
+        aria-hidden
+        className={`absolute -right-1 -bottom-2 text-5xl select-none ${
+          active ? "opacity-30" : "opacity-10 grayscale"
+        }`}
+      >
+        🔥
+      </span>
+      <p
+        className={`text-xs ${
+          active
+            ? "text-amber-700 dark:text-amber-300"
+            : "text-gray-500 dark:text-gray-400"
+        }`}
+      >
+        🔥 {label}
+      </p>
+      <p
+        className={`text-2xl font-bold mt-1 ${
+          active
+            ? "text-amber-600 dark:text-amber-400"
+            : "text-gray-900 dark:text-white"
+        }`}
+      >
+        {days}
+      </p>
+      <p
+        className={`text-xs mt-0.5 ${
+          active
+            ? "text-amber-600/70 dark:text-amber-400/70"
+            : "text-gray-400 dark:text-gray-500"
+        }`}
+      >
+        {hint}
+      </p>
+    </div>
+  );
+}
+
+function HeatmapTooltip({
+  day,
+  labels,
+}: {
+  day: HeatmapDay;
+  labels: {
+    reviews: string;
+    accuracy: string;
+    misses: string;
+    uniqueWords: string;
+    avgTime: string;
+    noActivity: string;
+  };
+}) {
+  const date = new Date(`${day.date}T00:00:00`).toLocaleDateString(undefined, {
+    weekday: "short",
+    day: "numeric",
+    month: "numeric",
+  });
+  return (
+    <div className="rounded-xl bg-gray-900/95 dark:bg-gray-950/95 text-white shadow-xl border border-gray-700 px-3 py-2 text-xs leading-5 whitespace-nowrap">
+      <p className="font-semibold mb-0.5">📅 {date}</p>
+      {day.count === 0 ? (
+        <p className="text-gray-400">{labels.noActivity}</p>
+      ) : (
+        <>
+          <p>
+            📚 {day.count} {labels.reviews}
+          </p>
+          <p>
+            🎯 {labels.accuracy}: {Math.round((day.correct / day.count) * 100)}{" "}
+            %
+          </p>
+          <p>
+            ❌ {labels.misses}: {day.again}
+          </p>
+          <p>
+            🔤 {day.uniqueWords} {labels.uniqueWords}
+          </p>
+          {day.avgMs != null && (
+            <p>
+              ⏱️ {labels.avgTime}: {(day.avgMs / 1000).toFixed(1)} s
+            </p>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+function Heatmap({
+  data,
+  tooltipLabels,
+}: {
+  data: StatsResponse["heatmap"];
+  tooltipLabels: Parameters<typeof HeatmapTooltip>[0]["labels"];
+}) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [hover, setHover] = useState<{
+    day: HeatmapDay;
+    x: number;
+    y: number;
+  } | null>(null);
   const max = Math.max(1, ...data.map((day) => day.count));
   // Pad so columns align to weeks ending today.
   const cell = 12;
@@ -98,37 +226,68 @@ function Heatmap({ data }: { data: StatsResponse["heatmap"] }) {
   for (let i = 0; i < data.length; i += 7) weeks.push(data.slice(i, i + 7));
   const width = weeks.length * (cell + gap);
   const height = 7 * (cell + gap);
+
+  const showTooltip = (
+    day: HeatmapDay,
+    event: React.MouseEvent<SVGRectElement>,
+  ) => {
+    const container = containerRef.current;
+    if (!container) return;
+    const cellRect = event.currentTarget.getBoundingClientRect();
+    const containerRect = container.getBoundingClientRect();
+    const x = Math.min(
+      Math.max(cellRect.left - containerRect.left + cellRect.width / 2, 70),
+      containerRect.width - 70,
+    );
+    setHover({ day, x, y: cellRect.top - containerRect.top - 6 });
+  };
+
   return (
-    <svg
-      viewBox={`0 0 ${width} ${height}`}
-      className="w-full max-w-full"
-      style={{ maxHeight: 130 }}
-      role="img"
-    >
-      {weeks.map((week, weekIndex) =>
-        week.map((day, dayIndex) => {
-          const alpha = day.count === 0 ? 0 : 0.25 + 0.75 * (day.count / max);
-          return (
-            <rect
-              key={day.date}
-              x={weekIndex * (cell + gap)}
-              y={dayIndex * (cell + gap)}
-              width={cell}
-              height={cell}
-              rx={3}
-              className="fill-gray-200 dark:fill-gray-700"
-              style={
-                day.count > 0
-                  ? { fill: `rgba(99, 102, 241, ${alpha.toFixed(2)})` }
-                  : undefined
-              }
-            >
-              <title>{`${day.date}: ${day.count}`}</title>
-            </rect>
-          );
-        }),
+    <div ref={containerRef} className="relative">
+      <svg
+        viewBox={`0 0 ${width} ${height}`}
+        className="w-full max-w-full"
+        style={{ maxHeight: 130 }}
+        role="img"
+      >
+        {weeks.map((week, weekIndex) =>
+          week.map((day, dayIndex) => {
+            const alpha =
+              day.count === 0 ? 0 : 0.25 + 0.75 * (day.count / max);
+            return (
+              <rect
+                key={day.date}
+                x={weekIndex * (cell + gap)}
+                y={dayIndex * (cell + gap)}
+                width={cell}
+                height={cell}
+                rx={3}
+                className="fill-gray-200 dark:fill-gray-700"
+                style={
+                  day.count > 0
+                    ? { fill: `rgba(99, 102, 241, ${alpha.toFixed(2)})` }
+                    : undefined
+                }
+                onMouseEnter={(event) => showTooltip(day, event)}
+                onMouseLeave={() => setHover(null)}
+              />
+            );
+          }),
+        )}
+      </svg>
+      {hover && (
+        <div
+          className="pointer-events-none absolute z-20"
+          style={{
+            left: hover.x,
+            top: hover.y,
+            transform: "translate(-50%, -100%)",
+          }}
+        >
+          <HeatmapTooltip day={hover.day} labels={tooltipLabels} />
+        </div>
       )}
-    </svg>
+    </div>
   );
 }
 
@@ -267,6 +426,7 @@ export default function StudyStatsPanel() {
   const [data, setData] = useState<StatsResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [showAllSets, setShowAllSets] = useState(false);
 
   const fetchStats = useCallback(async () => {
     setLoading(true);
@@ -345,40 +505,59 @@ export default function StudyStatsPanel() {
 
       {/* Tiles */}
       <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4 mb-6">
-        <Tile
+        <StreakTile
+          days={tiles.streakDays}
           label={t("stats.tileStreak")}
-          value={String(tiles.streakDays)}
           hint={t("stats.tileStreakHint")}
         />
-        <Tile label={t("stats.tileReviewedToday")} value={String(tiles.reviewsToday)} />
-        <Tile label={t("stats.tileDueToday")} value={String(tiles.dueToday)} />
         <Tile
-          label={t("stats.tileAccuracy7d")}
+          label={`✅ ${t("stats.tileReviewedToday")}`}
+          value={String(tiles.reviewsToday)}
+        />
+        <Tile
+          label={`⏰ ${t("stats.tileDueToday")}`}
+          value={String(tiles.dueToday)}
+        />
+        <Tile
+          label={`🎯 ${t("stats.tileAccuracy7d")}`}
           value={percent(tiles.accuracy7d)}
           hint={`${tiles.reviews7d} ${t("stats.reviewsShort")}`}
         />
-        <Tile label={t("stats.tileTotalWords")} value={String(tiles.totalWords)} />
         <Tile
-          label={t("stats.tileMatureWords")}
+          label={`📚 ${t("stats.tileTotalWords")}`}
+          value={String(tiles.totalWords)}
+        />
+        <Tile
+          label={`🌳 ${t("stats.tileMatureWords")}`}
           value={String(tiles.matureWords)}
           hint={`≥ ${tiles.matureThresholdDays} ${t("stats.daysShort")}`}
         />
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-6">
-        <Card title={t("stats.heatmapTitle")}>
-          <Heatmap data={data.heatmap} />
+        <Card title={`🗓️ ${t("stats.heatmapTitle")}`}>
+          <Heatmap
+            data={data.heatmap}
+            tooltipLabels={{
+              reviews: t("stats.reviewsShort"),
+              accuracy: t("stats.accuracyShort"),
+              misses: t("stats.lapses"),
+              uniqueWords: t("stats.uniqueWords"),
+              avgTime: t("stats.avgTimeShort"),
+              noActivity: t("stats.noActivity"),
+            }}
+          />
         </Card>
-        <Card title={t("stats.dailyTitle")}>
+        <Card title={`📊 ${t("stats.dailyTitle")}`}>
           <DailyChart data={data.daily} />
           <p className="mt-2 text-xs text-gray-400 dark:text-gray-500">
             {t("stats.dailyLegend")}
           </p>
         </Card>
-        <Card title={t("stats.forecastTitle")}>
+        <Card title={`🔮 ${t("stats.forecastTitle")}`}>
           <ForecastChart data={data.forecast} />
         </Card>
-        <Card title={t("stats.memoryTitle")}>
+        <Card title={`🧠 ${t("stats.memoryTitle")}`}>
           <MemoryBar
             memory={data.memory}
             labels={{
@@ -413,7 +592,7 @@ export default function StudyStatsPanel() {
 
       {calibrationRows.length > 0 && (
         <div className="mb-6">
-          <Card title={t("stats.calibrationTitle")}>
+          <Card title={`⚖️ ${t("stats.calibrationTitle")}`}>
             <p className="text-xs text-gray-400 dark:text-gray-500 mb-3">
               {t("stats.calibrationHint")}
             </p>
@@ -459,7 +638,7 @@ export default function StudyStatsPanel() {
       )}
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-        <Card title={t("stats.hardestTitle")}>
+        <Card title={`💪 ${t("stats.hardestTitle")}`}>
           {data.hardestWords.length === 0 ? (
             <p className="text-sm text-gray-500 dark:text-gray-400">
               {t("stats.hardestEmpty")}
@@ -501,7 +680,7 @@ export default function StudyStatsPanel() {
           )}
         </Card>
 
-        <Card title={t("stats.perSetTitle")}>
+        <Card title={`🗂️ ${t("stats.perSetTitle")}`}>
           {data.perSet.length === 0 ? (
             <p className="text-sm text-gray-500 dark:text-gray-400">
               {t("stats.perSetEmpty")}
@@ -520,7 +699,7 @@ export default function StudyStatsPanel() {
                 </tr>
               </thead>
               <tbody className="text-gray-700 dark:text-gray-300">
-                {data.perSet.map((set) => (
+                {(showAllSets ? data.perSet : data.perSet.slice(0, 5)).map((set) => (
                   <tr
                     key={set.setId}
                     className="border-t border-gray-100 dark:border-gray-700"
@@ -548,6 +727,31 @@ export default function StudyStatsPanel() {
                 ))}
               </tbody>
             </table>
+          )}
+          {data.perSet.length > 5 && (
+            <button
+              onClick={() => setShowAllSets((prev) => !prev)}
+              className="mt-3 inline-flex items-center gap-1.5 text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors"
+            >
+              <svg
+                className={`w-4 h-4 transition-transform ${
+                  showAllSets ? "rotate-180" : ""
+                }`}
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M19 9l-7 7-7-7"
+                />
+              </svg>
+              {showAllSets
+                ? t("stats.showLess")
+                : `${t("stats.showMore")} (${data.perSet.length - 5})`}
+            </button>
           )}
         </Card>
       </div>

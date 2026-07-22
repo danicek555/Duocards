@@ -600,6 +600,11 @@ export const cs = {
     lastStudied: "Naposledy",
     loadFailed: "Statistiky se nepodařilo načíst.",
     retry: "Zkusit znovu",
+    uniqueWords: "různých slov",
+    avgTimeShort: "prům. čas",
+    noActivity: "Žádné opakování",
+    showMore: "Zobrazit vše",
+    showLess: "Zobrazit méně",
   },
   study: {
     dueToday: "Dnes k opakování",
