@@ -31,6 +31,7 @@ model User {
   passwordResets    PasswordResetToken[]
   liveGames         LiveGame[]
   liveSessions      LiveSession[]
+  note              Note?
 
   @@map("users")
 }
@@ -350,4 +351,15 @@ model LiveAnswer {
   @@unique([participantId, idempotencyKey])
   @@index([roundId, createdAt])
   @@map("live_answers")
+}
+
+model Note {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @unique
+  content   String   @default("")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notes")
 }
