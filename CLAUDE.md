@@ -2,77 +2,60 @@
 
 Context for AI agents (Claude Code and others) working in this repository.
 
+**Canonical agent rules live in [`docs/AGENTS.md`](docs/AGENTS.md)** (linked
+from the root `AGENTS.md`) — read and follow them before changing code. This
+file only adds a map of how the repositories relate and where to find things.
+
 ## What this project is
 
-DuoCards — a flashcard web app for learning languages. Users create flashcard
-sets (manually or AI-generated), practice with flip cards, share sets via
-public codes / a public library, and play live multiplayer sessions.
+DuoCards — a flashcard app for learning languages. Users create flashcard sets
+(manually or AI-generated), practice with flip cards, share sets via public
+codes / a public library, and play live multiplayer sessions.
 
-## Related repositories (same GitHub account: danicek555)
+## How the repositories are linked
 
-| Repository   | Relationship                                                                                        |
-| ------------ | --------------------------------------------------------------------------------------------------- |
-| `duocards`   | This repository. Standalone app; no code dependency on the other two.                               |
-| `vibecoding` | Umbrella collection of small projects; each project lives in its own subfolder (`web/`, `sk-mop-rekordy/`, `globe-map/`). |
-| `globe-map`  | Standalone repo for the 3D travel globe (React + Vite + Three.js, deployed to Netlify). A copy also lives inside `vibecoding/globe-map/`. |
+DuoCards is split into three separately deployable parts sharing one
+PostgreSQL database and one versioned API contract:
 
-There are no cross-references between `duocards` and the other repos — treat
-them as independent projects.
-
-## Stack
-
-- Next.js 15 (App Router) + React 19, TypeScript, Tailwind CSS 4
-- Prisma 7 + PostgreSQL (Prisma Accelerate in dev, Google Cloud SQL in prod)
-- Ably (realtime live games), Resend (e-mail), OpenAI API (AI generation), Sentry
-- Deployed via Vercel (previews per branch) and Google Cloud Run
-
-## Layout
-
-```
-docs/       All project documentation (setup, deployment, ROADMAP.md)
-prisma/     schema.prisma + migrations
-scripts/    Helper scripts (check-users.ts, check_users.sql, start-cloud-sql-proxy.sh)
-src/app/    Routes; API endpoints under src/app/api/**/route.ts
-src/components/  Reusable client components
-src/lib/    Server utilities (auth, prisma client, rate limiting, coins)
+```text
+web (Next.js) ----\
+                  >---- backend (Fastify /api/v1) ---- PostgreSQL
+iOS (SwiftUI) ----/
 ```
 
-Key pages: `/dashboard` (main UI — left nav + right content area switched by
-`viewMode`: sets / cards / library / liveHistory), `/live-game` (realtime
-rooms), `/library` and `/live-game/history` (redirect into dashboard views).
+| Repository                  | Role                                                                                     |
+| --------------------------- | ---------------------------------------------------------------------------------------- |
+| `danicek555/duocards`       | This repo: the Next.js web app + a local copy of the Fastify backend (`backend/`) + shared API contract (`contracts/`). |
+| `danicek555/duocards-backend` | Production Fastify backend (deployed to Cloud Run).                                     |
+| `danicek555/duocards-ios`   | Native iOS app (SwiftUI).                                                                 |
 
-## Commands
+The web proxies `/shared-api` to the Cloud Run backend and falls back to its
+own built-in Next.js `/api` routes when Cloud Run is unavailable — see
+`README.md` for the full runtime description.
 
-```bash
-npm run dev              # dev server
-npm run build            # prisma generate + next build
-npm run lint             # eslint
-npx prisma migrate dev   # create + apply migration (dev)
-npx prisma migrate deploy# apply migrations (prod/CI)
-npm run check-users      # list users in DB
+Unrelated personal projects under the same account (no code relationship to
+DuoCards): `danicek555/vibecoding` (umbrella collection of small projects;
+contains a copy of `globe-map/` as a subfolder) and `danicek555/globe-map`
+(standalone 3D travel globe, React + Vite + Three.js).
+
+## Where to find things
+
+```
+backend/    Local Fastify + TypeScript + Prisma backend
+contracts/  Versioned API contract shared by web, backend and iOS
+docs/       All documentation (AGENTS.md, ARCHITECTURE.md, DEVELOPMENT.md,
+            DESIGN_SYSTEM.md, LOCALIZATION.md, setup + deployment guides,
+            ROADMAP.md, LIVE_GAME_PRODUCT_PLAN.md)
+prisma/     Database schema + migrations for the web/Vercel fallback
+scripts/    Maintenance and helper scripts
+src/        Next.js web app (app router, components, lib, i18n)
 ```
 
-## Conventions
+## Key documents
 
-- **API auth pattern:** every protected route reads the `auth` cookie and
-  verifies it with `verifyAuthToken` from `src/lib/auth.ts`, then usually
-  confirms the user exists. Follow the existing routes in
-  `src/app/api/flashcard-sets/` as templates.
-- **Prisma access:** use the singleton `prisma` from `src/lib/prisma.ts`
-  (`prismaDirect` for large image/audio payloads). Existing code casts models
-  to `any` (`(prisma as any).model...`) where the generated client types lag —
-  keep that style for consistency.
-- **Dynamic route params are async:** `{ params }: { params: Promise<{ id: string }> }`
-  and `const { id } = await params;`.
-- **UI:** Tailwind utility classes with dark-mode variants (`dark:`) on
-  everything; follow the visual patterns in `src/app/dashboard/page.tsx`.
-- **Migrations:** add a folder under `prisma/migrations/<timestamp>_<name>/`
-  with `migration.sql` AND update `prisma/schema.prisma` together.
-- **Limits to respect:** max 100 sets per user, max 5 tags per set, coins
-  economy lives in `src/lib/coins.ts` / `coin-costs.ts`.
-
-## Documentation
-
-Human-facing guides are in `docs/` (see `docs/ROADMAP.md` for the prioritized
-feature roadmap and `docs/DEVELOPMENT_WORKFLOW.md` for the dev loop). Update
-`README.md` links when adding new docs.
+- [`docs/AGENTS.md`](docs/AGENTS.md) — binding rules for agents (architecture
+  boundaries, i18n requirements, accessibility, safe DB practices)
+- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — architecture and data flows
+- [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md) — local development and checks
+- [`docs/ROADMAP.md`](docs/ROADMAP.md) — prioritized feature roadmap
+- [`README.md`](README.md) — how to run the whole vertical locally
