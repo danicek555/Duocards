@@ -1,12 +1,23 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useI18n } from "@/i18n/I18nProvider";
 import type { LiveGameSessionSnapshot } from "../contracts";
 import type { LiveGameClientRole } from "../sessionStorage";
+import {
+  isLiveSoundMuted,
+  playCorrect,
+  playCountdownTick,
+  playFanfare,
+  playIncorrect,
+  playQuestionStart,
+  setLiveSoundMuted,
+} from "../sound";
+import InviteQrCode from "./InviteQrCode";
 
 export type LiveConnectionState = "connected" | "reconnecting" | "offline";
 export type LiveAction = "start" | "advance" | "answer" | "finish" | null;
+export type LiveResultsSavedState = "saving" | "saved" | "error" | null;
 
 interface LiveSessionViewProps {
   session: LiveGameSessionSnapshot;
@@ -15,12 +26,91 @@ interface LiveSessionViewProps {
   action: LiveAction;
   copied: boolean;
   error: string | null;
+  inviteUrl: string | null;
+  resultsSaved: LiveResultsSavedState;
   onCopyInvite: () => void;
   onStart: () => void;
   onAdvance: () => void;
   onAnswer: (answer: string) => void;
   onFinish: () => void;
   onLeave: () => void;
+}
+
+const CONFETTI_COLORS = ["#3b82f6", "#8b5cf6", "#22d3ee", "#fbbf24", "#34d399"];
+
+function ConfettiBurst() {
+  const pieces = useMemo(() =>
+    Array.from({ length: 70 }, (_, index) => ({
+      left: (index * 37) % 100,
+      delay: ((index * 13) % 24) / 10,
+      duration: 2.6 + ((index * 7) % 18) / 10,
+      rotate: (index * 53) % 360,
+      color: CONFETTI_COLORS[index % CONFETTI_COLORS.length],
+      width: 6 + ((index * 11) % 6),
+    })), []);
+
+  return (
+    <div aria-hidden="true" className="pointer-events-none fixed inset-0 overflow-hidden">
+      <style>{`@keyframes live-confetti-fall{0%{transform:translateY(-6vh) rotate(0deg);opacity:1}85%{opacity:1}100%{transform:translateY(104vh) rotate(720deg);opacity:0}}`}</style>
+      {pieces.map((piece, index) => (
+        <span
+          key={index}
+          className="absolute top-0 block rounded-sm"
+          style={{
+            left: `${piece.left}%`,
+            width: piece.width,
+            height: piece.width * 1.6,
+            backgroundColor: piece.color,
+            transform: `rotate(${piece.rotate}deg)`,
+            animation: `live-confetti-fall ${piece.duration}s linear ${piece.delay}s infinite`,
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
+function ResultsTable({ session }: { session: LiveGameSessionSnapshot }) {
+  const { t } = useI18n();
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full min-w-105 border-separate border-spacing-y-2 text-start">
+        <thead>
+          <tr className="text-xs font-bold uppercase tracking-wider text-slate-400">
+            <th className="px-3 py-1 text-start">#</th>
+            <th className="px-3 py-1 text-start">{t("liveGameV2.resultPlayer")}</th>
+            <th className="px-3 py-1 text-end">{t("liveGameV2.resultScore")}</th>
+            <th className="px-3 py-1 text-end">{t("liveGameV2.resultCorrect")}</th>
+            <th className="px-3 py-1 text-end">{t("liveGameV2.resultAccuracy")}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {session.participants.map((participant, index) => {
+            const accuracy = participant.total > 0
+              ? Math.round((participant.correct / participant.total) * 100)
+              : null;
+            const isWinner = index === 0 && participant.score > 0;
+            return (
+              <tr key={participant.id} className={`rounded-2xl ${isWinner ? "bg-amber-400/15" : "bg-white/[0.06]"}`}>
+                <td className={`rounded-s-2xl px-3 py-3 font-black ${isWinner ? "text-amber-300" : "text-slate-300"}`}>{index + 1}</td>
+                <td className="min-w-0 break-words px-3 py-3 font-bold text-white">
+                  {participant.nickname}
+                  {isWinner && (
+                    <span className="ms-2 rounded-full bg-amber-400 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-amber-950">
+                      {t("liveGameV2.winnerTag")}
+                    </span>
+                  )}
+                </td>
+                <td className="px-3 py-3 text-end font-mono text-lg font-black text-cyan-200">{participant.score}</td>
+                <td className="px-3 py-3 text-end font-mono text-sm text-slate-200">{participant.correct}/{participant.total}</td>
+                <td className="rounded-e-2xl px-3 py-3 text-end font-mono text-sm text-slate-200">{accuracy === null ? "—" : `${accuracy}%`}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
 }
 
 function Scoreboard({ session }: { session: LiveGameSessionSnapshot }) {
@@ -80,6 +170,8 @@ export default function LiveSessionView({
   action,
   copied,
   error,
+  inviteUrl,
+  resultsSaved,
   onCopyInvite,
   onStart,
   onAdvance,
@@ -89,6 +181,7 @@ export default function LiveSessionView({
 }: LiveSessionViewProps) {
   const { t } = useI18n();
   const [clock, setClock] = useState(() => Date.now());
+  const [muted, setMuted] = useState(() => isLiveSoundMuted());
   const isHost = role === "host";
   const question = session.currentQuestion;
   const viewerAnswer = session.viewer?.currentAnswer ?? null;
@@ -103,6 +196,35 @@ export default function LiveSessionView({
     if (!question?.locksAt) return 0;
     return Math.max(0, Math.ceil((new Date(question.locksAt).getTime() - clock) / 1_000));
   }, [clock, question?.locksAt]);
+
+  // Zvuky: nová otázka, tikání posledních vteřin, vyhodnocení, fanfára.
+  const lastTickRef = useRef(0);
+  useEffect(() => {
+    if (session.status === "QUESTION" && question?.id) playQuestionStart();
+  }, [session.status, question?.id]);
+  useEffect(() => {
+    if (session.status !== "QUESTION" || secondsLeft <= 0 || secondsLeft > 5) return;
+    if (lastTickRef.current === secondsLeft) return;
+    lastTickRef.current = secondsLeft;
+    playCountdownTick(secondsLeft);
+  }, [secondsLeft, session.status]);
+  useEffect(() => {
+    if (session.status !== "REVEAL" || isHost) return;
+    if (viewerAnswer?.isCorrect) playCorrect();
+    else playIncorrect();
+    // Jedno vyhodnocení na kolo — otázka se při REVEAL nemění.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session.status, question?.id]);
+  useEffect(() => {
+    if (session.status === "FINISHED") playFanfare();
+  }, [session.status]);
+
+  const toggleMute = () => {
+    setMuted((current) => {
+      setLiveSoundMuted(!current);
+      return !current;
+    });
+  };
 
   const leaveButton = (
     <button type="button" onClick={onLeave} disabled={action !== null} className="rounded-xl border border-white/15 px-3 py-2 text-sm font-bold text-slate-200 transition hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer">
@@ -124,6 +246,23 @@ export default function LiveSessionView({
             <ConnectionBadge state={connection} />
           </div>
           <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={toggleMute}
+              aria-label={muted ? t("liveGameV2.soundUnmute") : t("liveGameV2.soundMute")}
+              aria-pressed={!muted}
+              className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/15 text-slate-200 transition hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 cursor-pointer"
+            >
+              {muted ? (
+                <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M11 5 6 9H3v6h3l5 4V5ZM22 9l-6 6M16 9l6 6" />
+                </svg>
+              ) : (
+                <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M11 5 6 9H3v6h3l5 4V5ZM15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13" />
+                </svg>
+              )}
+            </button>
             {isHost && session.status !== "FINISHED" && session.status !== "LOBBY" && (
               <button
                 type="button"
@@ -159,6 +298,12 @@ export default function LiveSessionView({
                   <button type="button" onClick={onCopyInvite} className="w-full rounded-2xl border border-white/15 bg-white/10 px-5 py-3 font-bold transition hover:bg-white/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 cursor-pointer">
                     {copied ? t("liveGameV2.copied") : t("liveGameV2.copyLink")}
                   </button>
+                  {inviteUrl && (
+                    <>
+                      <p className="mt-5 text-center text-xs font-bold uppercase tracking-[0.22em] text-slate-400">{t("liveGameV2.scanToJoin")}</p>
+                      <InviteQrCode url={inviteUrl} label={t("liveGameV2.qrLabel")} />
+                    </>
+                  )}
                   <p className="mt-4 text-sm leading-6 text-slate-300">{t("liveGameV2.hostLobbyHint")}</p>
                 </>
               ) : (
@@ -279,6 +424,7 @@ export default function LiveSessionView({
 
         {session.status === "FINISHED" && (
           <section className="mx-auto max-w-4xl py-10 text-center">
+            <ConfettiBurst />
             <p className="text-xs font-bold uppercase tracking-[0.3em] text-amber-300">{t("liveGameV2.finalResults")}</p>
             <h1 className="mt-4 text-4xl font-black sm:text-6xl">
               {session.participants[0]
@@ -287,9 +433,19 @@ export default function LiveSessionView({
             </h1>
             <p className="mx-auto mt-4 max-w-2xl text-slate-300">{t("liveGameV2.finalHint")}</p>
 
-            <div className="mx-auto mt-10 max-w-2xl rounded-3xl border border-white/10 bg-white/[0.06] p-6 text-start sm:p-8">
-              <h2 className="mb-5 text-xl font-black">{t("liveGameV2.scoreboard")}</h2>
-              <Scoreboard session={session} />
+            <div className="relative mx-auto mt-10 max-w-3xl rounded-3xl border border-white/10 bg-white/[0.06] p-6 text-start sm:p-8">
+              <h2 className="mb-5 text-xl font-black">{t("liveGameV2.finalResults")}</h2>
+              <ResultsTable session={session} />
+              {isHost && resultsSaved && (
+                <p
+                  role={resultsSaved === "error" ? "alert" : undefined}
+                  className={`mt-5 rounded-2xl border px-4 py-3 text-sm ${resultsSaved === "error" ? "border-red-300/25 bg-red-500/10 text-red-100" : "border-emerald-300/20 bg-emerald-400/10 text-emerald-100"}`}
+                >
+                  {resultsSaved === "saving" && t("liveGameV2.resultsSaving")}
+                  {resultsSaved === "saved" && t("liveGameV2.resultsSaved")}
+                  {resultsSaved === "error" && t("liveGameV2.resultsSaveFailed")}
+                </p>
+              )}
             </div>
           </section>
         )}

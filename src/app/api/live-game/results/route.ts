@@ -74,6 +74,11 @@ export async function POST(request: NextRequest) {
         ? body.setName.trim().slice(0, 200)
         : null;
 
+    const modeId =
+      typeof body.modeId === "string" && body.modeId.trim()
+        ? body.modeId.trim().slice(0, 40)
+        : null;
+
     let startedAt: Date | null = null;
     if (typeof body.startedAt === "string") {
       const parsed = new Date(body.startedAt);
@@ -108,6 +113,7 @@ export async function POST(request: NextRequest) {
       data: {
         hostUserId: payload.userId,
         roomCode: roomCode.slice(0, 16),
+        modeId,
         setName,
         totalPlayers: players.length,
         winnerName,
@@ -154,7 +160,6 @@ export async function GET(request: NextRequest) {
       Math.max(1, parseInt(searchParams.get("pageSize") || "20", 10) || 20)
     );
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const [total, games] = await Promise.all([
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (prisma as any).liveGame.count({ where: { hostUserId: payload.userId } }),
@@ -164,6 +169,7 @@ export async function GET(request: NextRequest) {
         select: {
           id: true,
           roomCode: true,
+          modeId: true,
           setName: true,
           totalPlayers: true,
           winnerName: true,

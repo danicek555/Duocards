@@ -27,6 +27,7 @@ export async function GET(
       select: {
         id: true,
         roomCode: true,
+        modeId: true,
         setName: true,
         totalPlayers: true,
         winnerName: true,

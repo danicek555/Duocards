@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useLiveGameJoinOnly } from "@/contexts/LiveGameJoinOnlyContext";
 import { useI18n } from "@/i18n/I18nProvider";
@@ -30,7 +30,10 @@ import LiveSessionView, {
 import type { LiveGameSessionSnapshot } from "./contracts";
 import {
   clearLiveGameToken,
+  markLiveGameResultsSaved,
+  readLiveGameMeta,
   readLiveGameToken,
+  saveLiveGameMeta,
   saveLiveGameToken,
   type LiveGameClientRole,
 } from "./sessionStorage";
@@ -75,6 +78,7 @@ function LiveGameV2Content() {
   const [connection, setConnection] = useState<LiveConnectionState>("reconnecting");
   const [action, setAction] = useState<LiveAction>(null);
   const [copied, setCopied] = useState(false);
+  const [resultsSaved, setResultsSaved] = useState<"saving" | "saved" | "error" | null>(null);
 
   const acceptSnapshot = useCallback((next: LiveGameSessionSnapshot) => {
     setSnapshot((current) => {
@@ -143,6 +147,35 @@ function LiveGameV2Content() {
 
   const sessionFinished = snapshot?.status === "FINISHED";
 
+  // The host stores the finished game into history exactly once per tab.
+  useEffect(() => {
+    if (!sessionFinished || !snapshot || active?.role !== "host") return;
+    if (snapshot.participants.length === 0) return;
+    if (!markLiveGameResultsSaved(snapshot.id)) return;
+
+    const meta = readLiveGameMeta(snapshot.id);
+    setResultsSaved("saving");
+    void fetch("/api/live-game/results", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        roomCode: snapshot.roomCode,
+        modeId: snapshot.modeId,
+        setName: meta.setName ?? undefined,
+        startedAt: meta.startedAt ?? undefined,
+        players: snapshot.participants.map((participant) => ({
+          name: participant.nickname,
+          score: participant.score,
+          correct: participant.correct,
+          total: participant.total,
+        })),
+      }),
+    })
+      .then((response) => setResultsSaved(response.ok ? "saved" : "error"))
+      .catch(() => setResultsSaved("error"));
+  }, [active?.role, sessionFinished, snapshot]);
+
+
   useEffect(() => {
     if (!active || sessionFinished) return;
 
@@ -162,6 +195,20 @@ function LiveGameV2Content() {
         setConnectionError(null);
       } catch (error) {
         if (stopped || controller.signal.aborted) return;
+        if (
+          error instanceof LiveGameApiError &&
+          (error.status === 401 || error.status === 403 || error.status === 404 || error.status === 410)
+        ) {
+          // The session no longer exists (expired or ended elsewhere).
+          stopped = true;
+          clearLiveGameToken(active.id, active.role);
+          setActive(null);
+          setSnapshot(null);
+          setConnectionError(null);
+          setPageError(t("liveGameV2.sessionGone"));
+          router.replace(hubPath(), { scroll: false });
+          return;
+        }
         setConnection((current) => current === "connected" ? "reconnecting" : "offline");
         setConnectionError(localizedError(error));
       } finally {
@@ -176,7 +223,7 @@ function LiveGameV2Content() {
       controller?.abort();
       window.clearInterval(interval);
     };
-  }, [acceptSnapshot, active, localizedError, sessionFinished]);
+  }, [acceptSnapshot, active, hubPath, localizedError, router, sessionFinished, t]);
 
   const loadSets = useCallback(async () => {
     setLoadingSets(true);
@@ -225,13 +272,22 @@ function LiveGameV2Content() {
         questionTimeSeconds,
       });
       setCreateOpen(false);
+      const setName = sets
+        .filter((set) => selectedSetIds.includes(set.id))
+        .map((set) => set.name)
+        .join(", ")
+        .slice(0, 200);
+      saveLiveGameMeta(response.session.id, {
+        setName: setName || null,
+        startedAt: null,
+      });
       enterSession(response.session, "host", response.hostToken);
     } catch (error) {
       setCreateError(localizedError(error));
     } finally {
       setCreating(false);
     }
-  }, [enterSession, localizedError, questionCount, questionTimeSeconds, selectedSetIds, t]);
+  }, [enterSession, localizedError, questionCount, questionTimeSeconds, selectedSetIds, sets, t]);
 
   const handleJoin = useCallback(async () => {
     const normalizedCode = normalizeRoomCode(roomCode);
@@ -276,6 +332,16 @@ function LiveGameV2Content() {
       setAction(null);
     }
   }, [acceptSnapshot, action, active, localizedError]);
+
+  const handleStart = useCallback(() => {
+    if (active) {
+      saveLiveGameMeta(active.id, {
+        ...readLiveGameMeta(active.id),
+        startedAt: new Date().toISOString(),
+      });
+    }
+    void runSessionAction("start", startLiveSession);
+  }, [active, runSessionAction]);
 
   const handleAnswer = useCallback(async (answer: string) => {
     if (!active || !snapshot?.currentQuestion || action !== null) return;
@@ -327,23 +393,25 @@ function LiveGameV2Content() {
     router.replace(hubPath(), { scroll: false });
   }, [active, hubPath, localizedError, router, snapshot?.status, t]);
 
-  const handleCopyInvite = useCallback(async () => {
-    if (!snapshot) return;
+  const inviteUrl = useMemo(() => {
+    if (!snapshot || typeof window === "undefined") return null;
     const guestBase = getGuestLiveGameBaseUrl();
-    const localPath = typeof window !== "undefined" && isGuestLiveHostname(window.location.hostname)
-      ? "/"
-      : "/live";
-    const invite = guestBase
+    const localPath = isGuestLiveHostname(window.location.hostname) ? "/" : "/live";
+    return guestBase
       ? `${guestBase}/?room=${encodeURIComponent(snapshot.roomCode)}`
       : `${window.location.origin}${localPath}?room=${encodeURIComponent(snapshot.roomCode)}`;
+  }, [snapshot]);
+
+  const handleCopyInvite = useCallback(async () => {
+    if (!inviteUrl) return;
     try {
-      await navigator.clipboard.writeText(invite);
+      await navigator.clipboard.writeText(inviteUrl);
       setCopied(true);
       window.setTimeout(() => setCopied(false), 2_000);
     } catch {
       setPageError(t("liveGameV2.copyFailed"));
     }
-  }, [snapshot, t]);
+  }, [inviteUrl, t]);
 
   const visibleError = pageError ?? connectionError;
 
@@ -364,8 +432,10 @@ function LiveGameV2Content() {
         action={action}
         copied={copied}
         error={visibleError}
+        inviteUrl={inviteUrl}
+        resultsSaved={resultsSaved}
         onCopyInvite={handleCopyInvite}
-        onStart={() => void runSessionAction("start", startLiveSession)}
+        onStart={handleStart}
         onAdvance={() => void runSessionAction("advance", advanceLiveSession)}
         onAnswer={(answer) => void handleAnswer(answer)}
         onFinish={() => void runSessionAction("finish", finishLiveSession)}

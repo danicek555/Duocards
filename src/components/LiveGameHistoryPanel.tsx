@@ -7,6 +7,7 @@ import { useI18n } from "@/i18n/I18nProvider";
 interface GameSummary {
   id: number;
   roomCode: string;
+  modeId: string | null;
   setName: string | null;
   totalPlayers: number;
   winnerName: string | null;
@@ -157,6 +158,11 @@ export default function LiveGameHistoryPanel() {
                       <p className="font-semibold text-gray-900 dark:text-white">
                         {game.setName ||
                           t("liveHistory.roomCode", { code: game.roomCode })}
+                        {game.modeId && (
+                          <span className="ml-2 inline-block rounded-full bg-indigo-50 dark:bg-indigo-900/30 px-2 py-0.5 text-[11px] font-medium text-indigo-600 dark:text-indigo-300 align-middle">
+                            {game.modeId.replace(/_/g, " ")}
+                          </span>
+                        )}
                       </p>
                       <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                         {formatDate(game.endedAt)} · {game.totalPlayers}{" "}
