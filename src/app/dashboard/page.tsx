@@ -11,7 +11,7 @@ import CreateFlashcardSetForm from "@/components/CreateFlashcardSetForm";
 import JoinPublicSetModal from "@/components/JoinPublicSetModal";
 import MoneyBagReward from "@/components/MoneyBagReward";
 import PublicLibraryPanel from "@/components/PublicLibraryPanel";
-import LiveGameHistoryPanel from "@/components/LiveGameHistoryPanel";
+import StudyStatsPanel from "@/components/StudyStatsPanel";
 import Notification from "@/components/Notification";
 import SettingsModal from "@/components/SettingsModal";
 import { syncLocaleToServer, useI18n } from "@/i18n/I18nProvider";
@@ -102,7 +102,7 @@ interface FlashcardSet {
   words: Word[];
 }
 
-type ViewMode = "sets" | "cards" | "library" | "liveHistory";
+type ViewMode = "sets" | "cards" | "library" | "stats";
 const AI_GENERATED_TAG = "AI Generated";
 
 export default function Dashboard() {
@@ -125,14 +125,17 @@ export default function Dashboard() {
   const [showAIGenerateForm, setShowAIGenerateForm] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>("sets");
 
-  // Deep-link support: /dashboard?view=library or ?view=live-history opens
-  // the corresponding panel (used by the /library and /live-game/history
-  // redirect routes).
+  // Deep-link support: /dashboard?view=library opens the corresponding panel
+  // (used by the /library redirect route). Live game history has its own
+  // page at /live-game/history.
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const view = params.get("view");
     if (view === "library") setViewMode("library");
-    else if (view === "live-history") setViewMode("liveHistory");
+    else if (view === "live-history") {
+      window.location.replace("/live-game/history");
+      return;
+    }
     if (view) window.history.replaceState({}, "", "/dashboard");
   }, []);
   const [coins, setCoins] = useState<number | null>(null);
@@ -1064,8 +1067,17 @@ export default function Dashboard() {
                 {t("nav.flashcardSetsCount")}
               </div>
             </button>
-            {/* Statistics button - commented out */}
-            {/* <button className="w-full text-left px-4 py-3 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors cursor-pointer active:scale-[0.98]">
+            <button
+              onClick={() => {
+                window.dispatchEvent(new CustomEvent("closeAIChat"));
+                setViewMode("stats");
+              }}
+              className={`w-full text-left px-4 py-3 rounded-lg font-medium transition-colors cursor-pointer active:scale-[0.98] ${
+                viewMode === "stats"
+                  ? "bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400"
+                  : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+              }`}
+            >
               <div className="flex items-center">
                 <svg
                   className="w-5 h-5 mr-3"
@@ -1080,9 +1092,9 @@ export default function Dashboard() {
                     d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
                   />
                 </svg>
-                Statistics
+                {t("stats.navLabel")}
               </div>
-            </button> */}
+            </button>
             <button
               onClick={() => {
                 window.dispatchEvent(new CustomEvent("closeAIChat"));
@@ -1213,8 +1225,8 @@ export default function Dashboard() {
       <div className="flex-1 min-w-0 h-screen flex flex-col overflow-hidden">
         {viewMode === "library" ? (
           <PublicLibraryPanel onSetAdded={fetchFlashcardSets} />
-        ) : viewMode === "liveHistory" ? (
-          <LiveGameHistoryPanel />
+        ) : viewMode === "stats" ? (
+          <StudyStatsPanel />
         ) : viewMode === "sets" ? (
           <div className="flex-1 overflow-y-auto p-8">
             <div className="mb-8 flex flex-wrap items-start justify-between gap-4">
@@ -2429,7 +2441,7 @@ export default function Dashboard() {
         onOpenLiveGameHistory={() => {
           setShowSettingsModal(false);
           window.dispatchEvent(new CustomEvent("closeAIChat"));
-          setViewMode("liveHistory");
+          router.push("/live-game/history");
         }}
       />
 
