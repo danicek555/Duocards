@@ -15,3 +15,4 @@ echo ""
 
 # Start Cloud SQL Proxy
 cloud-sql-proxy "$CONNECTION_NAME" --port=$PROXY_PORT
+
