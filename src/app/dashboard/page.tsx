@@ -510,6 +510,7 @@ export default function Dashboard() {
     sessionId: string,
     wordId: number,
     rating: StudyRating,
+    responseMs: number | null,
   ) => {
     const idempotencyKey = crypto.randomUUID();
     for (let attempt = 0; attempt < 2; attempt += 1) {
@@ -522,6 +523,7 @@ export default function Dashboard() {
             wordId,
             rating,
             idempotencyKey,
+            responseMs,
           }),
         });
         if (response.ok) return true;
@@ -539,13 +541,23 @@ export default function Dashboard() {
     return false;
   };
 
+  // Time the card has been on screen; sent with the review as an implicit
+  // difficulty signal for the FSRS scheduler (slow "know" answers count as
+  // Hard) and stored for future algorithm training.
+  const cardShownAtRef = useRef<number>(Date.now());
+  const takeResponseMs = () => {
+    const elapsed = Date.now() - cardShownAtRef.current;
+    return elapsed >= 0 && elapsed <= 10 * 60 * 1000 ? elapsed : null;
+  };
+
   const recordStudyReview = (
     sessionId: string,
     wordId: number,
     rating: StudyRating,
+    responseMs: number | null,
   ) => {
     const queuedReview = studyReviewChainRef.current.then(() =>
-      saveStudyReview(sessionId, wordId, rating),
+      saveStudyReview(sessionId, wordId, rating, responseMs),
     );
     studyReviewChainRef.current = queuedReview.then(
       () => undefined,
@@ -558,11 +570,12 @@ export default function Dashboard() {
     const wordId = studyQueue[0];
     const sessionId = studySessionId;
     if (!wordId) return;
+    const responseMs = takeResponseMs();
     setStudyQueue((queue) =>
       queue.length > 1 ? [...queue.slice(1), queue[0]] : queue
     );
     if (sessionId) {
-      void recordStudyReview(sessionId, wordId, STUDY_RATINGS.again);
+      void recordStudyReview(sessionId, wordId, STUDY_RATINGS.again, responseMs);
     }
   };
 
@@ -572,6 +585,7 @@ export default function Dashboard() {
     const isLastWord = studyQueue.length === 1;
     if (!wordId) return;
     if (isLastWord && sessionId) setStudySessionFinalizing(true);
+    const responseMs = takeResponseMs();
     setStudyQueue((queue) => queue.slice(1));
 
     if (!sessionId) return;
@@ -580,6 +594,7 @@ export default function Dashboard() {
         sessionId,
         wordId,
         STUDY_RATINGS.know,
+        responseMs,
       );
       if (!saved) {
         setStudyQueue((queue) =>
@@ -744,6 +759,12 @@ export default function Dashboard() {
       : studyQueue.length > 0
         ? Math.min(learnedCount + 1, studyTotal)
         : studyTotal;
+
+  // Restart the response timer whenever a different card is shown.
+  const currentWordId = currentWord?.id;
+  useEffect(() => {
+    cardShownAtRef.current = Date.now();
+  }, [currentWordId]);
 
   // Applies a regenerated translation/image from the study card to local
   // state so the fix is visible immediately without refetching the set.

@@ -2,17 +2,23 @@ import { Prisma } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
 import { verifyAuthToken } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import {
-  calculateNextReview,
-  STUDY_RATINGS,
-  type StudyRating,
-} from "@/lib/studySrs";
+import { STUDY_RATINGS, type StudyRating } from "@/lib/studySrs";
+import { calculateNextReviewFsrs } from "@/lib/studyFsrs";
 
 interface ReviewBody {
   sessionId?: unknown;
   wordId?: unknown;
   rating?: unknown;
   idempotencyKey?: unknown;
+  responseMs?: unknown;
+}
+
+const MAX_RESPONSE_MS = 10 * 60 * 1000;
+
+function parseResponseMs(value: unknown): number | null {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed < 0) return null;
+  return Math.min(Math.round(parsed), MAX_RESPONSE_MS);
 }
 
 function prismaErrorCode(error: unknown) {
@@ -63,6 +69,7 @@ export async function POST(request: NextRequest) {
     const rating = body.rating;
     const idempotencyKey =
       typeof body.idempotencyKey === "string" ? body.idempotencyKey : "";
+    const responseMs = parseResponseMs(body.responseMs);
     if (
       !isUuid(sessionId) ||
       !Number.isInteger(wordId) ||
@@ -118,16 +125,21 @@ export async function POST(request: NextRequest) {
                 reviewIntervalDays: true,
                 reviewEase: true,
                 reviewStreak: true,
+                reviewCount: true,
+                lapseCount: true,
+                reviewStability: true,
+                reviewDifficulty: true,
+                lastReviewedAt: true,
+                nextReviewAt: true,
               },
             });
             if (!word) throw new Error("WORD_NOT_FOUND");
 
             const now = new Date();
-            const next = calculateNextReview(
-              word,
-              rating as StudyRating,
+            const next = calculateNextReviewFsrs(word, rating as StudyRating, {
               now,
-            );
+              responseMs,
+            });
             const created = await transaction.studyReview.create({
               data: {
                 sessionId,
@@ -141,6 +153,16 @@ export async function POST(request: NextRequest) {
                 easeAfter: next.reviewEase,
                 nextReviewAt: next.nextReviewAt,
                 reviewedAt: now,
+                scheduler: next.scheduler,
+                fsrsRating: next.fsrsRating,
+                responseMs,
+                elapsedDays: next.elapsedDays,
+                retrievability: next.retrievability,
+                stabilityBefore: next.stabilityBefore,
+                stabilityAfter: next.reviewStability,
+                difficultyBefore: next.difficultyBefore,
+                difficultyAfter: next.reviewDifficulty,
+                desiredRetention: next.desiredRetention,
               },
             });
 
@@ -150,6 +172,8 @@ export async function POST(request: NextRequest) {
                 reviewIntervalDays: next.reviewIntervalDays,
                 reviewEase: next.reviewEase,
                 reviewStreak: next.reviewStreak,
+                reviewStability: next.reviewStability,
+                reviewDifficulty: next.reviewDifficulty,
                 reviewCount: { increment: 1 },
                 correctReviewCount:
                   rating === STUDY_RATINGS.know ? { increment: 1 } : undefined,

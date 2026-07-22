@@ -113,6 +113,8 @@ model Word {
   reviewIntervalDays Int           @default(0)
   reviewEase         Int           @default(220)
   reviewStreak       Int           @default(0)
+  reviewStability    Float?
+  reviewDifficulty   Float?
   reviewCount        Int           @default(0)
   correctReviewCount Int           @default(0)
   lapseCount         Int           @default(0)
@@ -212,6 +214,16 @@ model StudyReview {
   easeAfter          Int
   nextReviewAt       DateTime
   reviewedAt         DateTime     @default(now())
+  scheduler          String       @default("sm2-lite") @db.VarChar(16)
+  fsrsRating         String?      @db.VarChar(8)
+  responseMs         Int?
+  elapsedDays        Float?
+  retrievability     Float?
+  stabilityBefore    Float?
+  stabilityAfter     Float?
+  difficultyBefore   Float?
+  difficultyAfter    Float?
+  desiredRetention   Float?
   session            StudySession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   user               User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   word               Word         @relation(fields: [wordId], references: [id], onDelete: Cascade)
@@ -241,6 +253,7 @@ model LiveGame {
   id           Int              @id @default(autoincrement())
   hostUserId   Int
   roomCode     String
+  modeId       String?          @db.VarChar(40)
   setName      String?
   totalPlayers Int              @default(0)
   winnerName   String?
