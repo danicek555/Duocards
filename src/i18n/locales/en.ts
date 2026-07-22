@@ -811,4 +811,15 @@ export const en = {
     LIVE_SESSION_MODE_INVALID: "The game uses an invalid mode.",
     LIVE_SESSION_STATE_INVALID: "The game is in an invalid state.",
   },
+  notes: {
+    title: "Notes",
+    open: "Open notes",
+    close: "Close notes",
+    placeholder: "Write anything you want to remember — e.g. unknown words to turn into flashcards later...",
+    saving: "Saving…",
+    saved: "Saved",
+    saveFailed: "Could not save notes. Your text is kept here — try editing again.",
+    loadFailed: "Could not load notes. Close the panel and try again.",
+    charCount: "{count} / {max}",
+  },
 } as const;
