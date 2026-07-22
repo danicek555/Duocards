@@ -48,7 +48,7 @@ v podobě AI coins.
 
 ### 2.4 AI hra: Story-telling s doplňováním — **L**
 Výběr sady + tématu, AI vygeneruje příběh s vynechanými slovy a slovní
-zásobou (vocab bank), uživatel doplňuje, kontrola, navázání „pokračováním“
+zásobou (vocab bank), uživatel doplňuje, kontrola, navázání „pokračováním"
 s jinými sadami. Stojí AI coins. Provázané s poznámkami (2.x níže).
 
 ---
@@ -67,10 +67,15 @@ Jak často uživatel procvičuje, ve které dny tvoří sady, denní streak.
   (nový model `PracticeSession` / `ActivityLog`).
 
 ### 3.3 Kontrola duplicit při AI generování — **M**
-Tlačítko „New Flashcards“, které načte existující sady a vygeneruje slova,
+Tlačítko „New Flashcards", které načte existující sady a vygeneruje slova,
 jež se neopakují s těmi, co už uživatel má.
-- Stav: AI generování existuje (`AiGeneration`). Doplnit deduplikaci proti
-  existujícím slovům uživatele v promptu/post-processingu.
+- Stav: hotovo (07/2026). Přepínač „Pouze nová slovíčka" (výchozí zapnuto)
+  v AI formuláři; existující slova jazykové dvojice se posílají do promptu
+  (limit 300) a po generování běží normalizovaná deduplikace (velikost
+  písmen, diakritika, interpunkce) proti celé slovní zásobě i uvnitř dávky.
+  Účtuje se jen skutečně vytvořený počet slov. Navíc endpoint
+  `POST /api/words/[id]/regenerate` + tlačítka na zadní straně karty pro
+  přegenerování špatného obrázku (80 mincí) nebo překladu (1 mince).
 
 ### 3.4 Kvalita obrázků — odstranění zbytkových písmen — **S–M**
 Generované obrázky občas obsahují zbytky textu.
