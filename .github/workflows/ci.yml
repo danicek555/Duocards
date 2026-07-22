@@ -50,9 +50,11 @@ jobs:
       # The repository has a legacy production-baselined migration history that
       # cannot be replayed chronologically on an empty database. db push creates
       # the disposable integration schema; the new migration is tested below in
-      # its own temporary PostgreSQL schema.
+      # its own temporary PostgreSQL schema. Prisma 7 removed --skip-generate
+      # (db push no longer regenerates the client), and the client is already
+      # generated in the previous step.
       - name: Prepare disposable integration database
-        run: npx prisma db push --skip-generate
+        run: npx prisma db push
 
       - name: Test coin migration against PostgreSQL
         env:
@@ -105,6 +107,11 @@ jobs:
 
       - name: Validate Prisma schema
         run: npm --prefix backend run prisma:validate
+
+      # Prisma 7 no longer ships a placeholder client in @prisma/client, so
+      # the client must be generated before any TypeScript can compile.
+      - name: Generate Prisma client
+        run: npm --prefix backend run prisma:generate
 
       - name: Typecheck
         run: npm --prefix backend run typecheck
