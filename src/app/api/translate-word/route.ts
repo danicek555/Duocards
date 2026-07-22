@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyAuthToken } from "@/lib/auth";
-import { checkCoins, deductCoins } from "@/lib/coins";
+import {
+  checkCoins,
+  COIN_TRANSACTION_TYPES,
+  deductCoins,
+  InsufficientCoinsError,
+} from "@/lib/coins";
 import { COIN_COSTS } from "@/lib/coin-costs";
 
 // Initialize OpenAI client lazily to avoid build-time errors
@@ -191,7 +196,8 @@ Do not include any explanations, context, or additional text - just the translat
     // Deduct coins after successful translation
     const remainingCoins = await deductCoins(
       payload.userId,
-      COIN_COSTS.WORD_TRANSLATION
+      COIN_COSTS.WORD_TRANSLATION,
+      COIN_TRANSACTION_TYPES.wordTranslation,
     );
 
     return NextResponse.json(
@@ -199,6 +205,14 @@ Do not include any explanations, context, or additional text - just the translat
       { status: 200 }
     );
   } catch (error) {
+    if (error instanceof InsufficientCoinsError) {
+      return NextResponse.json(
+        {
+          error: `Insufficient AI coins. This operation costs ${error.requiredCoins} AI coins, but you only have ${error.currentCoins} AI coins.`,
+        },
+        { status: 402 },
+      );
+    }
     console.error("Error translating word:", error);
     return NextResponse.json(
       {

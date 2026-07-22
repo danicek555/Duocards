@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { verifyAuthToken } from "@/lib/auth";
-import { checkCoins } from "@/lib/coins";
+import {
+  checkCoins,
+  COIN_TRANSACTION_TYPES,
+  InsufficientCoinsError,
+} from "@/lib/coins";
+import { spendCoinsInTransaction } from "@/lib/coinEconomy";
 import { COIN_COSTS } from "@/lib/coin-costs";
 import { generatePublicCode } from "@/lib/public-code";
 import {
@@ -560,6 +565,15 @@ Requirements:
 
     // Create flashcard set with words and record AI generation in a transaction
     const result = await prisma.$transaction(async (tx) => {
+      // The conditional update and ledger entry share this transaction with the
+      // generated set, so a concurrent request can never make coins negative.
+      await spendCoinsInTransaction(
+        tx,
+        payload.userId,
+        totalCost,
+        COIN_TRANSACTION_TYPES.flashcardGeneration,
+      );
+
       // Create words with references to images and audio
       const wordsToCreate = wordsWithImageAndAudioIds.map((wordPair) => {
         const wordData: {
@@ -634,16 +648,6 @@ Requirements:
         },
       });
 
-      // Deduct coins after successful generation
-      await tx.user.update({
-        where: { id: payload.userId },
-        data: {
-          coins: {
-            decrement: totalCost,
-          },
-        },
-      });
-
       // Record AI generation
       await tx.aiGeneration.create({
         data: {
@@ -662,6 +666,15 @@ Requirements:
       { status: 201 }
     );
   } catch (error: unknown) {
+    if (error instanceof InsufficientCoinsError) {
+      return NextResponse.json(
+        {
+          error: `Insufficient AI coins. This operation costs ${error.requiredCoins} AI coins, but you only have ${error.currentCoins} AI coins.`,
+        },
+        { status: 402 },
+      );
+    }
+
     console.error("Error generating flashcards:", error);
 
     // Handle OpenAI-specific errors

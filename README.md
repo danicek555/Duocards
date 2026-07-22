@@ -101,11 +101,27 @@ postup pro Simulator, fyzický iPhone i lokální fallback backend.
   reset token a nativní iOS flow pro vložení tokenu nebo celého HTTPS odkazu;
 - bezpečné backendové a nativní iOS vytvoření, úprava a smazání
   privátní textové sady včetně stabilních ID kartiček;
+- základ Live Game v2: verzovaný kontrakt, serverové místnosti, host/player
+  tokeny, autoritativní kola, idempotentní odpovědi a bodování;
 - backend unit testy, TypeScript build a iOS unit test target.
 
 Nejde zatím o hotovou 1:1 kopii celé aplikace. Dashboardové filtry a odměny,
 pokročilý editor s AI a médii, veřejná knihovna a live funkcionalita jsou
 další migrační vertikály popsané v implementačním plánu.
+
+## Produktové plány
+
+- [Live Game 2.0](docs/LIVE_GAME_PRODUCT_PLAN.md) – herní režimy, nový Live Hub,
+  design, realtime architektura, bezpečnost a postup implementace inspirovaný
+  ověřenými principy Kahootu a Blooketu.
+
+## Vývojová dokumentace
+
+- [Pravidla pro Codex a další agenty](docs/AGENTS.md)
+- [Architektura a datové toky](docs/ARCHITECTURE.md)
+- [Lokální vývoj, kontroly a bezpečnost](docs/DEVELOPMENT.md)
+- [UI a design systém](docs/DESIGN_SYSTEM.md)
+- [Lokalizace](docs/LOCALIZATION.md)
 
 ## Kontroly
 

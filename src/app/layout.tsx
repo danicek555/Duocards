@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
@@ -18,6 +18,13 @@ const geistMono = Geist_Mono({
 });
 
 const appUrl = getPublicAppUrl();
+
+export const viewport: Viewport = {
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#e0e7ff" },
+    { media: "(prefers-color-scheme: dark)", color: "#1d2739" },
+  ],
+};
 
 export const metadata: Metadata = {
   ...(appUrl ? { metadataBase: new URL(appUrl) } : {}),

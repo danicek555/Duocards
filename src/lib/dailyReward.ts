@@ -42,6 +42,19 @@ export function getNextLocalMidnight(
   return new Date(nextMidnightUtcMs + timezoneOffsetMinutes * 60 * 1000);
 }
 
+/** Start of the current local calendar day represented as an absolute instant. */
+export function getStartOfLocalDay(
+  now: Date,
+  timezoneOffsetMinutes: number
+): Date {
+  const localMs = now.getTime() - timezoneOffsetMinutes * 60 * 1000;
+  const d = new Date(localMs);
+  return new Date(
+    Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()) +
+      timezoneOffsetMinutes * 60 * 1000
+  );
+}
+
 export function secondsUntilNextLocalMidnight(
   now: Date,
   timezoneOffsetMinutes: number
