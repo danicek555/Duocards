@@ -12,6 +12,7 @@ model User {
   id                Int                  @id @default(autoincrement())
   email             String               @unique
   password          String
+  role              String               @default("USER") @db.VarChar(16)
   googleId          String?              @unique
   facebookId        String?              @unique
   createdAt         DateTime             @default(now())
@@ -382,4 +383,15 @@ model Note {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("notes")
+}
+
+model AdminAuditLog {
+  id          Int      @id @default(autoincrement())
+  adminUserId Int
+  action      String   @db.VarChar(64)
+  detail      String?  @db.VarChar(256)
+  createdAt   DateTime @default(now())
+
+  @@index([adminUserId, createdAt])
+  @@map("admin_audit_log")
 }
