@@ -57,7 +57,7 @@ npm run dev
      --authorized-networks=VERCEL_IP_RANGE
    ```
 
-### Option 2: Google Cloud Run (Recommended)
+### Option 2: Google Cloud Run (archiv — aktuálně vypnuto)
 
 Cloud Run can use Cloud SQL Proxy natively via Unix sockets.
 
