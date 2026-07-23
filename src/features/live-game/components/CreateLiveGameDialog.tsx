@@ -4,9 +4,20 @@ import { useEffect } from "react";
 import { useI18n } from "@/i18n/I18nProvider";
 import {
   LIVE_GAME_MODE_TRANSLATIONS,
+  MARATHON_DURATION_OPTIONS_MINUTES,
   SELECTABLE_LIVE_GAME_MODE_IDS,
   type SelectableLiveGameModeId,
 } from "../gameModes";
+
+function durationLabel(
+  t: (key: string, params?: Record<string, string | number>) => string,
+  minutes: number,
+) {
+  if (minutes % (24 * 60) === 0) {
+    return t("liveGameV2.durationDays", { count: minutes / (24 * 60) });
+  }
+  return t("liveGameV2.durationHours", { count: Math.round(minutes / 60) });
+}
 
 export interface LiveGameSetOption {
   id: number;
@@ -21,6 +32,7 @@ interface CreateLiveGameDialogProps {
   modeId: SelectableLiveGameModeId;
   questionCount: number;
   questionTimeSeconds: number;
+  durationMinutes: number;
   loadingSets: boolean;
   creating: boolean;
   error: string | null;
@@ -28,6 +40,7 @@ interface CreateLiveGameDialogProps {
   onModeChange: (modeId: SelectableLiveGameModeId) => void;
   onQuestionCountChange: (value: number) => void;
   onQuestionTimeChange: (value: number) => void;
+  onDurationChange: (value: number) => void;
   onClose: () => void;
   onCreate: () => void;
 }
@@ -39,6 +52,7 @@ export default function CreateLiveGameDialog({
   modeId,
   questionCount,
   questionTimeSeconds,
+  durationMinutes,
   loadingSets,
   creating,
   error,
@@ -46,10 +60,13 @@ export default function CreateLiveGameDialog({
   onModeChange,
   onQuestionCountChange,
   onQuestionTimeChange,
+  onDurationChange,
   onClose,
   onCreate,
 }: CreateLiveGameDialogProps) {
   const { t } = useI18n();
+  const isSprint = modeId === "sprint";
+  const isMarathon = modeId === "marathon";
 
   useEffect(() => {
     if (!open) return;
@@ -95,7 +112,7 @@ export default function CreateLiveGameDialog({
             <legend className="mb-3 text-sm font-bold text-slate-900 dark:text-white">
               {t("liveGameV2.chooseMode")}
             </legend>
-            <div className="grid gap-2 sm:grid-cols-3">
+            <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-5">
               {SELECTABLE_LIVE_GAME_MODE_IDS.map((id) => {
                 const selected = id === modeId;
                 return (
@@ -167,28 +184,47 @@ export default function CreateLiveGameDialog({
             )}
           </fieldset>
 
-          <div className="grid gap-5 sm:grid-cols-2">
-            <div>
-              <label htmlFor="live-question-count" className="mb-2 block text-sm font-bold text-slate-900 dark:text-white">
-                {t("liveGameV2.questions")}
-              </label>
-              <select id="live-question-count" value={questionCount} onChange={(event) => onQuestionCountChange(Number(event.target.value))} className="w-full cursor-pointer rounded-2xl border border-slate-300 bg-white px-4 py-3 text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-slate-600 dark:bg-slate-800 dark:text-white">
-                {[5, 10, 15, 20].map((value) => (
-                  <option key={value} value={value}>{value}</option>
-                ))}
-              </select>
+          {isSprint ? (
+            <p className="rounded-2xl border border-cyan-200 bg-cyan-50 px-4 py-3 text-sm text-cyan-900 dark:border-cyan-800 dark:bg-cyan-950/40 dark:text-cyan-100">
+              {t("liveGameV2.sprintSetupHint")}
+            </p>
+          ) : (
+            <div className="grid gap-5 sm:grid-cols-2">
+              <div>
+                <label htmlFor="live-question-count" className="mb-2 block text-sm font-bold text-slate-900 dark:text-white">
+                  {t("liveGameV2.questions")}
+                </label>
+                <select id="live-question-count" value={questionCount} onChange={(event) => onQuestionCountChange(Number(event.target.value))} className="w-full cursor-pointer rounded-2xl border border-slate-300 bg-white px-4 py-3 text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-slate-600 dark:bg-slate-800 dark:text-white">
+                  {(isMarathon ? [10, 20, 30, 50] : [5, 10, 15, 20]).map((value) => (
+                    <option key={value} value={value}>{value}</option>
+                  ))}
+                </select>
+              </div>
+              {isMarathon ? (
+                <div>
+                  <label htmlFor="live-duration" className="mb-2 block text-sm font-bold text-slate-900 dark:text-white">
+                    {t("liveGameV2.marathonDuration")}
+                  </label>
+                  <select id="live-duration" value={durationMinutes} onChange={(event) => onDurationChange(Number(event.target.value))} className="w-full cursor-pointer rounded-2xl border border-slate-300 bg-white px-4 py-3 text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-slate-600 dark:bg-slate-800 dark:text-white">
+                    {MARATHON_DURATION_OPTIONS_MINUTES.map((value) => (
+                      <option key={value} value={value}>{durationLabel(t, value)}</option>
+                    ))}
+                  </select>
+                </div>
+              ) : (
+                <div>
+                  <label htmlFor="live-question-time" className="mb-2 block text-sm font-bold text-slate-900 dark:text-white">
+                    {t("liveGameV2.questionTime")}
+                  </label>
+                  <select id="live-question-time" value={questionTimeSeconds} onChange={(event) => onQuestionTimeChange(Number(event.target.value))} className="w-full cursor-pointer rounded-2xl border border-slate-300 bg-white px-4 py-3 text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-slate-600 dark:bg-slate-800 dark:text-white">
+                    {[10, 15, 20, 30].map((value) => (
+                      <option key={value} value={value}>{t("liveGameV2.seconds", { count: value })}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
             </div>
-            <div>
-              <label htmlFor="live-question-time" className="mb-2 block text-sm font-bold text-slate-900 dark:text-white">
-                {t("liveGameV2.questionTime")}
-              </label>
-              <select id="live-question-time" value={questionTimeSeconds} onChange={(event) => onQuestionTimeChange(Number(event.target.value))} className="w-full cursor-pointer rounded-2xl border border-slate-300 bg-white px-4 py-3 text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-slate-600 dark:bg-slate-800 dark:text-white">
-                {[10, 15, 20, 30].map((value) => (
-                  <option key={value} value={value}>{t("liveGameV2.seconds", { count: value })}</option>
-                ))}
-              </select>
-            </div>
-          </div>
+          )}
 
           {error && (
             <p role="alert" className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-200">

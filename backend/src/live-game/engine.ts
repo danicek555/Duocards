@@ -91,6 +91,14 @@ export function buildQuestionDrafts(
     });
 }
 
+/** Sprint: fixed session length, most correct answers wins. */
+export const SPRINT_DURATION_SECONDS = 120;
+/** Sprint pre-generates a queue no player can realistically exhaust. */
+export const SPRINT_QUESTION_COUNT = 50;
+/** Marathon: how long the room stays open when the host does not choose. */
+export const MARATHON_DEFAULT_DURATION_MINUTES = 24 * 60;
+export const MARATHON_MAX_DURATION_MINUTES = 7 * 24 * 60;
+
 export function scoreLiveGameAnswer(
   modeId: LiveGameModeId,
   isCorrect: boolean,
@@ -101,6 +109,8 @@ export function scoreLiveGameAnswer(
   if (!isCorrect) return 0;
   if (modeId === "accuracy") return 1_000;
   if (modeId === "co_op_mission") return 1;
+  // Self-paced modes: flat score, the ranking is simply "most correct".
+  if (modeId === "sprint" || modeId === "marathon") return 100;
 
   const limitMs = Math.max(1, timeLimitSeconds * 1_000);
   const remainingRatio = Math.max(0, 1 - responseTimeMs / limitMs);

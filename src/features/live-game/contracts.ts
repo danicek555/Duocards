@@ -14,7 +14,15 @@ export const LEGACY_GAME_MODE_IDS = [
 export type LegacyGameModeId = (typeof LEGACY_GAME_MODE_IDS)[number];
 
 export const LIVE_GAME_V2_MODE_IDS = contractDefinition.modeIds as unknown as
-  readonly ["classic_arena", "accuracy", "co_op_mission", "streak_combo", "survival"];
+  readonly [
+    "classic_arena",
+    "accuracy",
+    "co_op_mission",
+    "streak_combo",
+    "survival",
+    "sprint",
+    "marathon",
+  ];
 
 export type LiveGameV2ModeId = (typeof LIVE_GAME_V2_MODE_IDS)[number];
 
@@ -95,6 +103,17 @@ export interface LiveGameParticipantSnapshot {
   practiceTotal: number;
 }
 
+/** Player-scoped question for self-paced modes (no shared currentQuestion). */
+export interface LiveGameSelfPacedViewerState {
+  question: {
+    id: string;
+    sequence: number;
+    prompt: string;
+    options: string[];
+  } | null;
+  answeredCount: number;
+}
+
 export interface LiveGameSessionSnapshot {
   contractVersion: typeof LIVE_GAME_CONTRACT_VERSION;
   id: string;
@@ -106,6 +125,8 @@ export interface LiveGameSessionSnapshot {
   totalQuestions: number;
   serverTime: string;
   currentQuestion: LiveGameQuestionSnapshot | null;
+  /** Present for self-paced modes once the session has started. */
+  selfPaced: { endsAt: string } | null;
   participants: LiveGameParticipantSnapshot[];
   viewer: {
     participantId: string;
@@ -115,6 +136,7 @@ export interface LiveGameSessionSnapshot {
       isCorrect: boolean;
       points: number;
     } | null;
+    selfPaced?: LiveGameSelfPacedViewerState;
   } | null;
 }
 
@@ -123,6 +145,8 @@ export interface CreateLiveGameSessionRequest {
   flashcardSetIds: number[];
   questionCount: number;
   questionTimeSeconds: number;
+  /** Marathon only: how long the room stays open after start. */
+  durationMinutes?: number;
 }
 
 export interface JoinLiveGameSessionRequest {

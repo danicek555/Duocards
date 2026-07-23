@@ -143,6 +143,19 @@ function nextStreakMultiplier(streak: number): string {
   return Number.isInteger(value) ? String(value) : value.toFixed(1);
 }
 
+/** mm:ss for sprints, h:mm:ss / d + h:mm:ss once marathons get long. */
+function formatCountdown(msLeft: number): string {
+  const totalSeconds = Math.max(0, Math.ceil(msLeft / 1_000));
+  const days = Math.floor(totalSeconds / 86_400);
+  const hours = Math.floor((totalSeconds % 86_400) / 3_600);
+  const minutes = Math.floor((totalSeconds % 3_600) / 60);
+  const seconds = totalSeconds % 60;
+  const mmss = `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+  if (days > 0) return `${days}d ${String(hours).padStart(2, "0")}:${mmss}`;
+  if (hours > 0) return `${hours}:${mmss}`;
+  return mmss;
+}
+
 function Scoreboard({ session }: { session: LiveGameSessionSnapshot }) {
   const { t } = useI18n();
   if (session.participants.length === 0) {
@@ -236,6 +249,12 @@ export default function LiveSessionView({
   const aliveCount = session.participants.filter((participant) => !participant.eliminated).length;
   const isSurvival = session.modeId === "survival";
   const isStreakMode = session.modeId === "streak_combo";
+  const isSelfPaced = session.modeId === "sprint" || session.modeId === "marathon";
+  const spViewer = session.viewer?.selfPaced ?? null;
+  const spQuestion = spViewer?.question ?? null;
+  const spMsLeft = session.selfPaced
+    ? Math.max(0, new Date(session.selfPaced.endsAt).getTime() - clock)
+    : null;
 
   useEffect(() => {
     if (session.status !== "QUESTION") return;
@@ -251,14 +270,32 @@ export default function LiveSessionView({
   // Zvuky: nová otázka, tikání posledních vteřin, vyhodnocení, fanfára.
   const lastTickRef = useRef(0);
   useEffect(() => {
-    if (session.status === "QUESTION" && question?.id) playQuestionStart();
-  }, [session.status, question?.id]);
+    if (session.status === "QUESTION" && (question?.id || spQuestion?.id)) {
+      playQuestionStart();
+    }
+  }, [session.status, question?.id, spQuestion?.id]);
   useEffect(() => {
     if (session.status !== "QUESTION" || secondsLeft <= 0 || secondsLeft > 5) return;
     if (lastTickRef.current === secondsLeft) return;
     lastTickRef.current = secondsLeft;
     playCountdownTick(secondsLeft);
   }, [secondsLeft, session.status]);
+  // Sprint: tick through the last five seconds of the whole session.
+  const spSecondsLeft = spMsLeft === null ? null : Math.ceil(spMsLeft / 1_000);
+  useEffect(() => {
+    if (
+      session.modeId !== "sprint" ||
+      session.status !== "QUESTION" ||
+      spSecondsLeft === null ||
+      spSecondsLeft <= 0 ||
+      spSecondsLeft > 5
+    ) {
+      return;
+    }
+    if (lastTickRef.current === spSecondsLeft) return;
+    lastTickRef.current = spSecondsLeft;
+    playCountdownTick(spSecondsLeft);
+  }, [session.modeId, session.status, spSecondsLeft]);
   useEffect(() => {
     if (session.status !== "REVEAL" || isHost) return;
     if (viewerAnswer?.isCorrect) playCorrect();
@@ -416,6 +453,117 @@ export default function LiveSessionView({
                 </button>
               )}
             </div>
+          </section>
+        )}
+
+        {isSelfPaced && session.status === "QUESTION" && (
+          <section className="mx-auto max-w-5xl py-7">
+            <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+              <span className="flex flex-wrap items-center gap-2">
+                {!isHost && spViewer && (
+                  <span className="rounded-full border border-white/10 bg-white/[0.06] px-4 py-2 text-sm font-bold text-slate-200">
+                    {t("liveGameV2.selfPacedProgress", {
+                      answered: spViewer.answeredCount,
+                      total: session.totalQuestions,
+                    })}
+                  </span>
+                )}
+                <span className="rounded-full border border-cyan-300/25 bg-cyan-400/10 px-4 py-2 text-sm font-bold text-cyan-200">
+                  {session.modeId === "sprint"
+                    ? t("liveGameV2.sprintBadge")
+                    : t("liveGameV2.marathonBadge")}
+                </span>
+              </span>
+              <span
+                className={`rounded-2xl px-4 py-2 font-mono text-xl font-black ${
+                  spMsLeft !== null && spMsLeft <= 15_000
+                    ? "bg-amber-400/20 text-amber-100"
+                    : "bg-blue-400/15 text-blue-100"
+                }`}
+                aria-live="polite"
+              >
+                {spMsLeft !== null ? formatCountdown(spMsLeft) : "—"}
+              </span>
+            </div>
+
+            {isHost ? (
+              <div className="grid gap-6 lg:grid-cols-[1fr_0.9fr]">
+                <div className="rounded-3xl border border-blue-300/20 bg-gradient-to-br from-blue-500/20 to-violet-500/10 p-7 sm:p-8">
+                  <p className="text-xs font-bold uppercase tracking-[0.24em] text-cyan-300">
+                    {t("liveGameV2.roomCode")}
+                  </p>
+                  <p className="mt-3 font-mono text-4xl font-black tracking-[0.2em]">{session.roomCode}</p>
+                  <p className="mt-5 text-sm leading-6 text-slate-200">
+                    {session.modeId === "sprint"
+                      ? t("liveGameV2.sprintHostHint")
+                      : t("liveGameV2.marathonHostHint")}
+                  </p>
+                </div>
+                <aside className="rounded-3xl border border-white/10 bg-white/[0.06] p-6">
+                  <h2 className="mb-4 text-xl font-black">{t("liveGameV2.scoreboard")}</h2>
+                  <Scoreboard session={session} />
+                </aside>
+              </div>
+            ) : spQuestion ? (
+              <div className="rounded-[2rem] border border-white/10 bg-white/[0.06] p-5 shadow-2xl shadow-black/20 sm:p-8">
+                <p className="mb-3 text-center text-xs font-bold uppercase tracking-[0.24em] text-cyan-300">
+                  {t("liveGameV2.chooseAnswer")}
+                </p>
+                <h1 className="mx-auto mb-8 max-w-3xl break-words text-center text-3xl font-black leading-tight sm:text-5xl">
+                  {spQuestion.prompt}
+                </h1>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {spQuestion.options.map((option, index) => {
+                    const base = [
+                      "border-blue-300/25 bg-blue-500/15 hover:bg-blue-500/25",
+                      "border-violet-300/25 bg-violet-500/15 hover:bg-violet-500/25",
+                      "border-cyan-300/25 bg-cyan-500/15 hover:bg-cyan-500/25",
+                      "border-amber-300/25 bg-amber-500/15 hover:bg-amber-500/25",
+                    ][index % 4];
+                    return (
+                      <button
+                        key={`${spQuestion.id}-${index}-${option}`}
+                        type="button"
+                        onClick={() => onAnswer(option)}
+                        disabled={
+                          action !== null ||
+                          connection !== "connected" ||
+                          (spMsLeft !== null && spMsLeft <= 0)
+                        }
+                        className={`min-h-20 cursor-pointer rounded-2xl border p-4 text-center text-lg font-bold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white disabled:cursor-not-allowed disabled:opacity-60 ${base}`}
+                      >
+                        {option}
+                      </button>
+                    );
+                  })}
+                </div>
+                {me && (
+                  <p className="mt-6 text-center text-sm font-bold text-slate-300" aria-live="polite">
+                    {t("liveGameV2.selfPacedScore", { correct: me.correct, score: me.score })}
+                  </p>
+                )}
+              </div>
+            ) : (
+              <div className="grid gap-6 lg:grid-cols-[1fr_0.9fr]">
+                <div className="rounded-3xl border border-emerald-300/20 bg-emerald-400/10 p-7 text-center sm:p-9">
+                  <p className="text-xs font-bold uppercase tracking-[0.24em] text-emerald-200">
+                    {t("liveGameV2.selfPacedDoneTitle")}
+                  </p>
+                  <h1 className="mt-4 text-3xl font-black sm:text-4xl">
+                    {t("liveGameV2.selfPacedDoneHint")}
+                  </h1>
+                  {me && (
+                    <p className="mt-5 font-mono text-xl font-black text-emerald-100">
+                      {t("liveGameV2.selfPacedScore", { correct: me.correct, score: me.score })}
+                    </p>
+                  )}
+                </div>
+                <aside className="rounded-3xl border border-white/10 bg-white/[0.06] p-6">
+                  <h2 className="mb-4 text-xl font-black">{t("liveGameV2.scoreboard")}</h2>
+                  <Scoreboard session={session} />
+                </aside>
+              </div>
+            )}
           </section>
         )}
 

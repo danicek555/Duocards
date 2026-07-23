@@ -22,7 +22,12 @@ import {
 import CreateLiveGameDialog, {
   type LiveGameSetOption,
 } from "./components/CreateLiveGameDialog";
-import type { SelectableLiveGameModeId } from "./gameModes";
+import {
+  isSelfPacedLiveGameMode,
+  MARATHON_DEFAULT_DURATION_MINUTES,
+  type SelectableLiveGameModeId,
+} from "./gameModes";
+import { playCorrect, playIncorrect } from "./sound";
 import LiveHub from "./components/LiveHub";
 import LiveSessionView, {
   type LiveAction,
@@ -69,6 +74,9 @@ function LiveGameV2Content() {
   const [selectedModeId, setSelectedModeId] = useState<SelectableLiveGameModeId>("classic_arena");
   const [questionCount, setQuestionCount] = useState(10);
   const [questionTimeSeconds, setQuestionTimeSeconds] = useState(20);
+  const [durationMinutes, setDurationMinutes] = useState(
+    MARATHON_DEFAULT_DURATION_MINUTES,
+  );
   const [loadingSets, setLoadingSets] = useState(false);
   const [creating, setCreating] = useState(false);
   const [joining, setJoining] = useState(false);
@@ -273,6 +281,7 @@ function LiveGameV2Content() {
         flashcardSetIds: selectedSetIds,
         questionCount,
         questionTimeSeconds,
+        ...(selectedModeId === "marathon" ? { durationMinutes } : {}),
       });
       setCreateOpen(false);
       const setName = sets
@@ -290,7 +299,7 @@ function LiveGameV2Content() {
     } finally {
       setCreating(false);
     }
-  }, [enterSession, localizedError, questionCount, questionTimeSeconds, selectedModeId, selectedSetIds, sets, t]);
+  }, [durationMinutes, enterSession, localizedError, questionCount, questionTimeSeconds, selectedModeId, selectedSetIds, sets, t]);
 
   const handleJoin = useCallback(async () => {
     const normalizedCode = normalizeRoomCode(roomCode);
@@ -346,16 +355,32 @@ function LiveGameV2Content() {
     void runSessionAction("start", startLiveSession);
   }, [active, runSessionAction]);
 
+  // Synchronized modes answer the shared question; self-paced modes answer
+  // the viewer's own queued question from the snapshot.
+  const answerableQuestionId =
+    snapshot?.currentQuestion?.id ??
+    snapshot?.viewer?.selfPaced?.question?.id ??
+    null;
+  const isSelfPacedSession = snapshot
+    ? isSelfPacedLiveGameMode(snapshot.modeId)
+    : false;
+
   const handleAnswer = useCallback(async (answer: string) => {
-    if (!active || !snapshot?.currentQuestion || action !== null) return;
+    if (!active || !answerableQuestionId || action !== null) return;
     setAction("answer");
     setPageError(null);
     try {
       const response = await submitLiveAnswer(active.id, active.token, {
-        roundId: snapshot.currentQuestion.id,
+        roundId: answerableQuestionId,
         answer,
         idempotencyKey: crypto.randomUUID(),
       });
+      // Self-paced modes have no reveal step, so the sound feedback plays
+      // right when the answer is accepted.
+      if (isSelfPacedSession) {
+        if (response.answer.correct) playCorrect();
+        else playIncorrect();
+      }
       acceptSnapshot(response.session);
       setConnection("connected");
       setConnectionError(null);
@@ -364,7 +389,7 @@ function LiveGameV2Content() {
     } finally {
       setAction(null);
     }
-  }, [acceptSnapshot, action, active, localizedError, snapshot?.currentQuestion]);
+  }, [acceptSnapshot, action, active, answerableQuestionId, isSelfPacedSession, localizedError]);
 
   const handleLeave = useCallback(async () => {
     if (
@@ -482,6 +507,7 @@ function LiveGameV2Content() {
           modeId={selectedModeId}
           questionCount={questionCount}
           questionTimeSeconds={questionTimeSeconds}
+          durationMinutes={durationMinutes}
           loadingSets={loadingSets}
           creating={creating}
           error={createError}
@@ -491,6 +517,7 @@ function LiveGameV2Content() {
           onModeChange={setSelectedModeId}
           onQuestionCountChange={setQuestionCount}
           onQuestionTimeChange={setQuestionTimeSeconds}
+          onDurationChange={setDurationMinutes}
           onClose={() => setCreateOpen(false)}
           onCreate={() => void handleCreate()}
         />
