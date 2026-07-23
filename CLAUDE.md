@@ -45,7 +45,7 @@ backend/    Local Fastify + TypeScript + Prisma backend
 contracts/  Versioned API contract shared by web, backend and iOS
 docs/       All documentation (AGENTS.md, ARCHITECTURE.md, DEVELOPMENT.md,
             DESIGN_SYSTEM.md, LOCALIZATION.md, setup + deployment guides,
-            ROADMAP.md, LIVE_GAME_PRODUCT_PLAN.md)
+            ROADMAP.md, LIVE_GAME_PRODUCT_PLAN.md, STORY_MODE_PLAN.md)
 prisma/     Database schema + migrations for the web/Vercel fallback
 scripts/    Maintenance and helper scripts
 src/        Next.js web app (app router, components, lib, i18n)

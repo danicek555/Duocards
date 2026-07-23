@@ -46,10 +46,26 @@ Seřadit zpřeházená písmena slova do správného tvaru a spárovat s překla
 Vygenerovaný text, uživatel za časový limit napíše co nejvíce slov, odměna
 v podobě AI coins.
 
-### 2.4 AI hra: Story-telling s doplňováním — **L**
+### 2.4 AI hra: Story-telling s doplňováním — **L** — rozpracováno
 Výběr sady + tématu, AI vygeneruje příběh s vynechanými slovy a slovní
 zásobou (vocab bank), uživatel doplňuje, kontrola, navázání „pokračováním“
 s jinými sadami. Stojí AI coins. Provázané s poznámkami (2.x níže).
+- Stav: kompletní produktový a technický plán je
+  v [`STORY_MODE_PLAN.md`](STORY_MODE_PLAN.md) — sólo Příběhy na dashboardu
+  (kapitoly, mince, propojení s poznámkami a SRS) + live kooperativní
+  varianta `story_coop`. Implementace zatím nezačala.
+
+### 2.5 Katalog dalších živých režimů — **S–L dle režimu**
+Rozšíření nabídky živých her nad hotovým enginem (psané odpovědi, bank a
+sázky, týmy, eliminace, historie výsledků).
+- Stav: hotové režimy (07/2026): Klasická aréna, Streak Combo, Survival,
+  Týmová bitva, Sázkový mód + průřezová volba psaných odpovědí.
+- Navržené a rozepsané v [`LIVE_GAME_PRODUCT_PLAN.md`](LIVE_GAME_PRODUCT_PLAN.md)
+  kap. 5.8–5.18: Lingo, Riskuj! (tabule), Aukce otázek, Štafeta, Bingo
+  slovíček, Diktát, Pexeso živě, Závod s duchem, Turnajový pavouk, Maraton
+  (domácí úkol), Živý příběh.
+- Doporučené pořadí: Lingo (S–M) → Riskuj! (M) → Poslední karta (v plánu
+  jako v2) → Závod s duchem (M).
 
 ---
 
