@@ -111,13 +111,46 @@ export const LIVE_GAME_DEFINITIONS: Record<
     defaultQuestionCount: 15,
     defaultQuestionTimeSeconds: 15,
   },
+  sprint: {
+    id: "sprint",
+    version: 1,
+    pacing: "self-paced",
+    category: "quick",
+    minPlayers: 1,
+    recommendedPlayers: [2, 100],
+    defaultQuestionCount: 50,
+    defaultQuestionTimeSeconds: 20,
+  },
+  marathon: {
+    id: "marathon",
+    version: 1,
+    pacing: "self-paced",
+    category: "study",
+    minPlayers: 1,
+    recommendedPlayers: [1, 100],
+    defaultQuestionCount: 20,
+    defaultQuestionTimeSeconds: 20,
+  },
 };
+
+/** Marathon room duration choices offered to the host (minutes). */
+export const MARATHON_DURATION_OPTIONS_MINUTES = [
+  60,
+  6 * 60,
+  24 * 60,
+  3 * 24 * 60,
+  7 * 24 * 60,
+] as const;
+
+export const MARATHON_DEFAULT_DURATION_MINUTES = 24 * 60;
 
 /** Modes the host can start from the create dialog right now. */
 export const SELECTABLE_LIVE_GAME_MODE_IDS = [
   "classic_arena",
   "streak_combo",
   "survival",
+  "sprint",
+  "marathon",
 ] as const satisfies readonly LiveGameV2ModeId[];
 
 export type SelectableLiveGameModeId =
@@ -138,5 +171,54 @@ export const LIVE_GAME_MODE_TRANSLATIONS: Record<
   survival: {
     label: "liveGameV2.survivalTitle",
     description: "liveGameV2.survivalDesc",
+  },
+  sprint: {
+    label: "liveGameV2.sprintTitle",
+    description: "liveGameV2.sprintDesc",
+  },
+  marathon: {
+    label: "liveGameV2.marathonTitle",
+    description: "liveGameV2.marathonDesc",
+  },
+};
+
+export function isSelfPacedLiveGameMode(modeId: LiveGameV2ModeId): boolean {
+  return LIVE_GAME_DEFINITIONS[modeId].pacing === "self-paced";
+}
+
+/** Detailed "how does this mode actually work" copy for the info popup. */
+export const LIVE_GAME_MODE_DETAIL_TRANSLATIONS: Record<
+  SelectableLiveGameModeId,
+  { flow: string; scoring: string; win: string; tip: string }
+> = {
+  classic_arena: {
+    flow: "liveGameV2.classicDetailFlow",
+    scoring: "liveGameV2.classicDetailScoring",
+    win: "liveGameV2.classicDetailWin",
+    tip: "liveGameV2.classicDetailTip",
+  },
+  streak_combo: {
+    flow: "liveGameV2.streakDetailFlow",
+    scoring: "liveGameV2.streakDetailScoring",
+    win: "liveGameV2.streakDetailWin",
+    tip: "liveGameV2.streakDetailTip",
+  },
+  survival: {
+    flow: "liveGameV2.survivalDetailFlow",
+    scoring: "liveGameV2.survivalDetailScoring",
+    win: "liveGameV2.survivalDetailWin",
+    tip: "liveGameV2.survivalDetailTip",
+  },
+  sprint: {
+    flow: "liveGameV2.sprintDetailFlow",
+    scoring: "liveGameV2.sprintDetailScoring",
+    win: "liveGameV2.sprintDetailWin",
+    tip: "liveGameV2.sprintDetailTip",
+  },
+  marathon: {
+    flow: "liveGameV2.marathonDetailFlow",
+    scoring: "liveGameV2.marathonDetailScoring",
+    win: "liveGameV2.marathonDetailWin",
+    tip: "liveGameV2.marathonDetailTip",
   },
 };

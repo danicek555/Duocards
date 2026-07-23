@@ -538,6 +538,63 @@ export const en = {
     streakDesc: "Correct answers in a row multiply your points — up to x3.",
     survivalTitle: "Survival",
     survivalDesc: "One wrong answer knocks you out. The last player standing wins.",
+    sprintTitle: "Sprint",
+    sprintDesc: "Two minutes, everyone races their own questions. Most correct answers wins.",
+    marathonTitle: "Marathon",
+    marathonDesc: "The room stays open for hours or days — great for homework. Join anytime.",
+    sprintSetupHint: "Sprint runs for 2 minutes with a large shared question pool — no other settings needed.",
+    marathonDuration: "Room open for",
+    durationHours: "{count} h",
+    durationDays: "{count} d",
+    selfPacedProgress: "Answered {answered} / {total}",
+    sprintBadge: "Sprint · own pace",
+    marathonBadge: "Marathon · own pace",
+    sprintHostHint: "Players answer at their own pace until the clock runs out. The leaderboard updates live.",
+    marathonHostHint: "Players can join with the room code anytime while the room is open. You can end it early.",
+    selfPacedScore: "Correct: {correct} · Score: {score}",
+    selfPacedDoneTitle: "All done",
+    selfPacedDoneHint: "You finished your queue — watch the leaderboard!",
+    modeDetailOpen: "How does it work?",
+    modeDetailTitle: "How this mode works",
+    detailFlowTitle: "How the game runs",
+    detailScoringTitle: "Scoring",
+    detailWinTitle: "Who wins",
+    detailTipTitle: "Tip",
+    detailPlayers: "Players: {min}–{max}",
+    detailSelfPaced: "Own pace",
+    detailSynchronized: "Shared questions",
+    detailChoose: "Choose this mode",
+    classicDetailFlow:
+      "Everyone sees the same question at the same moment and answers within the time limit. The host then reveals the correct answer, shows the scoreboard and moves the game to the next question. The game ends after the configured number of questions.",
+    classicDetailScoring:
+      "A correct answer earns 500–1000 points — the faster you answer, the more you get. Wrong answers earn nothing.",
+    classicDetailWin: "The player with the highest total score after the last question.",
+    classicDetailTip:
+      "Speed pays off, but a wrong answer earns zero — a second of thought is sometimes worth more than a fast guess.",
+    streakDetailFlow:
+      "Runs exactly like Classic Arena: everyone answers the same question at once and the host reveals the answer and advances. On top of that, every player builds a streak of consecutive correct answers.",
+    streakDetailScoring:
+      "The base is 500–1000 points by speed. Consecutive correct answers multiply it: ×1.5 for the second, ×2 for the third… up to ×3. One mistake resets the streak to zero.",
+    streakDetailWin: "The player with the highest total score at the end.",
+    streakDetailTip: "A long streak beats occasional fast answers — protect it.",
+    survivalDetailFlow:
+      "Everyone answers the same question. When the host reveals the answer, players who answered wrong (or not at all) are knocked out. If a whole round would eliminate everyone, nobody is knocked out. Eliminated players keep practicing — their answers no longer affect the game.",
+    survivalDetailScoring:
+      "Correct answers earn 500–1000 points by speed. Practice answers after elimination count separately and earn no points.",
+    survivalDetailWin:
+      "The last player standing — or the highest score if several survive to the end.",
+    survivalDetailTip: "Accuracy beats speed here: one wrong answer ends your run.",
+    sprintDetailFlow:
+      "After the host starts the game, a 2-minute clock runs for everyone. Each player answers their own questions at their own pace — the next question appears immediately after answering. The leaderboard updates live and the game ends when the clock runs out.",
+    sprintDetailScoring: "Every correct answer is worth a flat 100 points; speed does not change the value.",
+    sprintDetailWin: "The player with the most correct answers when time is up.",
+    sprintDetailTip: "Don't get stuck on one question — guess and move on, volume wins.",
+    marathonDetailFlow:
+      "The host opens the room for hours or days (1 hour to 7 days). Players join anytime with the room code and work through the question list at their own pace. The host can close the room early; results are stored in game history.",
+    marathonDetailScoring: "Every correct answer is worth a flat 100 points.",
+    marathonDetailWin: "The player with the most correct answers when the room closes.",
+    marathonDetailTip:
+      "Perfect as homework: share the code with your class and check the results in Live Game History.",
     aliveCount: "In game: {count}",
     streakBadge: "Streak {count} · next x{multiplier}",
     eliminatedTag: "Eliminated",

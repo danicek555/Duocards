@@ -5,7 +5,9 @@
     "accuracy",
     "co_op_mission",
     "streak_combo",
-    "survival"
+    "survival",
+    "sprint",
+    "marathon"
   ],
   "sessionStatuses": [
     "LOBBY",

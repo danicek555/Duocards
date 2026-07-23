@@ -10,8 +10,10 @@ import {
   LIVE_GAME_MODE_VERSIONS,
   isLiveGameModeId,
   isLiveGameSessionStatus,
+  isSelfPacedModeId,
   type LiveGameModeId,
   type LiveGameSessionSnapshot,
+  type LiveGameSessionStatus,
   type LiveGameTokenRole,
 } from "../live-game/contracts.js";
 import {
@@ -22,6 +24,10 @@ import {
   normalizeNickname,
   evaluateSurvivalElimination,
   scoreLiveGameAnswer,
+  MARATHON_DEFAULT_DURATION_MINUTES,
+  MARATHON_MAX_DURATION_MINUTES,
+  SPRINT_DURATION_SECONDS,
+  SPRINT_QUESTION_COUNT,
 } from "../live-game/engine.js";
 import {
   bearerToken,
@@ -43,6 +49,7 @@ interface CreateSessionBody {
   flashcardSetIds: number[];
   questionCount: number;
   questionTimeSeconds: number;
+  durationMinutes?: number;
 }
 
 interface JoinSessionBody {
@@ -85,6 +92,11 @@ const createSessionBodySchema = {
     },
     questionCount: { type: "integer", minimum: 1, maximum: 50 },
     questionTimeSeconds: { type: "integer", minimum: 5, maximum: 120 },
+    durationMinutes: {
+      type: "integer",
+      minimum: 5,
+      maximum: MARATHON_MAX_DURATION_MINUTES,
+    },
   },
 } as const;
 
@@ -142,6 +154,43 @@ function jsonStringArray(value: Prisma.JsonValue): string[] {
     : [];
 }
 
+function parseSessionSettings(
+  value: Prisma.JsonValue | null,
+): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+}
+
+/** Self-paced deadline from settings; null until the session starts. */
+function settingsEndsAt(settings: Record<string, unknown>): Date | null {
+  if (typeof settings.endsAt !== "string") return null;
+  const parsed = new Date(settings.endsAt);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+/**
+ * Self-paced sessions have no host-driven advance: the first snapshot
+ * loaded after the deadline flips them to FINISHED. Returns the status the
+ * caller should treat as current.
+ */
+async function lazyFinishSelfPaced(
+  prisma: PrismaClient,
+  sessionId: string,
+  status: LiveGameSessionStatus,
+  endsAt: Date | null,
+  now: Date,
+): Promise<LiveGameSessionStatus> {
+  if (status !== "QUESTION" || !endsAt || endsAt.getTime() > now.getTime()) {
+    return status;
+  }
+  await prisma.liveSession.updateMany({
+    where: { id: sessionId, status: "QUESTION" },
+    data: { status: "FINISHED", endedAt: now, sequence: { increment: 1 } },
+  });
+  return "FINISHED";
+}
+
 async function loadSnapshot(
   prisma: PrismaClient,
   sessionId: string,
@@ -176,6 +225,19 @@ async function loadSnapshot(
     );
   }
 
+  const settings = parseSessionSettings(session.settings);
+  const selfPacedMode = isSelfPacedModeId(session.modeId);
+  const endsAt = selfPacedMode ? settingsEndsAt(settings) : null;
+  const status = selfPacedMode
+    ? await lazyFinishSelfPaced(prisma, session.id, session.status, endsAt, now)
+    : session.status;
+  const totalQuestions =
+    typeof settings.questionCount === "number" &&
+    Number.isInteger(settings.questionCount) &&
+    settings.questionCount > 0
+      ? settings.questionCount
+      : 0;
+
   const currentRound = session.currentRoundId
     ? await prisma.liveRound.findUnique({
         where: { id: session.currentRoundId },
@@ -200,19 +262,47 @@ async function loadSnapshot(
           : null,
       ])
     : [0, null];
-  const revealAnswer = session.status === "REVEAL" || session.status === "FINISHED";
-  const settings =
-    session.settings &&
-    typeof session.settings === "object" &&
-    !Array.isArray(session.settings)
-      ? session.settings
-      : {};
-  const totalQuestions =
-    typeof settings.questionCount === "number" &&
-    Number.isInteger(settings.questionCount) &&
-    settings.questionCount > 0
-      ? settings.questionCount
-      : 0;
+  const revealAnswer = status === "REVEAL" || status === "FINISHED";
+
+  // Self-paced: the viewer plays their own queue — position is simply the
+  // number of answers they have submitted in this session.
+  const viewerSelfPaced =
+    selfPacedMode && viewerParticipantId
+      ? await (async () => {
+          const answeredCount = await prisma.liveAnswer.count({
+            where: {
+              participantId: viewerParticipantId,
+              round: { sessionId: session.id },
+            },
+          });
+          const nextRound =
+            status === "QUESTION" && answeredCount < totalQuestions
+              ? await prisma.liveRound.findFirst({
+                  where: {
+                    sessionId: session.id,
+                    sequence: answeredCount + 1,
+                  },
+                  select: {
+                    id: true,
+                    sequence: true,
+                    prompt: true,
+                    options: true,
+                  },
+                })
+              : null;
+          return {
+            question: nextRound
+              ? {
+                  id: nextRound.id,
+                  sequence: nextRound.sequence,
+                  prompt: nextRound.prompt,
+                  options: jsonStringArray(nextRound.options),
+                }
+              : null,
+            answeredCount,
+          };
+        })()
+      : undefined;
 
   return {
     contractVersion: LIVE_GAME_CONTRACT_VERSION,
@@ -220,10 +310,12 @@ async function loadSnapshot(
     roomCode: session.roomCode,
     modeId: session.modeId,
     modeVersion: session.modeVersion,
-    status: session.status,
+    status,
     sequence: session.sequence,
     totalQuestions,
     serverTime: now.toISOString(),
+    selfPaced:
+      selfPacedMode && endsAt ? { endsAt: endsAt.toISOString() } : null,
     currentQuestion: currentRound
       ? {
           id: currentRound.id,
@@ -261,6 +353,7 @@ async function loadSnapshot(
                 points: viewerAnswer.points,
               }
             : null,
+          ...(viewerSelfPaced ? { selfPaced: viewerSelfPaced } : {}),
         }
       : null,
   };
@@ -360,9 +453,14 @@ export async function registerLiveSessionRoutes(
         );
       }
 
+      const modeId: LiveGameModeId = request.body.modeId;
+      // Sprint always pre-generates a full queue — the two-minute clock is
+      // the real limit, not the question count.
+      const questionCount =
+        modeId === "sprint" ? SPRINT_QUESTION_COUNT : request.body.questionCount;
       const questions = buildQuestionDrafts(
         ownedSets.flatMap((set) => set.words),
-        request.body.questionCount,
+        questionCount,
         request.body.questionTimeSeconds,
       );
       if (questions.length === 0) {
@@ -373,13 +471,26 @@ export async function registerLiveSessionRoutes(
         );
       }
 
-      const modeId: LiveGameModeId = request.body.modeId;
+      const durationMinutes =
+        modeId === "marathon"
+          ? Math.min(
+              request.body.durationMinutes ?? MARATHON_DEFAULT_DURATION_MINUTES,
+              MARATHON_MAX_DURATION_MINUTES,
+            )
+          : undefined;
       const roomCode = await generateAvailableRoomCode(prisma);
       const settings = {
         flashcardSetIds: request.body.flashcardSetIds,
         questionCount: questions.length,
         questionTimeSeconds: request.body.questionTimeSeconds,
+        ...(durationMinutes !== undefined ? { durationMinutes } : {}),
       } satisfies Prisma.InputJsonObject;
+      // Marathon rooms must outlive their configured duration; other modes
+      // keep the six-hour cleanup window.
+      const expiresAtMs =
+        durationMinutes !== undefined
+          ? Date.now() + (durationMinutes + 6 * 60) * 60 * 1_000
+          : Date.now() + 6 * 60 * 60 * 1_000;
       const session = await prisma.liveSession.create({
         data: {
           hostUserId: auth.userId,
@@ -389,7 +500,7 @@ export async function registerLiveSessionRoutes(
           status: "LOBBY",
           sequence: 0,
           settings,
-          expiresAt: new Date(Date.now() + 6 * 60 * 60 * 1_000),
+          expiresAt: new Date(expiresAtMs),
           rounds: {
             create: questions.map((question) => ({
               sequence: question.sequence,
@@ -441,6 +552,18 @@ export async function registerLiveSessionRoutes(
           "LIVE_SESSION_NOT_JOINABLE",
           "The live session is not available",
         );
+      }
+      // Self-paced rooms accept late joiners (marathon lives on this), but
+      // never after the answering deadline has passed.
+      if (isSelfPacedModeId(session.modeId)) {
+        const joinEndsAt = settingsEndsAt(parseSessionSettings(session.settings));
+        if (joinEndsAt && joinEndsAt.getTime() <= Date.now()) {
+          throw new ApiError(
+            404,
+            "LIVE_SESSION_NOT_JOINABLE",
+            "The live session is not available",
+          );
+        }
       }
       if (session.participants.length >= 50) {
         throw new ApiError(409, "LIVE_SESSION_FULL", "The live session is full");
@@ -512,6 +635,13 @@ export async function registerLiveSessionRoutes(
     },
     async (request) => {
       requireSessionToken(request, config, request.params.id, "HOST");
+      const session = await prisma.liveSession.findUnique({
+        where: { id: request.params.id },
+        select: { modeId: true, settings: true },
+      });
+      if (!session) {
+        throw new ApiError(404, "LIVE_SESSION_NOT_FOUND", "Live session not found");
+      }
       const firstRound = await prisma.liveRound.findFirst({
         where: { sessionId: request.params.id, state: "PENDING" },
         orderBy: { sequence: "asc" },
@@ -524,6 +654,41 @@ export async function registerLiveSessionRoutes(
         );
       }
       const now = new Date();
+
+      // Self-paced: no shared round is opened — starting just stamps the
+      // answering deadline; players consume their own queues until then.
+      if (isSelfPacedModeId(session.modeId)) {
+        const settings = parseSessionSettings(session.settings);
+        const durationMs =
+          session.modeId === "sprint"
+            ? SPRINT_DURATION_SECONDS * 1_000
+            : (typeof settings.durationMinutes === "number" &&
+              settings.durationMinutes > 0
+                ? Math.min(settings.durationMinutes, MARATHON_MAX_DURATION_MINUTES)
+                : MARATHON_DEFAULT_DURATION_MINUTES) * 60_000;
+        const endsAt = new Date(now.getTime() + durationMs);
+        const claimed = await prisma.liveSession.updateMany({
+          where: { id: request.params.id, status: "LOBBY" },
+          data: {
+            status: "QUESTION",
+            startedAt: now,
+            settings: {
+              ...settings,
+              endsAt: endsAt.toISOString(),
+            } as Prisma.InputJsonObject,
+            sequence: { increment: 1 },
+          },
+        });
+        if (claimed.count !== 1) {
+          throw new ApiError(
+            409,
+            "LIVE_SESSION_ALREADY_STARTED",
+            "The live session has already started",
+          );
+        }
+        return { session: await loadSnapshot(prisma, request.params.id) };
+      }
+
       const locksAt = new Date(
         now.getTime() + firstRound.timeLimitSeconds * 1_000,
       );
@@ -618,16 +783,6 @@ export async function registerLiveSessionRoutes(
           "An answer has already been submitted for this round",
         );
       }
-      if (
-        session.status !== "QUESTION" ||
-        session.currentRoundId !== round.id ||
-        round.state !== "QUESTION" ||
-        !round.startedAt ||
-        !round.locksAt ||
-        round.locksAt.getTime() < Date.now()
-      ) {
-        throw new ApiError(409, "LIVE_ROUND_CLOSED", "The round is closed");
-      }
       if (!isLiveGameModeId(session.modeId)) {
         throw new ApiError(
           500,
@@ -636,12 +791,47 @@ export async function registerLiveSessionRoutes(
         );
       }
 
+      let responseTimeMs = 0;
+      if (isSelfPacedModeId(session.modeId)) {
+        // Self-paced: the round only has to be the next one in the player's
+        // own queue, submitted before the session-wide deadline.
+        const endsAt = settingsEndsAt(parseSessionSettings(session.settings));
+        if (
+          session.status !== "QUESTION" ||
+          !endsAt ||
+          endsAt.getTime() < Date.now()
+        ) {
+          throw new ApiError(409, "LIVE_ROUND_CLOSED", "The round is closed");
+        }
+        const answeredCount = await prisma.liveAnswer.count({
+          where: { participantId, round: { sessionId: session.id } },
+        });
+        if (round.sequence !== answeredCount + 1) {
+          throw new ApiError(
+            409,
+            "LIVE_ROUND_OUT_OF_ORDER",
+            "Answer the current question in your queue first",
+          );
+        }
+      } else {
+        if (
+          session.status !== "QUESTION" ||
+          session.currentRoundId !== round.id ||
+          round.state !== "QUESTION" ||
+          !round.startedAt ||
+          !round.locksAt ||
+          round.locksAt.getTime() < Date.now()
+        ) {
+          throw new ApiError(409, "LIVE_ROUND_CLOSED", "The round is closed");
+        }
+        responseTimeMs = Math.max(
+          0,
+          Math.min(Date.now() - round.startedAt.getTime(), round.timeLimitSeconds * 1_000),
+        );
+      }
+
       const normalized = normalizeAnswer(request.body.answer);
       const isCorrect = normalized === normalizeAnswer(round.correctAnswer);
-      const responseTimeMs = Math.max(
-        0,
-        Math.min(Date.now() - round.startedAt.getTime(), round.timeLimitSeconds * 1_000),
-      );
       // Eliminated survival players keep answering as practice: no points,
       // no effect on the game — only their practice counters move.
       const isPractice = participant.eliminated;
@@ -748,6 +938,13 @@ export async function registerLiveSessionRoutes(
       });
       if (!session) {
         throw new ApiError(404, "LIVE_SESSION_NOT_FOUND", "Live session not found");
+      }
+      if (isSelfPacedModeId(session.modeId)) {
+        throw new ApiError(
+          409,
+          "LIVE_SESSION_CANNOT_ADVANCE",
+          "Self-paced sessions have no shared rounds to advance",
+        );
       }
       if (!session.currentRoundId) {
         throw new ApiError(

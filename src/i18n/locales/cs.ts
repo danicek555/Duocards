@@ -537,6 +537,63 @@ export const cs = {
     streakDesc: "Správné odpovědi v řadě násobí body — až ×3.",
     survivalTitle: "Survival",
     survivalDesc: "Jedna špatná odpověď a končíš. Vyhrává poslední přeživší.",
+    sprintTitle: "Blesková jízda",
+    sprintDesc: "Dvě minuty, každý jede otázky vlastním tempem. Vyhrává nejvíc správných.",
+    marathonTitle: "Maraton",
+    marathonDesc: "Místnost je otevřená hodiny až dny — ideální na domácí úkol. Připoj se kdykoli.",
+    sprintSetupHint: "Blesková jízda běží 2 minuty s velkou zásobou otázek — žádné další nastavení není potřeba.",
+    marathonDuration: "Místnost otevřená",
+    durationHours: "{count} h",
+    durationDays: "{count} d",
+    selfPacedProgress: "Zodpovězeno {answered} / {total}",
+    sprintBadge: "Blesková jízda · vlastní tempo",
+    marathonBadge: "Maraton · vlastní tempo",
+    sprintHostHint: "Hráči odpovídají vlastním tempem, dokud neběží čas. Žebříček se aktualizuje živě.",
+    marathonHostHint: "Hráči se mohou kódem připojit kdykoli, dokud je místnost otevřená. Můžeš ji ukončit dřív.",
+    selfPacedScore: "Správně: {correct} · Skóre: {score}",
+    selfPacedDoneTitle: "Hotovo",
+    selfPacedDoneHint: "Prošel jsi všechny otázky — sleduj žebříček!",
+    modeDetailOpen: "Jak to funguje?",
+    modeDetailTitle: "Jak tento režim funguje",
+    detailFlowTitle: "Průběh hry",
+    detailScoringTitle: "Bodování",
+    detailWinTitle: "Kdo vyhrává",
+    detailTipTitle: "Tip",
+    detailPlayers: "Hráči: {min}–{max}",
+    detailSelfPaced: "Vlastní tempo",
+    detailSynchronized: "Společné otázky",
+    detailChoose: "Vybrat tento režim",
+    classicDetailFlow:
+      "Všichni vidí stejnou otázku ve stejný okamžik a odpovídají v časovém limitu. Hostitel pak odhalí správnou odpověď, ukáže průběžné pořadí a posune hru na další otázku. Hra končí po nastaveném počtu otázek.",
+    classicDetailScoring:
+      "Správná odpověď dává 500–1000 bodů — čím rychleji odpovíš, tím víc. Špatná odpověď nedává nic.",
+    classicDetailWin: "Hráč s nejvyšším součtem bodů po poslední otázce.",
+    classicDetailTip:
+      "Rychlost se vyplácí, ale špatná odpověď je za nulu — vteřina rozmyšlení má někdy větší cenu než rychlý tip.",
+    streakDetailFlow:
+      "Běží úplně stejně jako Classic Arena: všichni odpovídají na společnou otázku a hostitel odhaluje a posouvá hru. Navíc si každý hráč buduje sérii správných odpovědí v řadě.",
+    streakDetailScoring:
+      "Základ je 500–1000 bodů podle rychlosti. Odpovědi v řadě ho násobí: ×1,5 za druhou, ×2 za třetí… až ×3. Jedna chyba sérii resetuje na nulu.",
+    streakDetailWin: "Hráč s nejvyšším součtem bodů na konci.",
+    streakDetailTip: "Dlouhá série je cennější než občasná rychlá trefa — chraň si ji.",
+    survivalDetailFlow:
+      "Všichni odpovídají na společnou otázku. Po odhalení odpovědi vypadávají hráči, kteří odpověděli špatně nebo vůbec. Kdyby v jednom kole vypadli všichni, nevypadne nikdo. Vypadlí hráči můžou dál trénovat — jejich odpovědi už hru neovlivňují.",
+    survivalDetailScoring:
+      "Správné odpovědi dávají 500–1000 bodů podle rychlosti. Tréninkové odpovědi po vypadnutí se počítají zvlášť a body nedávají.",
+    survivalDetailWin:
+      "Poslední přeživší — nebo nejvyšší skóre, pokud jich do konce přežije víc.",
+    survivalDetailTip: "Tady vyhrává přesnost nad rychlostí: jedna chyba znamená konec.",
+    sprintDetailFlow:
+      "Po startu běží všem společný odpočet 2 minuty. Každý hráč odpovídá na své otázky vlastním tempem — po odpovědi hned naskočí další otázka. Žebříček se průběžně aktualizuje a hra končí vypršením času.",
+    sprintDetailScoring: "Každá správná odpověď je za rovných 100 bodů; rychlost hodnotu nemění.",
+    sprintDetailWin: "Hráč s nejvíce správnými odpověďmi po vypršení času.",
+    sprintDetailTip: "Nezasekni se na jedné otázce — tipni a jeď dál, rozhoduje objem.",
+    marathonDetailFlow:
+      "Hostitel otevře místnost na hodiny až dny (1 hodina až 7 dní). Hráči se kódem připojují kdykoli a procházejí seznam otázek vlastním tempem. Hostitel může místnost uzavřít dřív; výsledky se ukládají do historie her.",
+    marathonDetailScoring: "Každá správná odpověď je za rovných 100 bodů.",
+    marathonDetailWin: "Hráč s nejvíce správnými odpověďmi při uzavření místnosti.",
+    marathonDetailTip:
+      "Ideální jako domácí úkol: pošli kód třídě a výsledky najdeš v historii živých her.",
     aliveCount: "Ve hře: {count}",
     streakBadge: "Série {count} · další ×{multiplier}",
     eliminatedTag: "Vyřazen",
