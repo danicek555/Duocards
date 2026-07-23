@@ -1,5 +1,7 @@
 # Production Cloud SQL Setup 🚀
 
+> ARCHIV — Cloud SQL se aktuálně nepoužívá.
+
 This guide shows how to use **Prisma Accelerate for development** and **Google Cloud SQL for production**.
 
 ## Environment Strategy

@@ -1,5 +1,7 @@
 # DuoCards Live Game 2.0 — produktový a technický plán
 
+> Stav k 2026-07-23 (v1.0.0): produktový plán. Implementováno: engine v2, Classic Arena, Streak Combo, Survival, Team Battle, Risk, Sprint, Maraton, psané odpovědi, historie her, QR pozvánky. Zbytek kapitol 5.x je zásobník nápadů.
+
 > Stav dokumentu: návrh k implementaci
 > Poslední aktualizace: 21. 7. 2026
 > Vlastník: DuoCards

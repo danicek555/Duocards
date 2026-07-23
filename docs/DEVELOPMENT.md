@@ -1,9 +1,12 @@
 # Vývoj a ověřování
 
+> Stav k 2026-07-23 (v1.0.0).
+
 ## Požadavky
 
 - Node.js kompatibilní s Next.js projektem; backend deklaruje Node
-  `^20.19 || ^22.12 || >=24`;
+  `^20.19 || ^22.12 || >=24`. Pozor: Prisma CLI 7.9 vyžaduje lokálně
+  Node ≥ 22.12 i pro web (`prisma generate`);
 - npm;
 - PostgreSQL databáze pro plné integrační toky;
 - vyplněné lokální `.env` soubory podle README a `backend/.env.example`.
@@ -48,6 +51,22 @@ npx tsc --noEmit
 npm run lint -- --quiet
 npm run test:coins
 git diff --check
+```
+
+### Změna studijní logiky (SRS/statistiky)
+
+```sh
+npm run test:study        # legacy SM-2 fronta a streak
+npm run test:study:fsrs   # FSRS-6 plánovač
+node --import tsx --test src/lib/studyStats.test.ts
+```
+
+### Změna AI generování obrázků
+
+```sh
+node --import tsx --test src/lib/openaiImage.test.ts
+# placené měření chybovosti textu (jen na vyžádání):
+# npx tsx scripts/measure-image-text.ts
 ```
 
 ### Backendová změna

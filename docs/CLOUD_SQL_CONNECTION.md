@@ -1,5 +1,7 @@
 # Cloud SQL Connection Setup ✅
 
+> ARCHIV — Cloud SQL se aktuálně nepoužívá.
+
 Your Cloud SQL instance is ready! Here's how to connect:
 
 ## Connection Details

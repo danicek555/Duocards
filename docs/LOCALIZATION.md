@@ -1,5 +1,7 @@
 # Lokalizace
 
+> Stav k 2026-07-23 (v1.0.0): platné — 30 jazyků, fallback angličtina.
+
 ## Jak lokalizace funguje
 
 `src/i18n/I18nProvider.tsx` poskytuje:

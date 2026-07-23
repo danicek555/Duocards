@@ -1,5 +1,7 @@
 # Google Cloud SQL Setup Guide 🗄️
 
+> ARCHIV — produkce běží na Prisma Postgres; Cloud SQL se aktuálně nepoužívá.
+
 This guide will help you connect your DuoCards application to Google Cloud SQL PostgreSQL.
 
 ## Prerequisites

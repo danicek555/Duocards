@@ -1,11 +1,19 @@
 # UI a design systém
 
+> Stav k 2026-07-23 (v1.0.0): platné. Design systém „Midnight Indigo" —
+> tokeny jsou v `src/app/globals.css` (půlnoční modro-šedé neutrály, indigo
+> jako primární akcent, violet vyhrazený pro AI, emerald úspěch, amber mince,
+> font Geist).
+
 ## Vizuální charakter
 
-DuoCards používá čisté kartové rozhraní s modro-fialovým akcentem, měkkými
-radiusy, jemnými stíny a plnou podporou tmavého režimu. Zachovávej existující
-Tailwind styl komponent; nevytvářej lokální CSS systém, pokud lze stejného
-výsledku dosáhnout existujícími utility třídami.
+DuoCards používá čisté kartové rozhraní s indigo-violet akcentem (Midnight
+Indigo), měkkými radiusy, jemnými stíny a plnou podporou tmavého režimu.
+Barvy nezapisuj napřímo — Tailwind škály (`gray`, `blue`, `purple`, `green`,
+`yellow`) jsou předefinované v `globals.css`, takže existující utility třídy
+automaticky odpovídají design systému. Zachovávej existující Tailwind styl
+komponent; nevytvářej lokální CSS systém, pokud lze stejného výsledku
+dosáhnout existujícími utility třídami.
 
 ## Interaktivita a kurzory
 

@@ -1,5 +1,7 @@
 # Resend Domain Setup Guide
 
+> Stav k 2026-07-23 (v1.0.0): platné.
+
 ## Step 1: Add Your Domain to Resend
 
 1. Go to [resend.com/domains](https://resend.com/domains)

@@ -1,5 +1,7 @@
 # Cloud Run Environment Variables Setup 🔐
 
+> ARCHIV — Cloud Run je aktuálně vypnutý. Návod slouží pro případné znovuzapnutí (SHARED_BACKEND_URL).
+
 This guide lists all environment variables you need to set in Cloud Run for your app to work properly.
 
 ## ✅ Already Set (Database)

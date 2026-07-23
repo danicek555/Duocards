@@ -1,4 +1,11 @@
-#Improvements
+# Improvements
+
+> Stav k 2026-07-23 (v1.0.0): původní brainstorm nápadů, ponecháno jako
+> historie. Aktuální stav položek sleduje `ROADMAP.md` — hotové jsou: AI
+> deduplikace, statistiky + streak, poznámky, veřejná knihovna, historie
+> živých her, kvalita obrázků, mobilní overlay (iOS aplikace vzniká v
+> repozitáři duocards-ios). Zbývá: nákup mincí, přesmyčky, typing game,
+> story mód.
 
 if I generate flashcards via AI they cant be the same as I have in other flashcard sete, so some button to click like New Flashcards and it will load the database of the flashcards and create new?
 

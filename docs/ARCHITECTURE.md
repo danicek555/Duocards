@@ -1,5 +1,8 @@
 # Architektura DuoCards
 
+> Stav k 2026-07-23 (v1.0.0). Sdílený Fastify backend je aktuálně vypnutý —
+> web běží na vestavěných Next.js routách; zapnutí viz README → Nasazení.
+
 ## Přehled systému
 
 DuoCards má tři klientské a serverové vrstvy nad jednou PostgreSQL databází:
@@ -40,7 +43,7 @@ Serverové utility a tajné konfigurace se nesmí dostat do klientského bundle.
 Poskytuje:
 
 - `apiUrl()` pro sestavení URL;
-- `apiFetch()` pro Cloud Run → Vercel fallback;
+- `apiFetch()` pro fallback sdílený backend → vestavěné Next.js routy;
 - timeout, health cache a circuit breaker;
 - bezpečnější zacházení se zápisy, aby se mutace neopakovala po nejasném
   síťovém timeoutu;
@@ -53,9 +56,10 @@ Pravidlo:
   Next.js `/api/...` routu;
 - nepřepisuj jeden styl na druhý pouze kvůli kosmetické konzistenci.
 
-`next.config.ts` v produkci proxyuje `/shared-api/:path*` na Fastify `/api/v1`
-a `/shared-health` na backendový health endpoint. Lokálně se proxy aktivuje
-proměnnou `SHARED_BACKEND_URL`.
+`next.config.ts` proxyuje `/shared-api/:path*` na Fastify `/api/v1` a
+`/shared-health` na backendový health endpoint pouze tehdy, když je nastavená
+proměnná `SHARED_BACKEND_URL` — bez ní (současný stav) proxy neexistuje a vše
+obsluhují vestavěné routy.
 
 ## Sdílený Fastify backend
 
@@ -82,7 +86,14 @@ Hlavní entity jsou:
 - `WordImage` a `WordAudio` – data URL média;
 - `CompletionReward` a `AiGeneration` – jednorázové odměny a AI využití;
 - `CoinTransaction` – auditovatelná historie každé změny zůstatku AI coinů;
-- `LiveGame` a `LiveGamePlayer` – historie živých her;
+- `StudySession` a `StudyReview` – studijní relace a append-only log každého
+  opakování včetně FSRS telemetrie (stabilita, obtížnost, vybavitelnost,
+  reakční doba) — viz `docs/SRS.md`;
+- `LiveSession`, `LiveRound`, `LiveAnswer`, `LiveParticipant` – serverově
+  autoritativní stav živých her v2;
+- `LiveGame` a `LiveGamePlayer` – historie odehraných živých her;
+- `Note` – poznámkový blok uživatele;
+- `User.role` – `USER`/`ADMIN` pro přístup do admin přehledu;
 - registrační a resetovací entity – krátkodobé bezpečnostní tokeny.
 
 Vazby na uživatelská data obvykle používají `onDelete: Cascade`. Před změnou
@@ -110,20 +121,33 @@ Aktivní locale poskytuje `I18nProvider`. Locale se ukládá lokálně, do cooki
 pro přihlášeného uživatele také přes API. Chybějící překlad padá na angličtinu.
 Podrobnosti jsou v `docs/LOCALIZATION.md`.
 
+### Studium (FSRS)
+
+Plánování opakování řídí FSRS-6 (`src/lib/studyFsrs.ts`, knihovna `ts-fsrs`);
+starší SM-2-lite (`src/lib/studySrs.ts`) zůstává pro frontu, streak a možnost
+návratu. Každé opakování se idempotentně ukládá do `study_reviews` s plnou
+telemetrií. Statistiky agreguje `GET /api/study/stats`
+(`src/lib/studyStats.ts`) a zobrazuje `StudyStatsPanel` v dashboardu.
+
 ### Live game
 
-Live hra používá Ably pro realtime přítomnost, konfiguraci a chat. Výsledky se
-ukládají přes API a zobrazují v historii. Při změnách respektuj oddělení hosta,
-hráče a guest/join-only režimu.
+Live Game v2 je primární implementace: kanonický kontrakt
+`contracts/live-game-v1.json`, webové typy v
+`src/features/live-game/contracts.ts` a autoritativní Fastify routy pod
+`/api/v1/live/sessions`. Backend vytváří místnost a předgenerovaná kola,
+vydává oddělené podepsané host/player tokeny, vynucuje jednu odpověď na
+hráče (idempotency key) a počítá body; správná odpověď se do snapshotu
+přidává až ve stavu `REVEAL`. Klient stav polluje — nikdy není zdrojem skóre.
 
-Live Game v2 má kanonický kontrakt v `contracts/live-game-v1.json`, webové typy
-v `src/features/live-game/contracts.ts` a autoritativní Fastify routy pod
-`/api/v1/live/sessions`. Backend vytváří místnost a kola, vydává oddělené
-podepsané host/player tokeny, kontroluje jednu odpověď na hráče a počítá body.
-Správnou odpověď přidá do snapshotu až ve stavu `REVEAL`. Ably bude u v2 pouze
-doručovat serverové události; klient nesmí být zdrojem skóre ani stavu kola.
-Současné `/live-game` UI zatím zůstává kompatibilním prototypem, dokud na nový
-kontrakt nebude převeden celý tok od lobby po report.
+Režimy: synchronizované (Classic Arena, Streak Combo, Survival, Team Battle,
+Risk) sdílejí `currentQuestion` a hostitel je posouvá přes `/advance`;
+self-paced (Sprint, Maraton) dávají každému hráči vlastní frontu otázek a
+končí deadlinem `settings.endsAt` (líné dokončení při prvním snapshotu po
+termínu). Volitelný mód psaných odpovědí nahrazuje výběr z možností.
+
+Starší Ably prototyp (`LegacyLiveGamePage`, realtime chat) zůstává jako
+záložní část UI; při změnách respektuj oddělení hosta, hráče a guest/join-only
+režimu.
 
 ## Externí služby
 
@@ -134,4 +158,5 @@ kontrakt nebude převeden celý tok od lobby po report.
 - Google a Facebook – OAuth;
 - Redis – distribuovaný rate limiting nebo pomocný stav dle konfigurace;
 - Sentry – monitoring a bezpečně filtrovaná diagnostika;
-- Vercel a Cloud Run – webový fallback a sdílený backend.
+- Vercel – hosting webu; sdílený Fastify backend lze nasadit na libovolný
+  Node hosting a připojit proměnnou `SHARED_BACKEND_URL` (aktuálně vypnuto).

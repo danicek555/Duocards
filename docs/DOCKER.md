@@ -1,5 +1,7 @@
 # Docker Setup for DuoCards
 
+> Stav k 2026-07-23 (v1.0.0): platné pro lokální běh a vlastní hosting backendu.
+
 This project includes Docker configuration for easy development and deployment.
 
 ## Prerequisites

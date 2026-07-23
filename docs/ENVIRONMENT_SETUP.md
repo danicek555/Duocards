@@ -1,5 +1,7 @@
 # Environment Setup Guide 🔐
 
+> Stav k 2026-07-23 (v1.0.0): platné; přehled proměnných viz .env.example a README → Nasazení.
+
 ## Overview
 
 This project uses **different databases for different environments**:

@@ -1,5 +1,7 @@
 # Environment Files Explained 🔐
 
+> Stav k 2026-07-23 (v1.0.0): platné.
+
 ## Why So Many `.env` Files?
 
 Next.js uses a **priority-based system** for loading environment variables. Files are loaded in a specific order, with **later files overriding earlier ones**. This allows you to have different configurations for different environments.

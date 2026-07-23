@@ -1,5 +1,7 @@
 # DuoCards – pravidla pro vývojové agenty
 
+> Stav k 2026-07-23 (v1.0.0).
+
 Tento soubor je závazný pro celý repozitář. Před změnou kódu si přečti také
 dokument odpovídající úkolu:
 

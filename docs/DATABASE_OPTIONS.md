@@ -1,5 +1,7 @@
 # Database Options Explained 🗄️
 
+> Stav k 2026-07-23 (v1.0.0): srovnání možností; zvolena Prisma Postgres, Cloud SQL varianty jsou archiv.
+
 ## Important: Prisma is NOT a Database!
 
 **Prisma** is an **ORM (Object-Relational Mapping tool)** - it's a library that helps you interact with databases. It still needs an actual database to connect to!
