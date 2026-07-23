@@ -16,7 +16,7 @@ import {
   OPENAI_TTS_VOICE,
   chatCompletionSupportsTemperature,
 } from "@/lib/openaiModels";
-import { generateFlashcardImage } from "@/lib/openaiImage";
+import { generateCheckedFlashcardImage } from "@/lib/openaiImage";
 
 // Initialize OpenAI client lazily to avoid build-time errors
 async function getOpenAIClient() {
@@ -261,12 +261,12 @@ Return a JSON object with a "flashcards" array containing objects with this exac
       includePronunciation
         ? ', "pronunciation": "Phonetic pronunciation guide"'
         : ""
-    }},
+    }${includeImage ? ', "imageScene": "Short visual scene in English"' : ""}},
     {"word": "Another word in ${fromLanguage}", "translation": "Translation in ${toLanguage}"${
       includePronunciation
         ? ', "pronunciation": "Phonetic pronunciation guide"'
         : ""
-    }}
+    }${includeImage ? ', "imageScene": "Short visual scene in English"' : ""}}
   ]
 }
 
@@ -293,6 +293,10 @@ Requirements:
 
     if (includePronunciation) {
       prompt += `\n- Include pronunciation guide in IPA (International Phonetic Alphabet) format for the ${toLanguage} translation`;
+    }
+
+    if (includeImage) {
+      prompt += `\n- For every flashcard include "imageScene": a simple visual scene in English (8-15 words) that unmistakably depicts the concept; mention only objects, creatures or actions — never letters, words, signs, labels or writing`;
     }
 
     if (promptExclusions.length > 0) {
@@ -347,7 +351,12 @@ Requirements:
     }
 
     // Parse the JSON response
-    let words: { word: string; translation: string; pronunciation?: string }[];
+    let words: {
+      word: string;
+      translation: string;
+      pronunciation?: string;
+      imageScene?: string;
+    }[];
     try {
       // Try parsing as direct JSON first
       let parsed: unknown = JSON.parse(content);
@@ -388,6 +397,7 @@ Requirements:
         word: string;
         translation: string;
         pronunciation?: string;
+        imageScene?: string;
       }[];
 
       // Validate each word pair
@@ -442,11 +452,17 @@ Requirements:
         // Generate image if requested
         if (includeImage) {
           try {
-            imageUrl = await generateFlashcardImage(
+            // The scene comes from the flashcard batch when the model
+            // provided one; otherwise fall back to a plain concept phrase.
+            const scene =
+              wordPair.imageScene?.trim() ||
+              `a simple depiction of ${wordPair.translation}`;
+            const checked = await generateCheckedFlashcardImage(
               openai,
               OPENAI_IMAGE_MODEL,
-              `A simple, clear illustration representing the word "${wordPair.translation}" in ${toLanguage}. The image should be educational and suitable for language learning flashcards. CRITICAL: The image must contain absolutely NO text, NO letters, NO words, NO characters, NO symbols that could be read as text, NO written language, NO numbers, and NO typography whatsoever. The image must be purely visual - only illustrations, drawings, or photographs without any written elements.`
+              scene
             );
+            imageUrl = checked.imageUrl;
           } catch (imageError) {
             console.error("Error generating image:", imageError);
             // Continue without image if generation fails

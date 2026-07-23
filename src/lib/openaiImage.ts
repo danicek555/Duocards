@@ -1,4 +1,146 @@
 import type OpenAI from "openai";
+import { OPENAI_CHAT_MODEL } from "./openaiModels";
+
+/**
+ * Layer 1 of the "no residual text in images" fix (ROADMAP 3.4): the image
+ * prompt never quotes the word itself and uses an icon-like style that
+ * naturally avoids signage. Negative "NO text" shouting is gone on purpose —
+ * diffusion models handle negation poorly and it made things worse.
+ *
+ * Layer 2 is an optional post-generation text check with bounded retries,
+ * controlled by env:
+ *   IMAGE_TEXT_CHECK=off              disable the vision check entirely
+ *   IMAGE_TEXT_CHECK_MAX_RETRIES=0..3 extra generations after a detection
+ */
+
+export function parseImageTextCheckEnv(
+  env: Record<string, string | undefined>,
+) {
+  const enabled = (env.IMAGE_TEXT_CHECK ?? "on").trim().toLowerCase() !== "off";
+  const parsed = Number.parseInt(env.IMAGE_TEXT_CHECK_MAX_RETRIES ?? "1", 10);
+  const maxRetries = Number.isFinite(parsed)
+    ? Math.min(3, Math.max(0, parsed))
+    : 1;
+  return { enabled, maxRetries };
+}
+
+const TEXT_CHECK = parseImageTextCheckEnv(process.env);
+
+/** Icon-style illustration prompt built from a visual scene description. */
+export function buildIllustrationPrompt(scene: string): string {
+  const cleaned = scene.trim().replace(/\s+/g, " ").replace(/\.+$/, "");
+  return `Flat vector illustration for a language-learning flashcard: ${cleaned}. Minimalist style, soft colors, one clear subject on a plain background. The image is purely pictorial.`;
+}
+
+/**
+ * Ask the chat model for a short visual scene depicting the concept, so the
+ * image prompt never contains the quoted word. Falls back to the raw
+ * translation when the call fails.
+ */
+export async function describeImageScene(
+  client: OpenAI,
+  translation: string,
+  language: string,
+): Promise<string> {
+  try {
+    const completion = await client.chat.completions.create({
+      model: OPENAI_CHAT_MODEL,
+      messages: [
+        {
+          role: "user",
+          content: `In 8-15 English words, describe a simple visual scene that unmistakably depicts the concept of "${translation}" (${language}). Mention only objects, creatures or actions. Never mention letters, words, signs, labels, books or writing. Reply with the scene only.`,
+        },
+      ],
+    });
+    const scene = completion.choices[0]?.message?.content?.trim();
+    return scene && scene.length >= 3 ? scene : translation;
+  } catch {
+    return translation;
+  }
+}
+
+/**
+ * Layer 2: does the generated image contain readable text? Returns null when
+ * detection itself fails — a broken checker must never block generation.
+ */
+export async function detectTextInImage(
+  client: OpenAI,
+  imageUrl: string,
+): Promise<boolean | null> {
+  try {
+    const completion = await client.chat.completions.create({
+      model: OPENAI_CHAT_MODEL,
+      messages: [
+        {
+          role: "user",
+          content: [
+            {
+              type: "text",
+              text: "Does this image contain any readable text, letters, numbers or typography (including partial or garbled lettering)? Answer with exactly YES or NO.",
+            },
+            {
+              type: "image_url",
+              image_url: { url: imageUrl, detail: "low" },
+            },
+          ],
+        },
+      ],
+    });
+    const answer = completion.choices[0]?.message?.content
+      ?.trim()
+      .toUpperCase();
+    if (!answer) return null;
+    if (answer.startsWith("YES")) return true;
+    if (answer.startsWith("NO")) return false;
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+export interface CheckedImageResult {
+  imageUrl: string | null;
+  textDetected: boolean | null;
+  generations: number;
+}
+
+/**
+ * Generate a flashcard illustration from a scene description; when the text
+ * check is enabled, verify the result and regenerate a bounded number of
+ * times. The last image is always returned, even if still flagged.
+ */
+export async function generateCheckedFlashcardImage(
+  client: OpenAI,
+  model: string,
+  scene: string,
+): Promise<CheckedImageResult> {
+  const prompt = buildIllustrationPrompt(scene);
+  let imageUrl = await generateFlashcardImage(client, model, prompt);
+  let generations = 1;
+  let textDetected: boolean | null = null;
+
+  if (imageUrl && TEXT_CHECK.enabled) {
+    textDetected = await detectTextInImage(client, imageUrl);
+    while (textDetected === true && generations <= TEXT_CHECK.maxRetries) {
+      const retryUrl = await generateFlashcardImage(client, model, prompt);
+      generations += 1;
+      if (!retryUrl) break;
+      imageUrl = retryUrl;
+      textDetected = await detectTextInImage(client, imageUrl);
+    }
+  }
+
+  console.log(
+    JSON.stringify({
+      event: "image_text_check",
+      enabled: TEXT_CHECK.enabled,
+      textDetected,
+      generations,
+      model,
+    }),
+  );
+  return { imageUrl, textDetected, generations };
+}
 
 /** Prefer newest first; API list is merged with this order. */
 export const KNOWN_IMAGE_MODELS_PREFERENCE = [

@@ -77,9 +77,16 @@ jež se neopakují s těmi, co už uživatel má.
   `POST /api/words/[id]/regenerate` + tlačítka na zadní straně karty pro
   přegenerování špatného obrázku (80 mincí) nebo překladu (1 mince).
 
-### 3.4 Kvalita obrázků — odstranění zbytkových písmen — **S–M**
+### 3.4 Kvalita obrázků — odstranění zbytkových písmen — **S–M** — hotovo, čeká na změření
 Generované obrázky občas obsahují zbytky textu.
-- Řešení: úprava promptu pro obrázkový model, případně post-filtr.
+- Vrstva 1 (hotovo): prompt už necituje slovo — koncept se nejdřív popíše
+  jako vizuální scéna (`imageScene` z chat modelu), obrázek se generuje ve
+  flat ikonovém stylu; negační „NO text" odstavce odstraněny (škodily).
+- Vrstva 2 (hotovo): post-kontrola vision modelem + omezené regenerace.
+  Env: `IMAGE_TEXT_CHECK=off` vypne, `IMAGE_TEXT_CHECK_MAX_RETRIES=0..3`
+  (výchozí 1). Telemetrie: strukturovaný log `image_text_check`.
+- Vrstva 3 (hotovo dříve): ruční přegenerování obrázku na kartě za mince.
+- Zbývá: změřit chybovost před/po na vzorku generovaných obrázků.
 
 ---
 

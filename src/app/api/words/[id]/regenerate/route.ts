@@ -5,7 +5,10 @@ import { checkCoins, COIN_TRANSACTION_TYPES } from "@/lib/coins";
 import { spendCoinsInTransaction } from "@/lib/coinEconomy";
 import { COIN_COSTS } from "@/lib/coin-costs";
 import { OPENAI_CHAT_MODEL, OPENAI_IMAGE_MODEL } from "@/lib/openaiModels";
-import { generateFlashcardImage } from "@/lib/openaiImage";
+import {
+  describeImageScene,
+  generateCheckedFlashcardImage,
+} from "@/lib/openaiImage";
 
 // Initialize OpenAI client lazily to avoid build-time errors
 async function getOpenAIClient() {
@@ -83,10 +86,13 @@ export async function POST(
     const fromLanguage = word.flashcardSet?.fromLanguage || "the source language";
 
     if (type === "image") {
-      const imageUrl = await generateFlashcardImage(
+      // Describe the concept as a scene first so the image prompt never
+      // contains the quoted word (main source of residual text in images).
+      const scene = await describeImageScene(openai, word.translation, toLanguage);
+      const { imageUrl } = await generateCheckedFlashcardImage(
         openai,
         OPENAI_IMAGE_MODEL,
-        `A simple, clear illustration representing the word "${word.translation}" in ${toLanguage}. The image should be educational and suitable for language learning flashcards. CRITICAL: The image must contain absolutely NO text, NO letters, NO words, NO characters, NO symbols that could be read as text, NO written language, NO numbers, and NO typography whatsoever. The image must be purely visual - only illustrations, drawings, or photographs without any written elements.`
+        scene
       );
 
       if (!imageUrl) {
