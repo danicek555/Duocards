@@ -5,23 +5,32 @@ import type { AppConfig } from "../config.js";
 import { requireAuth } from "../lib/auth-guard.js";
 import { ApiError } from "../lib/errors.js";
 import {
+  LIVE_GAME_ANSWER_MODES,
   LIVE_GAME_CONTRACT_VERSION,
   LIVE_GAME_MODE_IDS,
   LIVE_GAME_MODE_VERSIONS,
+  LIVE_GAME_TEAM_IDS,
+  RISK_BET_STARTING_BANK,
   isLiveGameModeId,
   isLiveGameSessionStatus,
+  isLiveGameTeamId,
+  type LiveGameAnswerMode,
   type LiveGameModeId,
   type LiveGameSessionSnapshot,
+  type LiveGameTeamId,
   type LiveGameTokenRole,
 } from "../live-game/contracts.js";
 import {
   buildQuestionDrafts,
   generateLiveGameRoomCode,
+  isTypedAnswerCorrect,
   normalizeAnswer,
   normalizeLiveGameRoomCode,
   normalizeNickname,
   evaluateSurvivalElimination,
+  pickBalancedLiveGameTeam,
   scoreLiveGameAnswer,
+  scoreLiveGameBet,
 } from "../live-game/engine.js";
 import {
   bearerToken,
@@ -43,6 +52,7 @@ interface CreateSessionBody {
   flashcardSetIds: number[];
   questionCount: number;
   questionTimeSeconds: number;
+  answerMode?: LiveGameAnswerMode;
 }
 
 interface JoinSessionBody {
@@ -54,6 +64,11 @@ interface SubmitAnswerBody {
   roundId: string;
   answer: string;
   idempotencyKey: string;
+  bet?: number;
+}
+
+interface SelectTeamBody {
+  team: string;
 }
 
 const sessionParamsSchema = {
@@ -85,6 +100,7 @@ const createSessionBodySchema = {
     },
     questionCount: { type: "integer", minimum: 1, maximum: 50 },
     questionTimeSeconds: { type: "integer", minimum: 5, maximum: 120 },
+    answerMode: { type: "string", enum: LIVE_GAME_ANSWER_MODES },
   },
 } as const;
 
@@ -111,6 +127,16 @@ const submitAnswerBodySchema = {
       maxLength: 64,
       pattern: "^[A-Za-z0-9_-]+$",
     },
+    bet: { type: "integer", minimum: 0, maximum: 1_000_000 },
+  },
+} as const;
+
+const selectTeamBodySchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["team"],
+  properties: {
+    team: { type: "string", enum: LIVE_GAME_TEAM_IDS },
   },
 } as const;
 
@@ -213,6 +239,8 @@ async function loadSnapshot(
     settings.questionCount > 0
       ? settings.questionCount
       : 0;
+  const answerMode: LiveGameAnswerMode =
+    settings.answerMode === "typed" ? "typed" : "choice";
 
   return {
     contractVersion: LIVE_GAME_CONTRACT_VERSION,
@@ -223,13 +251,16 @@ async function loadSnapshot(
     status: session.status,
     sequence: session.sequence,
     totalQuestions,
+    answerMode,
     serverTime: now.toISOString(),
     currentQuestion: currentRound
       ? {
           id: currentRound.id,
           sequence: currentRound.sequence,
           prompt: currentRound.prompt,
-          options: jsonStringArray(currentRound.options),
+          // Typed mode: options would leak the answer pool, players type blind.
+          options:
+            answerMode === "typed" ? [] : jsonStringArray(currentRound.options),
           startedAt: currentRound.startedAt?.toISOString() ?? null,
           locksAt: currentRound.locksAt?.toISOString() ?? null,
           answeredCount,
@@ -249,6 +280,10 @@ async function loadSnapshot(
       eliminated: participant.eliminated,
       practiceCorrect: participant.practiceCorrect,
       practiceTotal: participant.practiceTotal,
+      team:
+        participant.team && isLiveGameTeamId(participant.team)
+          ? participant.team
+          : null,
     })),
     viewer: viewerParticipantId
       ? {
@@ -379,6 +414,7 @@ export async function registerLiveSessionRoutes(
         flashcardSetIds: request.body.flashcardSetIds,
         questionCount: questions.length,
         questionTimeSeconds: request.body.questionTimeSeconds,
+        answerMode: request.body.answerMode ?? "choice",
       } satisfies Prisma.InputJsonObject;
       const session = await prisma.liveSession.create({
         data: {
@@ -427,7 +463,7 @@ export async function registerLiveSessionRoutes(
         include: {
           participants: {
             where: { leftAt: null },
-            select: { nickname: true },
+            select: { nickname: true, team: true },
           },
         },
       });
@@ -450,8 +486,26 @@ export async function registerLiveSessionRoutes(
         request.body.nickname,
         session.participants.map((participant) => participant.nickname),
       );
+      // Team battle: balance the sides on join (switchable in the lobby).
+      // Risk mode: everyone starts with the same bank to bet from.
+      const team =
+        session.modeId === "team_battle"
+          ? pickBalancedLiveGameTeam(
+              session.participants.map((participant) =>
+                participant.team && isLiveGameTeamId(participant.team)
+                  ? participant.team
+                  : null,
+              ),
+            )
+          : null;
       const participant = await prisma.liveParticipant.create({
-        data: { sessionId: session.id, nickname, role: "PLAYER" },
+        data: {
+          sessionId: session.id,
+          nickname,
+          role: "PLAYER",
+          team,
+          score: session.modeId === "risk_bet" ? RISK_BET_STARTING_BANK : 0,
+        },
         select: { id: true, nickname: true },
       });
       await prisma.liveSession.update({
@@ -636,8 +690,17 @@ export async function registerLiveSessionRoutes(
         );
       }
 
+      const sessionSettings =
+        session.settings &&
+        typeof session.settings === "object" &&
+        !Array.isArray(session.settings)
+          ? session.settings
+          : {};
+      const typedMode = sessionSettings.answerMode === "typed";
       const normalized = normalizeAnswer(request.body.answer);
-      const isCorrect = normalized === normalizeAnswer(round.correctAnswer);
+      const isCorrect = typedMode
+        ? isTypedAnswerCorrect(request.body.answer, round.correctAnswer)
+        : normalized === normalizeAnswer(round.correctAnswer);
       const responseTimeMs = Math.max(
         0,
         Math.min(Date.now() - round.startedAt.getTime(), round.timeLimitSeconds * 1_000),
@@ -645,15 +708,23 @@ export async function registerLiveSessionRoutes(
       // Eliminated survival players keep answering as practice: no points,
       // no effect on the game — only their practice counters move.
       const isPractice = participant.eliminated;
+      // Risk mode: the stake is capped by the player's current bank, so the
+      // score can never drop below zero.
+      const bet =
+        session.modeId === "risk_bet"
+          ? Math.min(Math.max(request.body.bet ?? 0, 0), participant.score)
+          : 0;
       const points = isPractice
         ? 0
-        : scoreLiveGameAnswer(
-            session.modeId,
-            isCorrect,
-            responseTimeMs,
-            round.timeLimitSeconds,
-            participant.streak,
-          );
+        : session.modeId === "risk_bet"
+          ? scoreLiveGameBet(isCorrect, bet)
+          : scoreLiveGameAnswer(
+              session.modeId,
+              isCorrect,
+              responseTimeMs,
+              round.timeLimitSeconds,
+              participant.streak,
+            );
       const nextStreak = isCorrect ? participant.streak + 1 : 0;
 
       try {
@@ -890,6 +961,59 @@ export async function registerLiveSessionRoutes(
       }
 
       return { session: await loadSnapshot(prisma, request.params.id) };
+    },
+  );
+
+  app.post<{ Params: SessionParams; Body: SelectTeamBody }>(
+    "/api/v1/live/sessions/:id/team",
+    {
+      config: { rateLimit: { max: 30, timeWindow: "1 minute" } },
+      schema: { params: sessionParamsSchema, body: selectTeamBodySchema },
+    },
+    async (request) => {
+      const token = requireSessionToken(
+        request,
+        config,
+        request.params.id,
+        "PLAYER",
+      );
+      const participantId = token.participantId!;
+      await assertPlayerIsActive(prisma, request.params.id, participantId);
+
+      const session = await prisma.liveSession.findUnique({
+        where: { id: request.params.id },
+        select: { id: true, modeId: true, status: true },
+      });
+      if (!session) {
+        throw new ApiError(404, "LIVE_SESSION_NOT_FOUND", "Live session not found");
+      }
+      if (
+        session.modeId !== "team_battle" ||
+        session.status !== "LOBBY" ||
+        !isLiveGameTeamId(request.body.team)
+      ) {
+        throw new ApiError(
+          409,
+          "LIVE_TEAM_SELECTION_UNAVAILABLE",
+          "Teams can only be picked in the lobby of a team battle",
+        );
+      }
+      const team: LiveGameTeamId = request.body.team;
+
+      await prisma.$transaction(async (transaction) => {
+        await transaction.liveParticipant.update({
+          where: { id: participantId },
+          data: { team, lastSeenAt: new Date() },
+        });
+        await transaction.liveSession.update({
+          where: { id: session.id },
+          data: { sequence: { increment: 1 } },
+        });
+      });
+
+      return {
+        session: await loadSnapshot(prisma, request.params.id, participantId),
+      };
     },
   );
 

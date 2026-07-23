@@ -111,6 +111,26 @@ export const LIVE_GAME_DEFINITIONS: Record<
     defaultQuestionCount: 15,
     defaultQuestionTimeSeconds: 15,
   },
+  team_battle: {
+    id: "team_battle",
+    version: 1,
+    pacing: "synchronized",
+    category: "team",
+    minPlayers: 2,
+    recommendedPlayers: [4, 100],
+    defaultQuestionCount: 10,
+    defaultQuestionTimeSeconds: 20,
+  },
+  risk_bet: {
+    id: "risk_bet",
+    version: 1,
+    pacing: "synchronized",
+    category: "strategy",
+    minPlayers: 1,
+    recommendedPlayers: [2, 100],
+    defaultQuestionCount: 10,
+    defaultQuestionTimeSeconds: 20,
+  },
 };
 
 /** Modes the host can start from the create dialog right now. */
@@ -118,6 +138,8 @@ export const SELECTABLE_LIVE_GAME_MODE_IDS = [
   "classic_arena",
   "streak_combo",
   "survival",
+  "team_battle",
+  "risk_bet",
 ] as const satisfies readonly LiveGameV2ModeId[];
 
 export type SelectableLiveGameModeId =
@@ -138,5 +160,13 @@ export const LIVE_GAME_MODE_TRANSLATIONS: Record<
   survival: {
     label: "liveGameV2.survivalTitle",
     description: "liveGameV2.survivalDesc",
+  },
+  team_battle: {
+    label: "liveGameV2.teamTitle",
+    description: "liveGameV2.teamDesc",
+  },
+  risk_bet: {
+    label: "liveGameV2.riskTitle",
+    description: "liveGameV2.riskDesc",
   },
 };

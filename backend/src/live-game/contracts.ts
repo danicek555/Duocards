@@ -6,6 +6,8 @@ export const LIVE_GAME_MODE_IDS = [
   "co_op_mission",
   "streak_combo",
   "survival",
+  "team_battle",
+  "risk_bet",
 ] as const;
 
 export type LiveGameModeId = (typeof LIVE_GAME_MODE_IDS)[number];
@@ -28,12 +30,26 @@ export const LIVE_GAME_MODE_VERSIONS: Record<LiveGameModeId, number> = {
   co_op_mission: 1,
   streak_combo: 1,
   survival: 1,
+  team_battle: 1,
+  risk_bet: 1,
 };
+
+export const LIVE_GAME_TEAM_IDS = ["RED", "BLUE"] as const;
+
+export type LiveGameTeamId = (typeof LIVE_GAME_TEAM_IDS)[number];
+
+export const LIVE_GAME_ANSWER_MODES = ["choice", "typed"] as const;
+
+export type LiveGameAnswerMode = (typeof LIVE_GAME_ANSWER_MODES)[number];
+
+/** Starting bank every risk_bet player receives on join. */
+export const RISK_BET_STARTING_BANK = 1_000;
 
 export interface LiveGameSettings {
   flashcardSetIds: number[];
   questionCount: number;
   questionTimeSeconds: number;
+  answerMode: LiveGameAnswerMode;
 }
 
 export interface LiveGameParticipantSnapshot {
@@ -49,6 +65,8 @@ export interface LiveGameParticipantSnapshot {
   eliminated: boolean;
   practiceCorrect: number;
   practiceTotal: number;
+  /** Team battle: the participant's team, null in other modes. */
+  team: LiveGameTeamId | null;
 }
 
 export interface LiveGameQuestionSnapshot {
@@ -71,6 +89,8 @@ export interface LiveGameSessionSnapshot {
   status: LiveGameSessionStatus;
   sequence: number;
   totalQuestions: number;
+  /** How players answer: pick one of the options, or type the translation. */
+  answerMode: LiveGameAnswerMode;
   serverTime: string;
   currentQuestion: LiveGameQuestionSnapshot | null;
   participants: LiveGameParticipantSnapshot[];
@@ -93,4 +113,8 @@ export function isLiveGameSessionStatus(
   value: string,
 ): value is LiveGameSessionStatus {
   return (LIVE_GAME_SESSION_STATUSES as readonly string[]).includes(value);
+}
+
+export function isLiveGameTeamId(value: string): value is LiveGameTeamId {
+  return (LIVE_GAME_TEAM_IDS as readonly string[]).includes(value);
 }

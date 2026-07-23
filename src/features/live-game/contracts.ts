@@ -14,9 +14,26 @@ export const LEGACY_GAME_MODE_IDS = [
 export type LegacyGameModeId = (typeof LEGACY_GAME_MODE_IDS)[number];
 
 export const LIVE_GAME_V2_MODE_IDS = contractDefinition.modeIds as unknown as
-  readonly ["classic_arena", "accuracy", "co_op_mission", "streak_combo", "survival"];
+  readonly [
+    "classic_arena",
+    "accuracy",
+    "co_op_mission",
+    "streak_combo",
+    "survival",
+    "team_battle",
+    "risk_bet",
+  ];
 
 export type LiveGameV2ModeId = (typeof LIVE_GAME_V2_MODE_IDS)[number];
+
+export const LIVE_GAME_TEAM_IDS = ["RED", "BLUE"] as const;
+
+export type LiveGameTeamId = (typeof LIVE_GAME_TEAM_IDS)[number];
+
+export type LiveGameAnswerMode = "choice" | "typed";
+
+/** Starting bank every risk_bet player receives on join (mirrors backend). */
+export const RISK_BET_STARTING_BANK = 1_000;
 
 export type LiveGamePacing = "synchronized" | "self-paced";
 export type LiveGameCategory = "quick" | "team" | "strategy" | "study";
@@ -93,6 +110,8 @@ export interface LiveGameParticipantSnapshot {
   eliminated: boolean;
   practiceCorrect: number;
   practiceTotal: number;
+  /** Team battle: the participant's team, null in other modes. */
+  team: LiveGameTeamId | null;
 }
 
 export interface LiveGameSessionSnapshot {
@@ -104,6 +123,8 @@ export interface LiveGameSessionSnapshot {
   status: LiveGameSessionStatus;
   sequence: number;
   totalQuestions: number;
+  /** How players answer: pick one of the options, or type the translation. */
+  answerMode: LiveGameAnswerMode;
   serverTime: string;
   currentQuestion: LiveGameQuestionSnapshot | null;
   participants: LiveGameParticipantSnapshot[];
@@ -123,6 +144,7 @@ export interface CreateLiveGameSessionRequest {
   flashcardSetIds: number[];
   questionCount: number;
   questionTimeSeconds: number;
+  answerMode?: LiveGameAnswerMode;
 }
 
 export interface JoinLiveGameSessionRequest {
@@ -134,6 +156,12 @@ export interface SubmitLiveGameAnswerRequest {
   roundId: string;
   answer: string;
   idempotencyKey: string;
+  /** Risk mode: the stake taken from the player's bank for this question. */
+  bet?: number;
+}
+
+export interface SelectLiveGameTeamRequest {
+  team: LiveGameTeamId;
 }
 
 export function isLiveGameV2ModeId(value: string): value is LiveGameV2ModeId {

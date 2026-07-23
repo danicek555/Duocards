@@ -16,6 +16,7 @@ import {
   joinLiveSession,
   leaveLiveSession,
   LiveGameApiError,
+  selectLiveTeam,
   startLiveSession,
   submitLiveAnswer,
 } from "./api";
@@ -28,7 +29,11 @@ import LiveSessionView, {
   type LiveAction,
   type LiveConnectionState,
 } from "./components/LiveSessionView";
-import type { LiveGameSessionSnapshot } from "./contracts";
+import type {
+  LiveGameAnswerMode,
+  LiveGameSessionSnapshot,
+  LiveGameTeamId,
+} from "./contracts";
 import {
   clearLiveGameToken,
   markLiveGameResultsSaved,
@@ -69,6 +74,7 @@ function LiveGameV2Content() {
   const [selectedModeId, setSelectedModeId] = useState<SelectableLiveGameModeId>("classic_arena");
   const [questionCount, setQuestionCount] = useState(10);
   const [questionTimeSeconds, setQuestionTimeSeconds] = useState(20);
+  const [answerMode, setAnswerMode] = useState<LiveGameAnswerMode>("choice");
   const [loadingSets, setLoadingSets] = useState(false);
   const [creating, setCreating] = useState(false);
   const [joining, setJoining] = useState(false);
@@ -273,6 +279,7 @@ function LiveGameV2Content() {
         flashcardSetIds: selectedSetIds,
         questionCount,
         questionTimeSeconds,
+        answerMode,
       });
       setCreateOpen(false);
       const setName = sets
@@ -290,7 +297,7 @@ function LiveGameV2Content() {
     } finally {
       setCreating(false);
     }
-  }, [enterSession, localizedError, questionCount, questionTimeSeconds, selectedModeId, selectedSetIds, sets, t]);
+  }, [answerMode, enterSession, localizedError, questionCount, questionTimeSeconds, selectedModeId, selectedSetIds, sets, t]);
 
   const handleJoin = useCallback(async () => {
     const normalizedCode = normalizeRoomCode(roomCode);
@@ -346,7 +353,7 @@ function LiveGameV2Content() {
     void runSessionAction("start", startLiveSession);
   }, [active, runSessionAction]);
 
-  const handleAnswer = useCallback(async (answer: string) => {
+  const handleAnswer = useCallback(async (answer: string, bet?: number) => {
     if (!active || !snapshot?.currentQuestion || action !== null) return;
     setAction("answer");
     setPageError(null);
@@ -355,6 +362,7 @@ function LiveGameV2Content() {
         roundId: snapshot.currentQuestion.id,
         answer,
         idempotencyKey: crypto.randomUUID(),
+        ...(bet !== undefined ? { bet } : {}),
       });
       acceptSnapshot(response.session);
       setConnection("connected");
@@ -365,6 +373,22 @@ function LiveGameV2Content() {
       setAction(null);
     }
   }, [acceptSnapshot, action, active, localizedError, snapshot?.currentQuestion]);
+
+  const handleSelectTeam = useCallback(async (team: LiveGameTeamId) => {
+    if (!active || action !== null) return;
+    setAction("team");
+    setPageError(null);
+    try {
+      const response = await selectLiveTeam(active.id, active.token, { team });
+      acceptSnapshot(response.session);
+      setConnection("connected");
+      setConnectionError(null);
+    } catch (error) {
+      setPageError(localizedError(error));
+    } finally {
+      setAction(null);
+    }
+  }, [acceptSnapshot, action, active, localizedError]);
 
   const handleLeave = useCallback(async () => {
     if (
@@ -440,7 +464,8 @@ function LiveGameV2Content() {
         onCopyInvite={handleCopyInvite}
         onStart={handleStart}
         onAdvance={() => void runSessionAction("advance", advanceLiveSession)}
-        onAnswer={(answer) => void handleAnswer(answer)}
+        onAnswer={(answer, bet) => void handleAnswer(answer, bet)}
+        onSelectTeam={(team) => void handleSelectTeam(team)}
         onFinish={() => void runSessionAction("finish", finishLiveSession)}
         onLeave={() => void handleLeave()}
       />
@@ -482,6 +507,7 @@ function LiveGameV2Content() {
           modeId={selectedModeId}
           questionCount={questionCount}
           questionTimeSeconds={questionTimeSeconds}
+          answerMode={answerMode}
           loadingSets={loadingSets}
           creating={creating}
           error={createError}
@@ -491,6 +517,7 @@ function LiveGameV2Content() {
           onModeChange={setSelectedModeId}
           onQuestionCountChange={setQuestionCount}
           onQuestionTimeChange={setQuestionTimeSeconds}
+          onAnswerModeChange={setAnswerMode}
           onClose={() => setCreateOpen(false)}
           onCreate={() => void handleCreate()}
         />
