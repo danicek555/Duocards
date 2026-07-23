@@ -4,6 +4,7 @@ import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 import AIChatButtonWrapper from "@/components/AIChatButtonWrapper";
 import AppProviders from "@/components/AppProviders";
+import NotesWidget from "@/components/NotesWidget";
 import MobileNotSupportedOverlay from "@/components/MobileNotSupportedOverlay";
 import { getPublicAppUrl } from "@/lib/publicUrls";
 
@@ -107,6 +108,7 @@ export default function RootLayout({
         <AppProviders>
           {children}
           <AIChatButtonWrapper />
+          <NotesWidget />
           <MobileNotSupportedOverlay />
         </AppProviders>
         <Analytics />

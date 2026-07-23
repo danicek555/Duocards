@@ -20,7 +20,7 @@ This is the most secure method and doesn't require opening your database to the 
 
 ```bash
 # Run the proxy script (uses port 5433 to avoid conflict with Docker)
-./start-cloud-sql-proxy.sh
+./scripts/start-cloud-sql-proxy.sh
 ```
 
 **Or manually:**
@@ -87,7 +87,7 @@ DIRECT_DATABASE_URL="postgresql://postgres:YOUR_PASSWORD@35.188.96.89:5432/duoca
 
 ```bash
 # 1. Start Cloud SQL Proxy (in one terminal)
-./start-cloud-sql-proxy.sh
+./scripts/start-cloud-sql-proxy.sh
 
 # 2. In another terminal, update .env.development.local with connection string
 # 3. Run migrations
@@ -101,7 +101,7 @@ npm run dev
 
 ### Port Already in Use
 
-If port 5433 is in use, change it in `start-cloud-sql-proxy.sh`:
+If port 5433 is in use, change it in `scripts/start-cloud-sql-proxy.sh`:
 ```bash
 PROXY_PORT=5434  # or any other free port
 ```
