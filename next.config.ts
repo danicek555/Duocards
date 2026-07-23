@@ -1,9 +1,6 @@
 import { withSentryConfig } from "@sentry/nextjs";
 import type { NextConfig } from "next";
 
-const productionSharedBackendUrl =
-  "https://duocards-backend-731652720086.europe-west1.run.app";
-
 const nextConfig: NextConfig = {
   outputFileTracingRoot: __dirname,
   output: "standalone",
@@ -13,16 +10,32 @@ const nextConfig: NextConfig = {
         source: "/reset-password",
         headers: [{ key: "Referrer-Policy", value: "no-referrer" }],
       },
+      {
+        // Baseline hardening for every route; CSP is a documented follow-up
+        // because Next.js inline runtime scripts need nonce plumbing first.
+        source: "/:path*",
+        headers: [
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          { key: "X-Frame-Options", value: "DENY" },
+          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+          {
+            key: "Permissions-Policy",
+            value: "camera=(), microphone=(), geolocation=(), payment=()",
+          },
+          {
+            key: "Strict-Transport-Security",
+            value: "max-age=63072000; includeSubDomains",
+          },
+        ],
+      },
     ];
   },
   async rewrites() {
-    const configuredSharedBackendUrl = process.env.SHARED_BACKEND_URL?.trim();
-    const sharedBackendUrl = (
-      configuredSharedBackendUrl ||
-      (process.env.NODE_ENV === "production"
-        ? productionSharedBackendUrl
-        : "")
-    ).replace(/\/+$/, "");
+    // The shared Fastify backend host comes exclusively from the environment
+    // (any Node host works); without it the /shared-api proxy is disabled
+    // and the app runs on the built-in Next.js API routes only.
+    const sharedBackendUrl = (process.env.SHARED_BACKEND_URL?.trim() ?? "")
+      .replace(/\/+$/, "");
 
     if (!sharedBackendUrl) {
       return [];

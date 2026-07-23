@@ -3,9 +3,10 @@ import { adminJson, requireAdminApi } from "@/lib/adminAuth";
 
 export const dynamic = "force-dynamic";
 
+// Optional shared Fastify backend host; empty means the health probe is
+// skipped (the deployment runs on Next.js API routes only).
 const SHARED_BACKEND_URL =
-  process.env.SHARED_BACKEND_URL?.trim().replace(/\/+$/, "") ||
-  "https://duocards-backend-731652720086.europe-west1.run.app";
+  process.env.SHARED_BACKEND_URL?.trim().replace(/\/+$/, "") || "";
 
 interface TableSize {
   table: string;
@@ -18,6 +19,7 @@ interface MediaAggregate {
 }
 
 async function checkBackendHealth(): Promise<{ ok: boolean; latencyMs: number | null }> {
+  if (!SHARED_BACKEND_URL) return { ok: false, latencyMs: null };
   const startedAt = Date.now();
   try {
     const controller = new AbortController();

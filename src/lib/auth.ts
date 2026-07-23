@@ -191,7 +191,13 @@ export function validatePassword(password: string): {
 function getAuthSecret(): string {
   const secret = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET;
   if (!secret) {
-    // Developer-friendly default in dev; set AUTH_SECRET in production
+    // A publicly known fallback would let anyone forge auth tokens —
+    // refuse to run without a real secret outside local development.
+    if (process.env.NODE_ENV === "production") {
+      throw new Error(
+        "AUTH_SECRET (or NEXTAUTH_SECRET) must be set in production",
+      );
+    }
     return "dev-insecure-secret-change-me";
   }
   return secret;
