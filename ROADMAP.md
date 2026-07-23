@@ -86,7 +86,11 @@ Generované obrázky občas obsahují zbytky textu.
   Env: `IMAGE_TEXT_CHECK=off` vypne, `IMAGE_TEXT_CHECK_MAX_RETRIES=0..3`
   (výchozí 1). Telemetrie: strukturovaný log `image_text_check`.
 - Vrstva 3 (hotovo dříve): ruční přegenerování obrázku na kartě za mince.
-- Zbývá: změřit chybovost před/po na vzorku generovaných obrázků.
+- Změřeno (2026-07-22, `scripts/measure-image-text.ts`, gpt-image-2,
+  vzorek 8 slov vč. textově náchylných newspaper/menu): 0 detekcí textu
+  ve staré i nové variantě — aktuální model je zjevně lepší než v době
+  hlášení problému; vzorek je ale malý na vzácné selhání. Dlouhodobou
+  míru doloží produkční telemetrie `image_text_check` zdarma.
 
 ---
 
