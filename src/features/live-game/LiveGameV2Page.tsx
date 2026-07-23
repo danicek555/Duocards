@@ -170,6 +170,7 @@ function LiveGameV2Content() {
           score: participant.score,
           correct: participant.correct,
           total: participant.total,
+          eliminated: participant.eliminated,
         })),
       }),
     })

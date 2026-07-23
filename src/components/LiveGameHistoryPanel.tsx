@@ -22,6 +22,7 @@ interface GamePlayer {
   score: number;
   correct: number;
   total: number;
+  eliminated: boolean;
   isWinner: boolean;
   accuracy: number | null;
 }
@@ -214,6 +215,11 @@ export default function LiveGameHistoryPanel() {
                                   {p.isWinner && (
                                     <span className="ml-2 px-1.5 py-0.5 text-xs bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300 rounded">
                                       {t("liveHistory.winnerBadge")}
+                                    </span>
+                                  )}
+                                  {p.eliminated && (
+                                    <span className="ml-2 px-1.5 py-0.5 text-xs bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 rounded">
+                                      {t("liveGameV2.eliminatedTag")}
                                     </span>
                                   )}
                                 </td>

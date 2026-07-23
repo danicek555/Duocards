@@ -41,9 +41,10 @@ export async function GET(
             score: true,
             correct: true,
             total: true,
+            eliminated: true,
             isWinner: true,
           },
-          orderBy: { score: "desc" },
+          orderBy: [{ eliminated: "asc" }, { score: "desc" }],
         },
       },
     });

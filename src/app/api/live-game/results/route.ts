@@ -7,6 +7,7 @@ interface IncomingPlayer {
   score?: unknown;
   correct?: unknown;
   total?: unknown;
+  eliminated?: unknown;
 }
 
 function toInt(value: unknown, fallback = 0): number {
@@ -96,16 +97,29 @@ export async function POST(request: NextRequest) {
       score: toInt(p.score),
       correct: toInt(p.correct),
       total: toInt(p.total),
+      eliminated: p.eliminated === true,
     }));
 
-    let winnerIndex = -1;
-    let bestScore = 0;
-    for (let i = 0; i < players.length; i++) {
-      if (players[i].score > bestScore) {
-        bestScore = players[i].score;
-        winnerIndex = i;
+    // Survivors take precedence (survival mode): the winner is the highest
+    // positive score among players who were not eliminated. Only when nobody
+    // survived does the overall highest score win.
+    const pickWinner = (pool: { score: number }[]) => {
+      let index = -1;
+      let best = 0;
+      for (let i = 0; i < pool.length; i++) {
+        if (pool[i].score > best) {
+          best = pool[i].score;
+          index = i;
+        }
       }
-    }
+      return index;
+    };
+    const aliveIndexes = players
+      .map((p, index) => ({ p, index }))
+      .filter(({ p }) => !p.eliminated);
+    const aliveWinner = pickWinner(aliveIndexes.map(({ p }) => p));
+    const winnerIndex =
+      aliveWinner >= 0 ? aliveIndexes[aliveWinner].index : pickWinner(players);
     const winnerName = winnerIndex >= 0 ? players[winnerIndex].name : null;
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -124,6 +138,7 @@ export async function POST(request: NextRequest) {
             score: p.score,
             correct: p.correct,
             total: p.total,
+            eliminated: p.eliminated,
             isWinner: index === winnerIndex,
           })),
         },
