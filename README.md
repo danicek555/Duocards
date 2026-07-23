@@ -100,11 +100,13 @@ Nativní aplikaci otevři ze samostatného repozitáře
   server odmítne start), `OPENAI_API_KEY`, `RESEND_API_KEY`, `FROM_EMAIL`,
   OAuth klíče dle potřeby.
 - **Sdílený backend (živé hry):** libovolný Node.js hosting (Railway, Fly.io,
-  Render, vlastní VPS/Docker — `backend/Dockerfile`). Adresa se webu předává
-  výhradně proměnnou `SHARED_BACKEND_URL`; **Google Cloud Run se nepoužívá**
-  a v kódu na něj nejsou žádné pevné odkazy. Bez nastaveného
-  `SHARED_BACKEND_URL` web běží čistě na vestavěných Next.js routách
-  (živé hry v2 pak nejsou dostupné).
+  Render, vlastní VPS/Docker — `backend/Dockerfile`, případně existující
+  Google Cloud Run služba). Adresa se webu předává výhradně proměnnou
+  `SHARED_BACKEND_URL`. **Aktuálně je sdílený backend vypnutý** — proměnná
+  není nastavená a web běží čistě na vestavěných Next.js routách (živé hry
+  v2 pak nejsou dostupné). Znovuzapnutí = nastavit jedinou proměnnou;
+  připravená Cloud Run adresa je v `.env.example` a
+  `docs/CLOUD_RUN_ENV_VARS.md`.
 - Web při výpadku sdíleného backendu automaticky přepíná na vestavěné
   `/api` routy; aktivní backend je vidět v Nastavení.
 

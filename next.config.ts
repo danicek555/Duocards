@@ -31,9 +31,11 @@ const nextConfig: NextConfig = {
     ];
   },
   async rewrites() {
-    // The shared Fastify backend host comes exclusively from the environment
-    // (any Node host works); without it the /shared-api proxy is disabled
-    // and the app runs on the built-in Next.js API routes only.
+    // The shared Fastify backend is currently switched OFF: without
+    // SHARED_BACKEND_URL the /shared-api proxy is disabled and the app runs
+    // on the built-in Next.js API routes only. To switch it back on, set
+    // the variable to any Node host — the existing Cloud Run service is:
+    // SHARED_BACKEND_URL=https://duocards-backend-731652720086.europe-west1.run.app
     const sharedBackendUrl = (process.env.SHARED_BACKEND_URL?.trim() ?? "")
       .replace(/\/+$/, "");
 

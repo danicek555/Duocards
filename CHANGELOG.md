@@ -59,9 +59,9 @@ První veřejná verze DuoCards.
   (odstraněn nebezpečný veřejný fallback).
 - Globální bezpečnostní hlavičky (nosniff, X-Frame-Options DENY, HSTS,
   Permissions-Policy, Referrer-Policy). CSP je dokumentovaný follow-up.
-- Odstraněny natvrdo zapsané URL Google Cloud Run — sdílený backend se
-  konfiguruje výhradně přes `SHARED_BACKEND_URL`; nasazení Cloud Run se
-  nepoužívá.
+- Sdílený backend se konfiguruje výhradně přes `SHARED_BACKEND_URL` (žádné
+  pevné URL v kódu). Aktuálně je vypnutý; znovuzapnutí — včetně připravené
+  Cloud Run služby — je otázka nastavení jedné proměnné.
 - Next.js aktualizován na záplatovanou 15.5.21, opraveny tranzitivní
   zranitelnosti (fast-uri, minimatch, brace-expansion). Zbývající nálezy
   auditu jsou pouze v build/dev nástrojích (viz README, sekce Bezpečnost).
