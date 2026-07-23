@@ -185,3 +185,40 @@ export const LIVE_GAME_MODE_TRANSLATIONS: Record<
 export function isSelfPacedLiveGameMode(modeId: LiveGameV2ModeId): boolean {
   return LIVE_GAME_DEFINITIONS[modeId].pacing === "self-paced";
 }
+
+/** Detailed "how does this mode actually work" copy for the info popup. */
+export const LIVE_GAME_MODE_DETAIL_TRANSLATIONS: Record<
+  SelectableLiveGameModeId,
+  { flow: string; scoring: string; win: string; tip: string }
+> = {
+  classic_arena: {
+    flow: "liveGameV2.classicDetailFlow",
+    scoring: "liveGameV2.classicDetailScoring",
+    win: "liveGameV2.classicDetailWin",
+    tip: "liveGameV2.classicDetailTip",
+  },
+  streak_combo: {
+    flow: "liveGameV2.streakDetailFlow",
+    scoring: "liveGameV2.streakDetailScoring",
+    win: "liveGameV2.streakDetailWin",
+    tip: "liveGameV2.streakDetailTip",
+  },
+  survival: {
+    flow: "liveGameV2.survivalDetailFlow",
+    scoring: "liveGameV2.survivalDetailScoring",
+    win: "liveGameV2.survivalDetailWin",
+    tip: "liveGameV2.survivalDetailTip",
+  },
+  sprint: {
+    flow: "liveGameV2.sprintDetailFlow",
+    scoring: "liveGameV2.sprintDetailScoring",
+    win: "liveGameV2.sprintDetailWin",
+    tip: "liveGameV2.sprintDetailTip",
+  },
+  marathon: {
+    flow: "liveGameV2.marathonDetailFlow",
+    scoring: "liveGameV2.marathonDetailScoring",
+    win: "liveGameV2.marathonDetailWin",
+    tip: "liveGameV2.marathonDetailTip",
+  },
+};
