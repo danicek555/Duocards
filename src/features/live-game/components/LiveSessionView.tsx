@@ -340,7 +340,14 @@ export default function LiveSessionView({
   const aliveCount = session.participants.filter((participant) => !participant.eliminated).length;
   const isSurvival = session.modeId === "survival";
   const isStreakMode = session.modeId === "streak_combo";
-  const isSelfPaced = session.modeId === "sprint" || session.modeId === "marathon";
+  const isSelfPaced =
+    session.modeId === "sprint" ||
+    session.modeId === "marathon" ||
+    session.modeId === "co_op_mission";
+  const isCoop = session.modeId === "co_op_mission";
+  const teamCorrectTotal = isCoop
+    ? session.participants.reduce((sum, participant) => sum + participant.correct, 0)
+    : 0;
   const spViewer = session.viewer?.selfPaced ?? null;
   const spQuestion = spViewer?.question ?? null;
   const spMsLeft = session.selfPaced
@@ -599,8 +606,15 @@ export default function LiveSessionView({
                 <span className="rounded-full border border-cyan-300/25 bg-cyan-400/10 px-4 py-2 text-sm font-bold text-cyan-200">
                   {session.modeId === "sprint"
                     ? t("liveGameV2.sprintBadge")
-                    : t("liveGameV2.marathonBadge")}
+                    : isCoop
+                      ? t("liveGameV2.coopTitle")
+                      : t("liveGameV2.marathonBadge")}
                 </span>
+                {isCoop && (
+                  <span className="rounded-full border border-emerald-300/25 bg-emerald-400/10 px-4 py-2 text-sm font-black text-emerald-200">
+                    {t("liveGameV2.coopTeamTotal", { count: teamCorrectTotal })}
+                  </span>
+                )}
               </span>
               <span
                 className={`rounded-2xl px-4 py-2 font-mono text-xl font-black ${
@@ -892,9 +906,11 @@ export default function LiveSessionView({
                       ? t("liveGameV2.teamDraw")
                       : t("liveGameV2.teamWinsName", { team: t(TEAM_META[standings[0]!.team].labelKey) });
                   })()
-                : session.participants[0]
-                  ? t("liveGameV2.winnerName", { name: session.participants[0].nickname })
-                  : t("liveGameV2.noWinner")}
+                : isCoop
+                  ? t("liveGameV2.coopTeamTotal", { count: teamCorrectTotal })
+                  : session.participants[0]
+                    ? t("liveGameV2.winnerName", { name: session.participants[0].nickname })
+                    : t("liveGameV2.noWinner")}
             </h1>
             <p className="mx-auto mt-4 max-w-2xl text-slate-300">{t("liveGameV2.finalHint")}</p>
 

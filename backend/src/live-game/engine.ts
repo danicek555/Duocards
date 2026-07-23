@@ -159,6 +159,8 @@ export function buildQuestionDrafts(
 
 /** Sprint: fixed session length, most correct answers wins. */
 export const SPRINT_DURATION_SECONDS = 120;
+/** Co-op mission: one shared five-minute push, the team total is the result. */
+export const CO_OP_DURATION_SECONDS = 300;
 /** Sprint pre-generates a queue no player can realistically exhaust. */
 export const SPRINT_QUESTION_COUNT = 50;
 /** Marathon: how long the room stays open when the host does not choose. */

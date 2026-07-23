@@ -32,6 +32,7 @@ import {
   evaluateSurvivalElimination,
   pickBalancedLiveGameTeam,
   scoreLiveGameAnswer,
+  CO_OP_DURATION_SECONDS,
   MARATHON_DEFAULT_DURATION_MINUTES,
   MARATHON_MAX_DURATION_MINUTES,
   SPRINT_DURATION_SECONDS,
@@ -716,10 +717,12 @@ export async function registerLiveSessionRoutes(
         const durationMs =
           session.modeId === "sprint"
             ? SPRINT_DURATION_SECONDS * 1_000
-            : (typeof settings.durationMinutes === "number" &&
-              settings.durationMinutes > 0
-                ? Math.min(settings.durationMinutes, MARATHON_MAX_DURATION_MINUTES)
-                : MARATHON_DEFAULT_DURATION_MINUTES) * 60_000;
+            : session.modeId === "co_op_mission"
+              ? CO_OP_DURATION_SECONDS * 1_000
+              : (typeof settings.durationMinutes === "number" &&
+                settings.durationMinutes > 0
+                  ? Math.min(settings.durationMinutes, MARATHON_MAX_DURATION_MINUTES)
+                  : MARATHON_DEFAULT_DURATION_MINUTES) * 60_000;
         const endsAt = new Date(now.getTime() + durationMs);
         const claimed = await prisma.liveSession.updateMany({
           where: { id: request.params.id, status: "LOBBY" },

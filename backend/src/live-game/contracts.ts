@@ -17,7 +17,11 @@ export const LIVE_GAME_MODE_IDS = [
  * pace: there is no shared currentQuestion and no host-driven advance —
  * the session runs from start until settings.endsAt.
  */
-export const SELF_PACED_MODE_IDS = ["sprint", "marathon"] as const;
+export const SELF_PACED_MODE_IDS = [
+  "sprint",
+  "marathon",
+  "co_op_mission",
+] as const;
 
 export type SelfPacedModeId = (typeof SELF_PACED_MODE_IDS)[number];
 

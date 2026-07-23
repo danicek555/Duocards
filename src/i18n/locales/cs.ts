@@ -542,6 +542,7 @@ export const cs = {
     marathonTitle: "Maraton",
     marathonDesc: "Místnost je otevřená hodiny až dny — ideální na domácí úkol. Připoj se kdykoli.",
     sprintSetupHint: "Blesková jízda běží 2 minuty s velkou zásobou otázek — žádné další nastavení není potřeba.",
+    coopSetupHint: "Co-op mise běží 5 minut — všichni přispívají do jednoho týmového součtu.",
     marathonDuration: "Místnost otevřená",
     durationHours: "{count} h",
     durationDays: "{count} d",
@@ -555,6 +556,21 @@ export const cs = {
     selfPacedDoneHint: "Prošel jsi všechny otázky — sleduj žebříček!",
     modeDetailOpen: "Jak to funguje?",
     modeDetailTitle: "Jak tento režim funguje",
+    accuracyDetailFlow:
+      "Běží jako Classic Arena — všichni odpovídají na stejnou otázku ve stejný okamžik a hostitel odhaluje a posouvá hru. Časový limit jen uzavírá kolo; rychlejší odpověď nic navíc nepřináší.",
+    accuracyDetailScoring:
+      "Každá správná odpověď je za rovných 1000 bodů, bez bonusu za rychlost.",
+    accuracyDetailWin: "Hráč s nejvíce správnými odpověďmi (nejvyšším skóre) na konci.",
+    accuracyDetailTip:
+      "Klidný režim: využij celý limit a před odesláním si odpověď zkontroluj.",
+    coopDetailFlow:
+      "Po startu běží společný odpočet 5 minut. Každý odpovídá na své otázky vlastním tempem a každá správná odpověď se přičítá do jednoho společného týmového součtu. Žebříček ukazuje příspěvky jednotlivců.",
+    coopDetailScoring: "Každá správná odpověď přidá 1 bod do týmového součtu.",
+    coopDetailWin:
+      "Nikdo — a všichni: výsledkem je týmový součet. Zkuste společně překonat minulou misi.",
+    coopDetailTip:
+      "Skvělé na rozehřátí s přáteli: nikdo není pod tlakem, počítá se výsledek týmu.",
+    coopTeamTotal: "Tým: {count} správně",
     detailFlowTitle: "Průběh hry",
     detailScoringTitle: "Bodování",
     detailWinTitle: "Kdo vyhrává",

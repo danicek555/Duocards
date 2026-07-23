@@ -543,6 +543,7 @@ export const en = {
     marathonTitle: "Marathon",
     marathonDesc: "The room stays open for hours or days — great for homework. Join anytime.",
     sprintSetupHint: "Sprint runs for 2 minutes with a large shared question pool — no other settings needed.",
+    coopSetupHint: "Co-op Mission runs for 5 minutes — everyone contributes to one team total.",
     marathonDuration: "Room open for",
     durationHours: "{count} h",
     durationDays: "{count} d",
@@ -556,6 +557,21 @@ export const en = {
     selfPacedDoneHint: "You finished your queue — watch the leaderboard!",
     modeDetailOpen: "How does it work?",
     modeDetailTitle: "How this mode works",
+    accuracyDetailFlow:
+      "Runs like Classic Arena — everyone answers the same question at the same time and the host reveals and advances. The time limit only closes the round; answering faster earns nothing extra.",
+    accuracyDetailScoring:
+      "Every correct answer is worth a flat 1000 points, no speed bonus.",
+    accuracyDetailWin: "The player with the most correct answers (highest score) at the end.",
+    accuracyDetailTip:
+      "The calm mode: use the whole time limit and double-check before you tap.",
+    coopDetailFlow:
+      "After the start a shared 5-minute clock runs. Everyone answers their own questions at their own pace and every correct answer adds to one shared team total. The leaderboard shows individual contributions.",
+    coopDetailScoring: "Each correct answer adds 1 point to the team total.",
+    coopDetailWin:
+      "Nobody — and everybody: the result is the team total. Try to beat your previous mission together.",
+    coopDetailTip:
+      "Great as a warm-up with friends: no pressure on individuals, the team result is what counts.",
+    coopTeamTotal: "Team: {count} correct",
     detailFlowTitle: "How the game runs",
     detailScoringTitle: "Scoring",
     detailWinTitle: "Who wins",

@@ -74,6 +74,7 @@ export default function CreateLiveGameDialog({
   const { t } = useI18n();
   const isSprint = modeId === "sprint";
   const isMarathon = modeId === "marathon";
+  const isCoop = modeId === "co_op_mission";
   const [detailModeId, setDetailModeId] =
     useState<SelectableLiveGameModeId | null>(null);
 
@@ -249,6 +250,10 @@ export default function CreateLiveGameDialog({
                     ))}
                   </select>
                 </div>
+              ) : isCoop ? (
+                <p className="self-end rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-100">
+                  {t("liveGameV2.coopSetupHint")}
+                </p>
               ) : (
                 <div>
                   <label htmlFor="live-question-time" className="mb-2 block text-sm font-bold text-slate-900 dark:text-white">

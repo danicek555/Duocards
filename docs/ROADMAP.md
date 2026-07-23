@@ -47,11 +47,13 @@ doplňuje; stojí AI coins; provázané s poznámkami.
   v [`STORY_MODE_PLAN.md`](STORY_MODE_PLAN.md). Implementace zatím nezačala.
 
 ### 2.5 Katalog dalších živých režimů — **S–L dle režimu** — průběžně
-- Hotové režimy (07/2026): Classic Arena, Streak Combo, Survival, **Team
-  Battle** (červení × modří, průměr na hráče), **Risk** (sázky z banku),
-  **Sprint** (2 minuty, každý vlastním tempem) a **Maraton / domácí úkol**
-  (místnost 1 h – 7 dní, připojení kdykoli) + průřezová volba psaných
-  odpovědí a detailní „Jak to funguje?" popup u každého režimu.
+- Hotové režimy (07/2026), všech 9 volitelných v dialogu vytvoření hry:
+  Classic Arena, **Accuracy** (bez bonusu za rychlost), Streak Combo,
+  Survival, **Team Battle** (červení × modří, průměr na hráče), **Risk**
+  (sázky z banku), **Sprint** (2 minuty, každý vlastním tempem),
+  **Maraton / domácí úkol** (místnost 1 h – 7 dní, připojení kdykoli) a
+  **Co-op mise** (5 minut, společný týmový součet) + průřezová volba
+  psaných odpovědí a detailní „Jak to funguje?" popup u každého režimu.
 - Navržené a rozepsané v [`LIVE_GAME_PRODUCT_PLAN.md`](LIVE_GAME_PRODUCT_PLAN.md):
   Lingo, Riskuj! (tabule), Aukce otázek, Štafeta, Bingo slovíček, Diktát,
   Pexeso živě, Závod s duchem, Turnajový pavouk, Živý příběh.

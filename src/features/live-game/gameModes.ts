@@ -167,12 +167,14 @@ export const MARATHON_DEFAULT_DURATION_MINUTES = 24 * 60;
 /** Modes the host can start from the create dialog right now. */
 export const SELECTABLE_LIVE_GAME_MODE_IDS = [
   "classic_arena",
+  "accuracy",
   "streak_combo",
   "survival",
-  "sprint",
-  "marathon",
   "team_battle",
   "risk_bet",
+  "sprint",
+  "marathon",
+  "co_op_mission",
 ] as const satisfies readonly LiveGameV2ModeId[];
 
 export type SelectableLiveGameModeId =
@@ -209,6 +211,14 @@ export const LIVE_GAME_MODE_TRANSLATIONS: Record<
   risk_bet: {
     label: "liveGameV2.riskTitle",
     description: "liveGameV2.riskDesc",
+  },
+  accuracy: {
+    label: "liveGameV2.accuracyTitle",
+    description: "liveGameV2.accuracyDesc",
+  },
+  co_op_mission: {
+    label: "liveGameV2.coopTitle",
+    description: "liveGameV2.coopDesc",
   },
 };
 
@@ -262,5 +272,17 @@ export const LIVE_GAME_MODE_DETAIL_TRANSLATIONS: Record<
     scoring: "liveGameV2.riskDetailScoring",
     win: "liveGameV2.riskDetailWin",
     tip: "liveGameV2.riskDetailTip",
+  },
+  accuracy: {
+    flow: "liveGameV2.accuracyDetailFlow",
+    scoring: "liveGameV2.accuracyDetailScoring",
+    win: "liveGameV2.accuracyDetailWin",
+    tip: "liveGameV2.accuracyDetailTip",
+  },
+  co_op_mission: {
+    flow: "liveGameV2.coopDetailFlow",
+    scoring: "liveGameV2.coopDetailScoring",
+    win: "liveGameV2.coopDetailWin",
+    tip: "liveGameV2.coopDetailTip",
   },
 };
