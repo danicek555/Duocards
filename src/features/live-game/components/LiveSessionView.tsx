@@ -2,7 +2,12 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useI18n } from "@/i18n/I18nProvider";
-import type { LiveGameSessionSnapshot } from "../contracts";
+import type {
+  LiveGameParticipantSnapshot,
+  LiveGameSessionSnapshot,
+  LiveGameTeamId,
+} from "../contracts";
+import { LIVE_GAME_TEAM_IDS } from "../contracts";
 import type { LiveGameClientRole } from "../sessionStorage";
 import {
   isLiveSoundMuted,
@@ -16,7 +21,7 @@ import {
 import InviteQrCode from "./InviteQrCode";
 
 export type LiveConnectionState = "connected" | "reconnecting" | "offline";
-export type LiveAction = "start" | "advance" | "answer" | "finish" | null;
+export type LiveAction = "start" | "advance" | "answer" | "team" | "finish" | null;
 export type LiveResultsSavedState = "saving" | "saved" | "error" | null;
 
 interface LiveSessionViewProps {
@@ -31,9 +36,90 @@ interface LiveSessionViewProps {
   onCopyInvite: () => void;
   onStart: () => void;
   onAdvance: () => void;
-  onAnswer: (answer: string) => void;
+  onAnswer: (answer: string, bet?: number) => void;
+  onSelectTeam: (team: LiveGameTeamId) => void;
   onFinish: () => void;
   onLeave: () => void;
+}
+
+const TEAM_META: Record<
+  LiveGameTeamId,
+  { labelKey: string; chip: string; card: string; bar: string }
+> = {
+  RED: {
+    labelKey: "liveGameV2.teamRed",
+    chip: "bg-rose-400/15 text-rose-300 border-rose-300/25",
+    card: "border-rose-300/25 bg-rose-500/10",
+    bar: "bg-rose-400",
+  },
+  BLUE: {
+    labelKey: "liveGameV2.teamBlue",
+    chip: "bg-sky-400/15 text-sky-300 border-sky-300/25",
+    card: "border-sky-300/25 bg-sky-500/10",
+    bar: "bg-sky-400",
+  },
+};
+
+interface TeamStanding {
+  team: LiveGameTeamId;
+  players: number;
+  /** Average score per player, so team size does not decide the battle. */
+  average: number;
+}
+
+function computeTeamStandings(
+  participants: readonly LiveGameParticipantSnapshot[],
+): TeamStanding[] {
+  return LIVE_GAME_TEAM_IDS.map((team) => {
+    const members = participants.filter((participant) => participant.team === team);
+    const sum = members.reduce((total, member) => total + member.score, 0);
+    return {
+      team,
+      players: members.length,
+      average: members.length > 0 ? Math.round(sum / members.length) : 0,
+    };
+  }).sort((a, b) => b.average - a.average);
+}
+
+function TeamChip({ team }: { team: LiveGameTeamId }) {
+  const { t } = useI18n();
+  const meta = TEAM_META[team];
+  return (
+    <span className={`ms-2 rounded-full border px-2 py-0.5 text-[10px] font-black uppercase tracking-wide align-middle ${meta.chip}`}>
+      {t(meta.labelKey)}
+    </span>
+  );
+}
+
+function TeamStandingsPanel({ session }: { session: LiveGameSessionSnapshot }) {
+  const { t } = useI18n();
+  const standings = computeTeamStandings(session.participants);
+  const best = Math.max(1, ...standings.map((standing) => standing.average));
+  return (
+    <div className="mb-5 grid gap-3 sm:grid-cols-2">
+      {standings.map((standing) => {
+        const meta = TEAM_META[standing.team];
+        return (
+          <div key={standing.team} className={`rounded-2xl border p-4 ${meta.card}`}>
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-sm font-black uppercase tracking-wide">{t(meta.labelKey)}</span>
+              <span className="text-xs font-medium text-slate-300">
+                {t("liveGameV2.teamPlayers", { count: standing.players })}
+              </span>
+            </div>
+            <p className="mt-2 font-mono text-2xl font-black text-white">{standing.average}</p>
+            <p className="text-[11px] font-medium text-slate-300">{t("liveGameV2.teamAvg")}</p>
+            <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-white/10">
+              <div
+                className={`h-full rounded-full ${meta.bar}`}
+                style={{ width: `${Math.round((standing.average / best) * 100)}%` }}
+              />
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
 }
 
 const CONFETTI_COLORS = ["#3b82f6", "#8b5cf6", "#22d3ee", "#fbbf24", "#34d399"];
@@ -95,6 +181,7 @@ function ResultsTable({ session }: { session: LiveGameSessionSnapshot }) {
                 <td className={`rounded-s-2xl px-3 py-3 font-black ${isWinner ? "text-amber-300" : "text-slate-300"}`}>{index + 1}</td>
                 <td className="min-w-0 break-words px-3 py-3 font-bold text-white">
                   {participant.nickname}
+                  {participant.team && <TeamChip team={participant.team} />}
                   {isWinner && (
                     <span className="ms-2 rounded-full bg-amber-400 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-amber-950">
                       {t("liveGameV2.winnerTag")}
@@ -175,6 +262,7 @@ function Scoreboard({ session }: { session: LiveGameSessionSnapshot }) {
             </span>
             <span className="min-w-0 break-words font-bold text-white">
               {participant.nickname}
+              {participant.team && <TeamChip team={participant.team} />}
               {session.modeId === "streak_combo" && participant.streak > 1 && (
                 <span className="ms-2 inline-flex items-center gap-1 rounded-full bg-orange-400/15 px-2 py-0.5 text-[10px] font-black text-orange-300 align-middle">
                   <StreakFlame className="h-3 w-3" />
@@ -232,6 +320,7 @@ export default function LiveSessionView({
   onStart,
   onAdvance,
   onAnswer,
+  onSelectTeam,
   onFinish,
   onLeave,
 }: LiveSessionViewProps) {
@@ -240,6 +329,8 @@ export default function LiveSessionView({
   const [muted, setMuted] = useState(() => isLiveSoundMuted());
   const [codeCopied, setCodeCopied] = useState(false);
   const [confirming, setConfirming] = useState<"finish" | "leave" | null>(null);
+  const [bet, setBet] = useState(0);
+  const [typedAnswer, setTypedAnswer] = useState("");
   const isHost = role === "host";
   const question = session.currentQuestion;
   const viewerAnswer = session.viewer?.currentAnswer ?? null;
@@ -255,6 +346,15 @@ export default function LiveSessionView({
   const spMsLeft = session.selfPaced
     ? Math.max(0, new Date(session.selfPaced.endsAt).getTime() - clock)
     : null;
+  const isTeamBattle = session.modeId === "team_battle";
+  const isRiskMode = session.modeId === "risk_bet";
+  const isTypedMode = session.answerMode === "typed";
+
+  // A new question resets the stake and the typed draft.
+  useEffect(() => {
+    setBet(0);
+    setTypedAnswer("");
+  }, [question?.id]);
 
   useEffect(() => {
     if (session.status !== "QUESTION") return;
@@ -435,6 +535,31 @@ export default function LiveSessionView({
                 <h2 className="text-xl font-black">{t("liveGameV2.waitingPlayers")}</h2>
                 <span className="rounded-full bg-white/10 px-3 py-1 text-sm font-bold text-slate-200">{session.participants.length}</span>
               </div>
+              {isTeamBattle && !isHost && me && (
+                <fieldset className="mb-4">
+                  <legend className="mb-2 text-sm font-bold text-slate-200">{t("liveGameV2.chooseTeam")}</legend>
+                  <div className="grid grid-cols-2 gap-2">
+                    {LIVE_GAME_TEAM_IDS.map((team) => {
+                      const meta = TEAM_META[team];
+                      const selected = me.team === team;
+                      const members = session.participants.filter((participant) => participant.team === team).length;
+                      return (
+                        <button
+                          key={team}
+                          type="button"
+                          onClick={() => onSelectTeam(team)}
+                          disabled={action !== null || selected || connection !== "connected"}
+                          aria-pressed={selected}
+                          className={`rounded-2xl border p-3 text-center transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white disabled:cursor-not-allowed ${meta.card} ${selected ? "ring-2 ring-white" : "cursor-pointer hover:brightness-125"}`}
+                        >
+                          <span className="block text-sm font-black uppercase tracking-wide">{t(meta.labelKey)}</span>
+                          <span className="mt-1 block text-xs font-medium text-slate-300">{t("liveGameV2.teamPlayers", { count: members })}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </fieldset>
+              )}
               {session.participants.length === 0 ? (
                 <p className="flex flex-1 items-center justify-center rounded-2xl border border-dashed border-white/15 px-5 py-10 text-center text-sm leading-6 text-slate-400">{t("liveGameV2.noPlayers")}</p>
               ) : (
@@ -442,7 +567,10 @@ export default function LiveSessionView({
                   {session.participants.map((participant, index) => (
                     <li key={participant.id} className="flex items-center gap-3 rounded-2xl bg-white/[0.06] px-4 py-3">
                       <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-blue-400/15 text-sm font-black text-blue-200">{index + 1}</span>
-                      <span className="min-w-0 break-words font-bold">{participant.nickname}</span>
+                      <span className="min-w-0 break-words font-bold">
+                        {participant.nickname}
+                        {isTeamBattle && participant.team && <TeamChip team={participant.team} />}
+                      </span>
                     </li>
                   ))}
                 </ul>
@@ -585,6 +713,16 @@ export default function LiveSessionView({
                     {t("liveGameV2.streakBadge", { count: me.streak, multiplier: nextStreakMultiplier(me.streak) })}
                   </span>
                 )}
+                {isRiskMode && !isHost && me && (
+                  <span className="rounded-full border border-amber-300/25 bg-amber-400/10 px-4 py-2 text-sm font-black text-amber-200">
+                    {t("liveGameV2.bank", { points: me.score })}
+                  </span>
+                )}
+                {isTeamBattle && !isHost && me?.team && (
+                  <span className={`rounded-full border px-4 py-2 text-sm font-black uppercase tracking-wide ${TEAM_META[me.team].chip}`}>
+                    {t(TEAM_META[me.team].labelKey)}
+                  </span>
+                )}
               </span>
               <span className={`rounded-2xl px-4 py-2 font-mono text-xl font-black ${secondsLeft > 5 ? "bg-blue-400/15 text-blue-100" : secondsLeft > 0 ? "bg-amber-400/20 text-amber-100" : "bg-red-400/20 text-red-100"}`} aria-live="polite">
                 {secondsLeft > 0 ? t("liveGameV2.timeRemaining", { seconds: secondsLeft }) : t("liveGameV2.timeExpired")}
@@ -607,25 +745,84 @@ export default function LiveSessionView({
                 {isHost ? t("liveGameV2.hostQuestionHint") : t("liveGameV2.chooseAnswer")}
               </p>
               <h1 className="mx-auto mb-8 max-w-3xl break-words text-center text-3xl font-black leading-tight sm:text-5xl">{question.prompt}</h1>
-              <div className="grid gap-3 sm:grid-cols-2">
-                {question.options.map((option, index) => {
-                  const selected = viewerAnswer?.answer === option;
-                  const base = [
-                    "border-blue-300/25 bg-blue-500/15 hover:bg-blue-500/25",
-                    "border-violet-300/25 bg-violet-500/15 hover:bg-violet-500/25",
-                    "border-cyan-300/25 bg-cyan-500/15 hover:bg-cyan-500/25",
-                    "border-amber-300/25 bg-amber-500/15 hover:bg-amber-500/25",
-                  ][index % 4];
-                  if (isHost) {
-                    return <div key={`${index}-${option}`} className={`min-h-20 rounded-2xl border p-4 text-center text-lg font-bold ${base}`}>{option}</div>;
-                  }
-                  return (
-                    <button key={`${index}-${option}`} type="button" onClick={() => onAnswer(option)} disabled={action !== null || viewerAnswer !== null || secondsLeft <= 0 || connection !== "connected"} aria-pressed={selected} className={`min-h-20 rounded-2xl border p-4 text-center text-lg font-bold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white disabled:cursor-not-allowed ${selected ? "ring-2 ring-white bg-white/20" : base} ${viewerAnswer && !selected ? "opacity-45" : "cursor-pointer"}`}>
-                      {option}
+
+              {isRiskMode && !isHost && me && !viewerAnswer && (
+                <div className="mx-auto mb-8 max-w-xl rounded-2xl border border-amber-300/25 bg-amber-400/10 p-5">
+                  <div className="flex items-center justify-between gap-3">
+                    <label htmlFor="live-risk-bet" className="text-sm font-bold text-amber-100">
+                      {t("liveGameV2.betLabel")}
+                    </label>
+                    <span className="font-mono text-lg font-black text-amber-200">
+                      {t("liveGameV2.betAmount", { points: bet })}
+                    </span>
+                  </div>
+                  <input
+                    id="live-risk-bet"
+                    type="range"
+                    min={0}
+                    max={me.score}
+                    step={me.score >= 200 ? 50 : 10}
+                    value={Math.min(bet, me.score)}
+                    onChange={(event) => setBet(Number(event.target.value))}
+                    disabled={action !== null || secondsLeft <= 0}
+                    className="mt-3 w-full cursor-pointer accent-amber-400 disabled:cursor-not-allowed"
+                  />
+                  <p className="mt-2 text-xs leading-5 text-amber-100/80">{t("liveGameV2.betHint")}</p>
+                </div>
+              )}
+
+              {isTypedMode ? (
+                isHost ? null : (
+                  <form
+                    className="mx-auto flex max-w-xl flex-col gap-3 sm:flex-row"
+                    onSubmit={(event) => {
+                      event.preventDefault();
+                      const value = typedAnswer.trim();
+                      if (!value) return;
+                      onAnswer(value, isRiskMode ? Math.min(bet, me?.score ?? 0) : undefined);
+                    }}
+                  >
+                    <input
+                      type="text"
+                      value={typedAnswer}
+                      onChange={(event) => setTypedAnswer(event.target.value)}
+                      placeholder={t("liveGameV2.typedPlaceholder")}
+                      autoComplete="off"
+                      autoCapitalize="off"
+                      spellCheck={false}
+                      disabled={action !== null || viewerAnswer !== null || secondsLeft <= 0 || connection !== "connected"}
+                      className="min-w-0 flex-1 rounded-2xl border border-white/15 bg-slate-950/50 px-5 py-4 text-lg font-bold text-white placeholder:text-slate-500 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-400/30 disabled:cursor-not-allowed disabled:opacity-60"
+                    />
+                    <button
+                      type="submit"
+                      disabled={action !== null || viewerAnswer !== null || secondsLeft <= 0 || connection !== "connected" || typedAnswer.trim().length === 0}
+                      className="rounded-2xl bg-blue-500 px-6 py-4 font-black text-white shadow-lg shadow-blue-950/40 transition hover:bg-blue-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
+                    >
+                      {t("liveGameV2.typedSubmit")}
                     </button>
-                  );
-                })}
-              </div>
+                  </form>
+                )
+              ) : (
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {question.options.map((option, index) => {
+                    const selected = viewerAnswer?.answer === option;
+                    const base = [
+                      "border-blue-300/25 bg-blue-500/15 hover:bg-blue-500/25",
+                      "border-violet-300/25 bg-violet-500/15 hover:bg-violet-500/25",
+                      "border-cyan-300/25 bg-cyan-500/15 hover:bg-cyan-500/25",
+                      "border-amber-300/25 bg-amber-500/15 hover:bg-amber-500/25",
+                    ][index % 4];
+                    if (isHost) {
+                      return <div key={`${index}-${option}`} className={`min-h-20 rounded-2xl border p-4 text-center text-lg font-bold ${base}`}>{option}</div>;
+                    }
+                    return (
+                      <button key={`${index}-${option}`} type="button" onClick={() => onAnswer(option, isRiskMode ? Math.min(bet, me?.score ?? 0) : undefined)} disabled={action !== null || viewerAnswer !== null || secondsLeft <= 0 || connection !== "connected"} aria-pressed={selected} className={`min-h-20 rounded-2xl border p-4 text-center text-lg font-bold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white disabled:cursor-not-allowed ${selected ? "ring-2 ring-white bg-white/20" : base} ${viewerAnswer && !selected ? "opacity-45" : "cursor-pointer"}`}>
+                        {option}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
             </div>
 
             <div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/[0.05] px-5 py-4">
@@ -656,7 +853,11 @@ export default function LiveSessionView({
                 <div className={`mt-8 rounded-2xl border p-5 ${viewerAnswer.isCorrect ? "border-emerald-300/30 bg-emerald-300/10" : "border-amber-300/30 bg-amber-300/10"}`}>
                   <p className="text-xl font-black">{viewerAnswer.isCorrect ? t("liveGameV2.correct") : t("liveGameV2.incorrect")}</p>
                   <p className="mt-1 break-words text-sm text-slate-200">{t("liveGameV2.yourAnswer", { answer: viewerAnswer.answer })}</p>
-                  <p className="mt-3 font-mono text-lg font-black text-cyan-200">{t("liveGameV2.pointsEarned", { points: viewerAnswer.points })}</p>
+                  <p className={`mt-3 font-mono text-lg font-black ${viewerAnswer.points < 0 ? "text-red-300" : "text-cyan-200"}`}>
+                    {viewerAnswer.points < 0
+                      ? t("liveGameV2.pointsLost", { points: Math.abs(viewerAnswer.points) })
+                      : t("liveGameV2.pointsEarned", { points: viewerAnswer.points })}
+                  </p>
                 </div>
               )}
               {!isHost && !viewerAnswer && (
@@ -670,7 +871,10 @@ export default function LiveSessionView({
               )}
             </div>
             <aside className="rounded-3xl border border-white/10 bg-white/[0.06] p-6">
-              <h2 className="mb-4 text-xl font-black">{t("liveGameV2.scoreboard")}</h2>
+              <h2 className="mb-4 text-xl font-black">
+                {isTeamBattle ? t("liveGameV2.teamScoreboard") : t("liveGameV2.scoreboard")}
+              </h2>
+              {isTeamBattle && <TeamStandingsPanel session={session} />}
               <Scoreboard session={session} />
             </aside>
           </section>
@@ -681,14 +885,22 @@ export default function LiveSessionView({
             <ConfettiBurst />
             <p className="text-xs font-bold uppercase tracking-[0.3em] text-amber-300">{t("liveGameV2.finalResults")}</p>
             <h1 className="mt-4 text-4xl font-black sm:text-6xl">
-              {session.participants[0]
-                ? t("liveGameV2.winnerName", { name: session.participants[0].nickname })
-                : t("liveGameV2.noWinner")}
+              {isTeamBattle
+                ? (() => {
+                    const standings = computeTeamStandings(session.participants);
+                    return standings[0] && standings[1] && standings[0].average === standings[1].average
+                      ? t("liveGameV2.teamDraw")
+                      : t("liveGameV2.teamWinsName", { team: t(TEAM_META[standings[0]!.team].labelKey) });
+                  })()
+                : session.participants[0]
+                  ? t("liveGameV2.winnerName", { name: session.participants[0].nickname })
+                  : t("liveGameV2.noWinner")}
             </h1>
             <p className="mx-auto mt-4 max-w-2xl text-slate-300">{t("liveGameV2.finalHint")}</p>
 
             <div className="relative mx-auto mt-10 max-w-3xl rounded-3xl border border-white/10 bg-white/[0.06] p-6 text-start sm:p-8">
               <h2 className="mb-5 text-xl font-black">{t("liveGameV2.finalResults")}</h2>
+              {isTeamBattle && <TeamStandingsPanel session={session} />}
               <ResultsTable session={session} />
               {isHost && resultsSaved && (
                 <p

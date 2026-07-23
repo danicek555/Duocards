@@ -124,13 +124,33 @@ chybějící překlady nebo režim nevhodný pro počet hráčů.
 
 | Režim | Tempo | Hlavní dovednost | Ideálně | Délka | Vydání |
 |---|---|---|---:|---:|---|
-| Klasická aréna | synchronní | rychlost + správnost | 2–100 | 8–15 min | MVP |
-| Přesnost | synchronní | správnost bez stresu z rychlosti | 1–100 | 8–15 min | MVP |
-| Společná mise | vlastní tempo, společný cíl | spolupráce + opakování | 1–100 | 5–20 min | MVP |
+| Klasická aréna | synchronní | rychlost + správnost | 2–100 | 8–15 min | hotovo (07/2026) |
+| Streak Combo | synchronní | série správných odpovědí | 2–100 | 8–15 min | hotovo (07/2026) |
+| Survival | synchronní | přesnost pod tlakem | 3–100 | 8–15 min | hotovo (07/2026) |
+| Týmová bitva | synchronní | týmová spolupráce | 4–100 | 10–20 min | hotovo (07/2026), první iterace Týmového střetu |
+| Sázkový mód (Risk) | synchronní | odhad vlastní jistoty | 2–100 | 8–15 min | hotovo (07/2026) |
+| Přesnost | synchronní | správnost bez stresu z rychlosti | 1–100 | 8–15 min | MVP (engine hotový, zatím není v nabídce) |
+| Společná mise | vlastní tempo, společný cíl | spolupráce + opakování | 1–100 | 5–20 min | MVP (engine hotový, zatím není v nabídce) |
 | Rychlá série | vlastní tempo | vybavení z paměti + rychlost | 1–100 | 3–10 min | v2 |
-| Týmový střet | synchronní | týmová spolupráce | 4–100 | 10–20 min | v2 |
-| Poslední karta | synchronní | přesnost pod tlakem | 3–50 | 8–15 min | v2 |
+| Poslední karta | synchronní | přesnost pod tlakem, tři životy | 3–50 | 8–15 min | v2 |
+| Lingo | synchronní | skladba slova, pravopis | 1–100 | 8–15 min | v2 |
+| Riskuj! (tabule) | synchronní, tahové | strategický výběr + znalosti | 2–50 | 15–25 min | v2–v3 |
+| Aukce otázek | synchronní | hospodaření s body + sebedůvěra | 3–50 | 10–20 min | v3 |
+| Štafeta | synchronní, tahové | zapojení celého týmu | 4–40 | 10–20 min | v3 |
+| Bingo slovíček | synchronní | poslech/čtení + pozornost | 2–100 | 8–15 min | v3 |
+| Diktát | synchronní | poslech + pravopis | 1–100 | 8–15 min | v3 (vyžaduje audio na kartách) |
+| Pexeso živě | tahové | paměť + párování | 2–12 | 8–15 min | v3 |
+| Závod s duchem | vlastní tempo | zlepšení proti minulému výkonu | 1–100 | 5–15 min | v3 |
 | Výprava za pokladem | vlastní tempo | znalosti + lehká strategie | 2–100 | 10–20 min | v3 |
+| Turnajový pavouk | synchronní, duely | opakované krátké souboje | 4–32 | 15–30 min | v4 |
+| Maraton (domácí úkol) | vlastní tempo, dny | vytrvalost + samostatnost | 1–100 | hodiny–dny | v4 |
+| Živý příběh | vlastní tempo, společný cíl | kontext + tvorba | 2–40 | 15–25 min | v4, viz `STORY_MODE_PLAN.md` |
+
+Poznámka (07/2026): napříč režimy je hotová volba **psaných odpovědí** —
+hráč překlad píše, server toleruje chybějící diakritiku a jeden překlep
+(viz kapitola 6). Sázková mechanika (bank, sázka, výplata dvojnásobku) a
+týmová mechanika (výběr týmu v lobby, průměr na hráče) jsou v enginu a lze
+na nich stavět režimy níže.
 
 Limity jsou doporučené produktové hodnoty, ne slib škálování. Skutečné maximum
 se nastaví až podle zátěžových testů.
@@ -230,6 +250,199 @@ volí sám.
   ničení postupu ostatních.
 - **Vydání:** až po stabilizaci základního enginu; vyžaduje vlastní grafiku a
   simulace vyvážení.
+
+### 5.8 Lingo (`lingo`)
+
+Slovní hádanka po vzoru Wordle/Lingo postavená přímo na psaných odpovědích.
+Hráči hádají překlad zadaného slova; po každém pokusu se písmena obarví
+(správně na místě / správně jinde / mimo). Nejlepší poměr efekt/pracnost
+z celého katalogu.
+
+- **Cíl:** uhodnout překlad na co nejméně pokusů.
+- **Smyčka:** otázka (výraz + počet písmen) → až 5 psaných pokusů → barevná
+  zpětná vazba po písmenech → vyhodnocení → další slovo.
+- **Bodování:** 1 000 − 150 × (pokusy − 1); neuhodnuté slovo 0 bodů. Rychlost
+  nehraje roli, jen počet pokusů.
+- **Chybná odpověď:** pokus se spotřebuje, nápověda barvami zůstává vidět.
+- **Stavební kameny:** normalizace diakritiky a psané odpovědi (hotovo),
+  stavový automat beze změny; nový je jen výpočet obarvení a UI mřížka.
+- **Engine:** porovnání po znacích nad `normalizeAnswerLoose`; více pokusů na
+  kolo = nová tabulka pokusů, nebo limit pokusů uložený v `LiveAnswer`.
+- **Pracnost:** S–M. **Vydání:** v2.
+
+### 5.9 Riskuj! (`quiz_board`)
+
+Tabule 5×N: sloupce podle štítků nebo sad, řádky podle bodové hodnoty
+100–500. Hráči (nebo týmy) se střídají ve výběru políčka. Vyšší hodnota =
+delší/těžší slovo. Ideální na projektor ve třídě — charakteristický režim,
+který běžné kvízové aplikace nemají.
+
+- **Cíl:** nasbírat z tabule nejvíce bodů.
+- **Smyčka:** hráč na tahu vybere políčko → otázku vidí všichni a odpovídají
+  všichni (vybírající za dvojnásobek) → vyhodnocení → tabule se odkryje.
+- **Skrytá políčka:** 2–3 „Sázka!“ políčka — vybírající vsadí část banku
+  (mechanika `risk_bet` beze změny).
+- **Bodování:** hodnota políčka; ostatní hráči polovinu. Špatná odpověď
+  vybírajícího odečte polovinu hodnoty (motivace vybírat s rozmyslem).
+- **Stavební kameny:** sázky a bank (hotovo), štítky sad (hotovo), REVEAL
+  rytmus (hotovo).
+- **Engine:** kola se negenerují lineárně, ale jako mřížka s metadaty
+  (kategorie, hodnota, stav); nový příznak „kdo je na tahu“.
+- **Pracnost:** M. **Vydání:** v2–v3.
+
+### 5.10 Aukce otázek (`auction_quiz`)
+
+Před každou otázkou proběhne krátká dražba z banku bodů. Vítěz dražby
+odpovídá sám: správně bere dvojnásobek nabídky, špatně ji ztrácí a otázka
+se za polovinu nabídne druhému v pořadí. Učí hospodařit s body a odhadovat
+vlastní jistotu.
+
+- **Cíl:** mít na konci nejvyšší bank.
+- **Smyčka:** náhled kategorie otázky → 10s dražba (posuvník jako u sázek)
+  → otázka pro vítěze → případná přeprodej → vyhodnocení.
+- **Bodování:** pouze pohyby banku; každý startuje s 1 000 body
+  (konstanta `RISK_BET_STARTING_BANK`).
+- **Chybná odpověď:** ztráta nabídky; otázka putuje dál, takže se třída
+  učí i z cizích chyb.
+- **Stavební kameny:** bank a sázky (hotovo), posuvník sázky (hotovo).
+- **Engine:** nová krátká fáze BIDDING před QUESTION — první rozšíření
+  stavového automatu; dražbu lze v první verzi zjednodušit na „zapečetěné
+  obálky“ (každý pošle nabídku jednou, bez přihazování).
+- **Pracnost:** M–L. **Vydání:** v3.
+
+### 5.11 Štafeta (`relay`)
+
+Týmová hra, ve které tým odpovídá postupně — vždy jen jeden hráč „drží
+kolík“. Správná odpověď posune tým o políčko a předá kolík dalšímu; chyba
+vrací tým o políčko zpět. Na rozdíl od průměru v Týmové bitvě se nikdo
+neschová: na každém článku záleží.
+
+- **Cíl:** doběhnout štafetovou trať (např. 20 políček) jako první, nebo
+  být po vypršení času nejdál.
+- **Smyčka:** otázka pro držitele kolíku (ostatní ji vidí, ale neodpovídají)
+  → vyhodnocení → posun na trati → kolík dalšímu v pořadí.
+- **Bodování:** pozice na trati; individuální statistiky se ukládají pro
+  report, ale nerozhodují.
+- **Chybná odpověď:** −1 políčko a kolík se předává dál — chyba nikoho
+  nevyřazuje, jen zpomalí tým.
+- **Stavební kameny:** týmy (hotovo), pořadí hráčů z lobby.
+- **Engine:** ukazatel „kdo je na tahu“ per tým + pozice týmů; otázky se
+  přidělují jednotlivci místo všem.
+- **Pracnost:** M. **Vydání:** v3.
+
+### 5.12 Bingo slovíček (`word_bingo`)
+
+Každý hráč dostane kartu 4×4 s překlady namíchanými z vybraných sad. Host
+(nebo server) postupně „vyvolává“ výrazy; hráč označí odpovídající překlad
+na své kartě. Vyhrává první úplná řada, plný dům ukončuje hru.
+
+- **Cíl:** první dokončená řada / sloupec / diagonála.
+- **Smyčka:** vyvolání výrazu (text, později audio) → 10 s na označení →
+  server potvrdí správnost označení → další výraz.
+- **Bodování:** řada = velké body, správné jednotlivé označení = malé body,
+  falešné označení krátká blokace karty (anti-spam).
+- **Stavební kameny:** generátor otázek (hotovo), audio karet pro čtenou
+  variantu (existující TTS).
+- **Engine:** místo shodné otázky pro všechny má každý hráč vlastní kartu
+  (matice), server validuje označení proti vyvolanému slovu.
+- **Pracnost:** M. **Vydání:** v3.
+
+### 5.13 Diktát (`dictation`)
+
+Poslechová hra pro sady s audio nahrávkami: přehraje se výslovnost, hráči
+píší, co slyšeli (nebo překlad slyšeného — volba hosta). Psané odpovědi
+s tolerancí překlepů jsou hotové, takže jde primárně o práci se zvukem.
+
+- **Cíl:** nejvíce správně zapsaných slov.
+- **Smyčka:** přehrání audia (2× s odstupem) → psaní → uzamčení →
+  zobrazení správného tvaru s výslovností.
+- **Bodování:** jako Přesnost (rychlost nerozhoduje); varianta „přísný
+  diktát“ bez tolerance překlepů pro pokročilé.
+- **Stavební kameny:** psané odpovědi (hotovo), audio karet (hotovo),
+  přehrávač už existuje ve studiu kartiček.
+- **Engine:** otázka typu audio → text z kapitoly 6; kontrola, že vybrané
+  sady mají audio, jinak režim nenabízet.
+- **Pracnost:** M. **Vydání:** v3.
+
+### 5.14 Pexeso živě (`memory_pairs`)
+
+Tahová hra pro menší skupiny: společná mřížka zakrytých karet, polovina
+výrazy, polovina překlady. Hráči se střídají v otáčení dvojic. Nalezený pár
+zůstává hráči; klasická pexesová paměť plus jazykové párování.
+
+- **Cíl:** nasbírat nejvíce párů.
+- **Smyčka:** hráč na tahu otočí dvě karty (všichni je vidí) → pár zůstává
+  a hráč pokračuje, nepár se zakryje a hraje další.
+- **Bodování:** 1 pár = 1 bod; volitelný bonusový bod za vyslovení/napsání
+  překladu při otočení (potvrzení, že nejde jen o polohovou paměť).
+- **Stavební kameny:** slovní páry ze sad (hotovo), tahové pořadí z lobby.
+- **Engine:** sdílený stav mřížky + „kdo je na tahu“; jednodušší než kvízový
+  automat, ale jiný datový tvar kola.
+- **Pracnost:** M. **Vydání:** v3; doporučeno max ~12 hráčů.
+
+### 5.15 Závod s duchem (`ghost_race`)
+
+Hráč nebo třída závodí proti „duchovi“ — uloženému průběhu dřívější hry ze
+stejné sady (vlastní minulý výkon, nejlepší výkon třídy, výkon hostitele).
+Unikátní propojení s už hotovou historií živých her: nikdo jiný nemá
+soutěž „porazíš sám sebe z minulého týdne?“.
+
+- **Cíl:** být v cíli dřív / s vyšším skóre než duch.
+- **Smyčka:** vlastní tempo jako Rychlá série; vedle postupu hráče běží
+  časová osa ducha (odkud se bere skóre po sekundách).
+- **Bodování:** standardní skóre + bonus za poražení ducha.
+- **Stavební kameny:** ukládání výsledků her (hotovo — `LiveGame` +
+  `LiveGamePlayer`); je potřeba začít ukládat i časový průběh (skóre po
+  kolech), ne jen konečný stav.
+- **Engine:** kategorie self-paced z registru; duch je jen datová stopa,
+  žádná synchronizace mezi hráči.
+- **Pracnost:** M (z toho polovina je rozšíření ukládání historie).
+  **Vydání:** v3.
+
+### 5.16 Turnajový pavouk (`tournament`)
+
+Série krátkých duelů 1v1 (3–5 otázek) v klasickém pavouku. Kdo prohraje,
+nevypadává z aplikace — přesune se do „util. větve“ o umístění, takže hrají
+všichni pořád. Diváci vidí pavouka a fandí.
+
+- **Cíl:** vyhrát pavouka; vedlejší větev hraje o konečné pořadí.
+- **Smyčka:** rozlosování → kolo duelů běžících paralelně → postupy →
+  finále na společné obrazovce.
+- **Bodování:** v duelu jako Klasická aréna; do pavouka jde jen výhra.
+- **Stavební kameny:** kvízový automat (hotovo) použitý na dvojici hráčů;
+  více „mini-sessions“ pod jednou střechou.
+- **Engine:** orchestrace více současných kol nad jednou místností —
+  největší zásah z katalogu, proto v4.
+- **Pracnost:** L. **Vydání:** v4.
+
+### 5.17 Maraton — domácí úkol (`marathon`)
+
+Místnost otevřená hodiny až dny. Hráči se připojují kdykoli, hrají vlastním
+tempem svou porci otázek a žebříček se průběžně ukládá. Učitel ráno zadá,
+večer vyhodnotí; navazuje na hotové ukládání výsledků.
+
+- **Cíl:** splnit porci otázek (např. 30) s co nejlepší přesností do
+  uzávěrky.
+- **Bodování:** přesnost především, rychlost vůbec; volitelně bonus za
+  dokončení v první polovině lhůty.
+- **Stavební kameny:** self-paced kurzor, prodloužená expirace místnosti,
+  průběžný zápis do historie (hotovo v základu).
+- **Engine:** změna expirací a životního cyklu místnosti (dnes 6 hodin);
+  opakované připojení stejného hráče ke stejné identitě.
+- **Pracnost:** M–L. **Vydání:** v4.
+
+### 5.18 Živý příběh (`story_coop`)
+
+Kooperativní vyprávění: AI vygeneruje příběh s vynechanými slovy z vybraných
+sad, každý hráč dostane přidělené své díry a místnost příběh společně
+dokončuje. Na konci se celý příběh přečte se zvýrazněnými příspěvky hráčů.
+Detailní produktový a technický plán včetně sólové verze pro dashboard je
+v samostatném dokumentu [`STORY_MODE_PLAN.md`](STORY_MODE_PLAN.md).
+
+- **Cíl:** společná přesnost (např. 80 %) — vyhrají nebo prohrají všichni.
+- **Stavební kameny:** psané odpovědi (hotovo), společný cíl ze Společné
+  mise, AI generace hrazená mincemi hostitele.
+- **Pracnost:** L (sdílená se sólovou verzí). **Vydání:** v4.
 
 ## 6. Typy otázek
 

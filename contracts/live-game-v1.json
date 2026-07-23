@@ -7,7 +7,9 @@
     "streak_combo",
     "survival",
     "sprint",
-    "marathon"
+    "marathon",
+    "team_battle",
+    "risk_bet"
   ],
   "sessionStatuses": [
     "LOBBY",

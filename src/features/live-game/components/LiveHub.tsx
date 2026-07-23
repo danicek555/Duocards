@@ -16,7 +16,28 @@ interface LiveHubProps {
   onCreate: () => void;
 }
 
-function ModeIcon({ mode }: { mode: "classic" | "streak" | "survival" }) {
+function ModeIcon({ mode }: { mode: "classic" | "streak" | "survival" | "team" | "risk" }) {
+  if (mode === "team") {
+    return (
+      <svg aria-hidden="true" viewBox="0 0 48 48" className="h-8 w-8">
+        <circle cx="16" cy="16" r="6" fill="none" stroke="currentColor" strokeWidth="4" />
+        <circle cx="32" cy="16" r="6" fill="none" stroke="currentColor" strokeWidth="4" />
+        <path d="M6 40c0-6 4.5-10 10-10s10 4 10 10M22 40c0-6 4.5-10 10-10s10 4 10 10" fill="none" stroke="currentColor" strokeLinecap="round" strokeWidth="4" />
+      </svg>
+    );
+  }
+  if (mode === "risk") {
+    return (
+      <svg aria-hidden="true" viewBox="0 0 48 48" className="h-8 w-8">
+        <rect x="9" y="9" width="30" height="30" rx="6" fill="none" stroke="currentColor" strokeWidth="4" />
+        <circle cx="18" cy="18" r="2.6" fill="currentColor" />
+        <circle cx="30" cy="18" r="2.6" fill="currentColor" />
+        <circle cx="24" cy="24" r="2.6" fill="currentColor" />
+        <circle cx="18" cy="30" r="2.6" fill="currentColor" />
+        <circle cx="30" cy="30" r="2.6" fill="currentColor" />
+      </svg>
+    );
+  }
   if (mode === "streak") {
     return (
       <svg aria-hidden="true" viewBox="0 0 48 48" className="h-8 w-8">
@@ -165,6 +186,8 @@ export default function LiveHub({
                 { id: "classic", title: "liveGameV2.classicTitle", desc: "liveGameV2.classicDesc", pace: "liveGameV2.synchronized", available: true, color: "text-amber-300 bg-amber-400/10 border-amber-300/30" },
                 { id: "streak", title: "liveGameV2.streakTitle", desc: "liveGameV2.streakDesc", pace: "liveGameV2.synchronized", available: true, color: "text-emerald-300 bg-emerald-400/10 border-emerald-300/20" },
                 { id: "survival", title: "liveGameV2.survivalTitle", desc: "liveGameV2.survivalDesc", pace: "liveGameV2.synchronized", available: true, color: "text-cyan-300 bg-cyan-400/10 border-cyan-300/20" },
+                { id: "team", title: "liveGameV2.teamTitle", desc: "liveGameV2.teamDesc", pace: "liveGameV2.synchronized", available: true, color: "text-rose-300 bg-rose-400/10 border-rose-300/20" },
+                { id: "risk", title: "liveGameV2.riskTitle", desc: "liveGameV2.riskDesc", pace: "liveGameV2.synchronized", available: true, color: "text-violet-300 bg-violet-400/10 border-violet-300/20" },
               ] as const).map((mode) => (
                 <article key={mode.id} className="rounded-3xl border border-white/10 bg-white/[0.05] p-6">
                   <div className={`mb-5 flex h-14 w-14 items-center justify-center rounded-2xl border ${mode.color}`}>

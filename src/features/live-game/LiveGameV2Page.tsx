@@ -16,6 +16,7 @@ import {
   joinLiveSession,
   leaveLiveSession,
   LiveGameApiError,
+  selectLiveTeam,
   startLiveSession,
   submitLiveAnswer,
 } from "./api";
@@ -33,7 +34,11 @@ import LiveSessionView, {
   type LiveAction,
   type LiveConnectionState,
 } from "./components/LiveSessionView";
-import type { LiveGameSessionSnapshot } from "./contracts";
+import type {
+  LiveGameAnswerMode,
+  LiveGameSessionSnapshot,
+  LiveGameTeamId,
+} from "./contracts";
 import {
   clearLiveGameToken,
   markLiveGameResultsSaved,
@@ -77,6 +82,7 @@ function LiveGameV2Content() {
   const [durationMinutes, setDurationMinutes] = useState(
     MARATHON_DEFAULT_DURATION_MINUTES,
   );
+  const [answerMode, setAnswerMode] = useState<LiveGameAnswerMode>("choice");
   const [loadingSets, setLoadingSets] = useState(false);
   const [creating, setCreating] = useState(false);
   const [joining, setJoining] = useState(false);
@@ -282,6 +288,7 @@ function LiveGameV2Content() {
         questionCount,
         questionTimeSeconds,
         ...(selectedModeId === "marathon" ? { durationMinutes } : {}),
+        answerMode,
       });
       setCreateOpen(false);
       const setName = sets
@@ -299,7 +306,7 @@ function LiveGameV2Content() {
     } finally {
       setCreating(false);
     }
-  }, [durationMinutes, enterSession, localizedError, questionCount, questionTimeSeconds, selectedModeId, selectedSetIds, sets, t]);
+  }, [answerMode, durationMinutes, enterSession, localizedError, questionCount, questionTimeSeconds, selectedModeId, selectedSetIds, sets, t]);
 
   const handleJoin = useCallback(async () => {
     const normalizedCode = normalizeRoomCode(roomCode);
@@ -365,7 +372,7 @@ function LiveGameV2Content() {
     ? isSelfPacedLiveGameMode(snapshot.modeId)
     : false;
 
-  const handleAnswer = useCallback(async (answer: string) => {
+  const handleAnswer = useCallback(async (answer: string, bet?: number) => {
     if (!active || !answerableQuestionId || action !== null) return;
     setAction("answer");
     setPageError(null);
@@ -374,6 +381,7 @@ function LiveGameV2Content() {
         roundId: answerableQuestionId,
         answer,
         idempotencyKey: crypto.randomUUID(),
+        ...(bet !== undefined ? { bet } : {}),
       });
       // Self-paced modes have no reveal step, so the sound feedback plays
       // right when the answer is accepted.
@@ -390,6 +398,22 @@ function LiveGameV2Content() {
       setAction(null);
     }
   }, [acceptSnapshot, action, active, answerableQuestionId, isSelfPacedSession, localizedError]);
+
+  const handleSelectTeam = useCallback(async (team: LiveGameTeamId) => {
+    if (!active || action !== null) return;
+    setAction("team");
+    setPageError(null);
+    try {
+      const response = await selectLiveTeam(active.id, active.token, { team });
+      acceptSnapshot(response.session);
+      setConnection("connected");
+      setConnectionError(null);
+    } catch (error) {
+      setPageError(localizedError(error));
+    } finally {
+      setAction(null);
+    }
+  }, [acceptSnapshot, action, active, localizedError]);
 
   const handleLeave = useCallback(async () => {
     if (
@@ -465,7 +489,8 @@ function LiveGameV2Content() {
         onCopyInvite={handleCopyInvite}
         onStart={handleStart}
         onAdvance={() => void runSessionAction("advance", advanceLiveSession)}
-        onAnswer={(answer) => void handleAnswer(answer)}
+        onAnswer={(answer, bet) => void handleAnswer(answer, bet)}
+        onSelectTeam={(team) => void handleSelectTeam(team)}
         onFinish={() => void runSessionAction("finish", finishLiveSession)}
         onLeave={() => void handleLeave()}
       />
@@ -508,6 +533,7 @@ function LiveGameV2Content() {
           questionCount={questionCount}
           questionTimeSeconds={questionTimeSeconds}
           durationMinutes={durationMinutes}
+          answerMode={answerMode}
           loadingSets={loadingSets}
           creating={creating}
           error={createError}
@@ -518,6 +544,7 @@ function LiveGameV2Content() {
           onQuestionCountChange={setQuestionCount}
           onQuestionTimeChange={setQuestionTimeSeconds}
           onDurationChange={setDurationMinutes}
+          onAnswerModeChange={setAnswerMode}
           onClose={() => setCreateOpen(false)}
           onCreate={() => void handleCreate()}
         />

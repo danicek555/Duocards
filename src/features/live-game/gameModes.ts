@@ -131,6 +131,26 @@ export const LIVE_GAME_DEFINITIONS: Record<
     defaultQuestionCount: 20,
     defaultQuestionTimeSeconds: 20,
   },
+  team_battle: {
+    id: "team_battle",
+    version: 1,
+    pacing: "synchronized",
+    category: "team",
+    minPlayers: 2,
+    recommendedPlayers: [4, 100],
+    defaultQuestionCount: 10,
+    defaultQuestionTimeSeconds: 20,
+  },
+  risk_bet: {
+    id: "risk_bet",
+    version: 1,
+    pacing: "synchronized",
+    category: "strategy",
+    minPlayers: 1,
+    recommendedPlayers: [2, 100],
+    defaultQuestionCount: 10,
+    defaultQuestionTimeSeconds: 20,
+  },
 };
 
 /** Marathon room duration choices offered to the host (minutes). */
@@ -151,6 +171,8 @@ export const SELECTABLE_LIVE_GAME_MODE_IDS = [
   "survival",
   "sprint",
   "marathon",
+  "team_battle",
+  "risk_bet",
 ] as const satisfies readonly LiveGameV2ModeId[];
 
 export type SelectableLiveGameModeId =
@@ -179,6 +201,14 @@ export const LIVE_GAME_MODE_TRANSLATIONS: Record<
   marathon: {
     label: "liveGameV2.marathonTitle",
     description: "liveGameV2.marathonDesc",
+  },
+  team_battle: {
+    label: "liveGameV2.teamTitle",
+    description: "liveGameV2.teamDesc",
+  },
+  risk_bet: {
+    label: "liveGameV2.riskTitle",
+    description: "liveGameV2.riskDesc",
   },
 };
 
@@ -220,5 +250,17 @@ export const LIVE_GAME_MODE_DETAIL_TRANSLATIONS: Record<
     scoring: "liveGameV2.marathonDetailScoring",
     win: "liveGameV2.marathonDetailWin",
     tip: "liveGameV2.marathonDetailTip",
+  },
+  team_battle: {
+    flow: "liveGameV2.teamDetailFlow",
+    scoring: "liveGameV2.teamDetailScoring",
+    win: "liveGameV2.teamDetailWin",
+    tip: "liveGameV2.teamDetailTip",
+  },
+  risk_bet: {
+    flow: "liveGameV2.riskDetailFlow",
+    scoring: "liveGameV2.riskDetailScoring",
+    win: "liveGameV2.riskDetailWin",
+    tip: "liveGameV2.riskDetailTip",
   },
 };

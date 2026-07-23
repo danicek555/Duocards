@@ -307,6 +307,7 @@ model LiveParticipant {
   eliminated      Boolean      @default(false)
   practiceCorrect Int          @default(0)
   practiceTotal   Int          @default(0)
+  team            String?      @db.VarChar(8)
   joinedAt   DateTime     @default(now())
   lastSeenAt DateTime     @default(now())
   leftAt     DateTime?

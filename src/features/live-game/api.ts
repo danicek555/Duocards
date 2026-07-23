@@ -3,6 +3,7 @@ import type {
   CreateLiveGameSessionRequest,
   JoinLiveGameSessionRequest,
   LiveGameSessionSnapshot,
+  SelectLiveGameTeamRequest,
   SubmitLiveGameAnswerRequest,
 } from "./contracts";
 
@@ -117,6 +118,18 @@ export function submitLiveAnswer(
 ) {
   return liveRequest<SubmitLiveAnswerResponse>(
     `/live/sessions/${encodeURIComponent(sessionId)}/answers`,
+    { method: "POST", body: JSON.stringify(body) },
+    token,
+  );
+}
+
+export function selectLiveTeam(
+  sessionId: string,
+  token: string,
+  body: SelectLiveGameTeamRequest,
+) {
+  return liveRequest<LiveSessionResponse>(
+    `/live/sessions/${encodeURIComponent(sessionId)}/team`,
     { method: "POST", body: JSON.stringify(body) },
     token,
   );

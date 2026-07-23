@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useI18n } from "@/i18n/I18nProvider";
+import type { LiveGameAnswerMode } from "../contracts";
 import {
   LIVE_GAME_DEFINITIONS,
   LIVE_GAME_MODE_DETAIL_TRANSLATIONS,
@@ -35,6 +36,7 @@ interface CreateLiveGameDialogProps {
   questionCount: number;
   questionTimeSeconds: number;
   durationMinutes: number;
+  answerMode: LiveGameAnswerMode;
   loadingSets: boolean;
   creating: boolean;
   error: string | null;
@@ -43,6 +45,7 @@ interface CreateLiveGameDialogProps {
   onQuestionCountChange: (value: number) => void;
   onQuestionTimeChange: (value: number) => void;
   onDurationChange: (value: number) => void;
+  onAnswerModeChange: (value: LiveGameAnswerMode) => void;
   onClose: () => void;
   onCreate: () => void;
 }
@@ -55,6 +58,7 @@ export default function CreateLiveGameDialog({
   questionCount,
   questionTimeSeconds,
   durationMinutes,
+  answerMode,
   loadingSets,
   creating,
   error,
@@ -63,6 +67,7 @@ export default function CreateLiveGameDialog({
   onQuestionCountChange,
   onQuestionTimeChange,
   onDurationChange,
+  onAnswerModeChange,
   onClose,
   onCreate,
 }: CreateLiveGameDialogProps) {
@@ -258,6 +263,26 @@ export default function CreateLiveGameDialog({
               )}
             </div>
           )}
+
+          <label className="flex cursor-pointer items-start gap-3 rounded-2xl border border-slate-200 px-4 py-3 transition hover:border-blue-300 dark:border-slate-700 dark:hover:border-blue-500/60">
+            <input
+              type="checkbox"
+              checked={answerMode === "typed"}
+              onChange={(event) =>
+                onAnswerModeChange(event.target.checked ? "typed" : "choice")
+              }
+              disabled={creating}
+              className="mt-1 h-4 w-4 cursor-pointer rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+            />
+            <span className="min-w-0">
+              <span className="block text-sm font-bold text-slate-900 dark:text-white">
+                {t("liveGameV2.typedAnswers")}
+              </span>
+              <span className="mt-0.5 block text-xs leading-5 text-slate-600 dark:text-slate-300">
+                {t("liveGameV2.typedAnswersHint")}
+              </span>
+            </span>
+          </label>
 
           {error && (
             <p role="alert" className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-200">

@@ -595,12 +595,47 @@ export const en = {
     marathonDetailWin: "The player with the most correct answers when the room closes.",
     marathonDetailTip:
       "Perfect as homework: share the code with your class and check the results in Live Game History.",
+    teamDetailFlow:
+      "Players pick the red or blue team in the lobby. Everyone answers the same questions at the same time and the host reveals answers and advances rounds just like in Classic Arena.",
+    teamDetailScoring:
+      "Individual answers earn 500–1000 points by speed. The team score is the average per player, so a smaller team is not at a disadvantage.",
+    teamDetailWin: "The team with the higher average score at the end.",
+    teamDetailTip:
+      "Every teammate counts — one sleeping player drags the whole average down.",
+    riskDetailFlow:
+      "Everyone answers the same questions at the same time. Before answering, each player chooses how much of their bank to stake on the question.",
+    riskDetailScoring:
+      "A correct answer wins the stake, a wrong one loses it. Speed does not matter — only your judgement.",
+    riskDetailWin: "The player with the biggest bank at the end.",
+    riskDetailTip:
+      "Bet big only when you are sure — going all-in on a guess is how banks die.",
     aliveCount: "In game: {count}",
     streakBadge: "Streak {count} · next x{multiplier}",
     eliminatedTag: "Eliminated",
     eliminatedBanner: "You're out — keep practicing! Your answers no longer affect the game.",
     practiceScore: "Practice: {correct}/{total}",
     bestStreak: "Best streak: {count}",
+    teamTitle: "Team Battle",
+    teamDesc: "Pick a side in the lobby. The team score is the average per player, so team size does not decide.",
+    riskTitle: "Risk",
+    riskDesc: "Stake part of your bank on each question. Correct doubles the stake back, wrong loses it.",
+    typedAnswers: "Typed answers",
+    typedAnswersHint: "Players type the translation instead of picking from options. Missing accents and one small typo are forgiven.",
+    typedPlaceholder: "Type the translation…",
+    typedSubmit: "Submit answer",
+    chooseTeam: "Choose your team",
+    teamRed: "Red",
+    teamBlue: "Blue",
+    teamPlayers: "{count} players",
+    teamScoreboard: "Team standings",
+    teamAvg: "average per player",
+    teamWinsName: "Team {team} wins",
+    teamDraw: "The teams are tied",
+    bank: "Bank: {points}",
+    betLabel: "Your bet",
+    betAmount: "{points} points",
+    betHint: "Set the stake before answering. A correct answer returns double the stake; a wrong one loses it.",
+    pointsLost: "−{points} points",
   },
   flashcard: {
     previous: "Previous",
@@ -942,6 +977,7 @@ export const en = {
     LIVE_SESSION_NOT_STARTED: "This game has not started yet.",
     LIVE_SESSION_MODE_INVALID: "The game uses an invalid mode.",
     LIVE_SESSION_STATE_INVALID: "The game is in an invalid state.",
+    LIVE_TEAM_SELECTION_UNAVAILABLE: "Teams can only be picked in the lobby of a team battle.",
   },
   notes: {
     title: "Notes",

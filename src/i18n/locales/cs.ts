@@ -594,12 +594,47 @@ export const cs = {
     marathonDetailWin: "Hráč s nejvíce správnými odpověďmi při uzavření místnosti.",
     marathonDetailTip:
       "Ideální jako domácí úkol: pošli kód třídě a výsledky najdeš v historii živých her.",
+    teamDetailFlow:
+      "Hráči si v lobby vyberou červený nebo modrý tým. Všichni odpovídají na společné otázky najednou a hostitel odhaluje odpovědi a posouvá kola stejně jako v Classic Areně.",
+    teamDetailScoring:
+      "Jednotlivé odpovědi dávají 500–1000 bodů podle rychlosti. Skóre týmu je průměr na hráče, takže menší tým není v nevýhodě.",
+    teamDetailWin: "Tým s vyšším průměrným skóre na konci.",
+    teamDetailTip:
+      "Počítá se každý — jeden spící spoluhráč stáhne průměr celého týmu.",
+    riskDetailFlow:
+      "Všichni odpovídají na společné otázky najednou. Před odpovědí si každý hráč zvolí, kolik ze svého banku na otázku vsadí.",
+    riskDetailScoring:
+      "Správná odpověď sázku vyhrává, špatná ji prohrává. Na rychlosti nezáleží — jen na úsudku.",
+    riskDetailWin: "Hráč s největším bankem na konci.",
+    riskDetailTip:
+      "Sázej vysoko, jen když si jsi jistý — all-in na tip je nejrychlejší cesta, jak o bank přijít.",
     aliveCount: "Ve hře: {count}",
     streakBadge: "Série {count} · další ×{multiplier}",
     eliminatedTag: "Vyřazen",
     eliminatedBanner: "Vypadl jsi — procvičuj dál! Tvoje odpovědi už hru neovlivní.",
     practiceScore: "Trénink: {correct}/{total}",
     bestStreak: "Nejdelší série: {count}",
+    teamTitle: "Týmová bitva",
+    teamDesc: "V čekárně si vybereš stranu. Týmové skóre je průměr na hráče, velikost týmu nerozhoduje.",
+    riskTitle: "Sázkový mód",
+    riskDesc: "Před odpovědí vsadíš část banku. Správně získáš dvojnásobek sázky, špatně o ni přijdeš.",
+    typedAnswers: "Psané odpovědi",
+    typedAnswersHint: "Hráči překlad píší místo výběru z možností. Chybějící diakritika a jeden drobný překlep se tolerují.",
+    typedPlaceholder: "Napiš překlad…",
+    typedSubmit: "Odeslat odpověď",
+    chooseTeam: "Vyber si tým",
+    teamRed: "Červení",
+    teamBlue: "Modří",
+    teamPlayers: "{count} hráčů",
+    teamScoreboard: "Pořadí týmů",
+    teamAvg: "průměr na hráče",
+    teamWinsName: "Vyhrává tým {team}",
+    teamDraw: "Týmy skončily nerozhodně",
+    bank: "Bank: {points}",
+    betLabel: "Tvoje sázka",
+    betAmount: "{points} bodů",
+    betHint: "Sázku nastav před odpovědí. Správná odpověď vrátí dvojnásobek sázky, špatná ji prohraje.",
+    pointsLost: "−{points} bodů",
   },
   flashcard: {
     previous: "Předchozí",
@@ -941,6 +976,7 @@ export const cs = {
     LIVE_SESSION_NOT_STARTED: "Tato hra ještě nezačala.",
     LIVE_SESSION_MODE_INVALID: "Hra používá neplatný režim.",
     LIVE_SESSION_STATE_INVALID: "Hra je v neplatném stavu.",
+    LIVE_TEAM_SELECTION_UNAVAILABLE: "Tým jde vybrat jen v čekárně týmové bitvy.",
   },
   notes: {
     title: "Poznámky",
