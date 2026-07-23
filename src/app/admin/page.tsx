@@ -4,7 +4,7 @@
 // aby se nedotýkal sdílených překladových souborů.
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
+import AdminNav from "./AdminNav";
 
 interface Overview {
   generatedAt: string;
@@ -111,15 +111,7 @@ export default function AdminPage() {
       </div>
 
       <div className="relative mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
-        <nav className="mb-8 flex items-center justify-between">
-          <div>
-            <p className="text-xs font-bold uppercase tracking-[0.32em] text-cyan-300">DuoCards</p>
-            <h1 className="mt-1 text-3xl font-black sm:text-4xl">Administrace</h1>
-          </div>
-          <Link href="/dashboard" className="rounded-xl border border-white/15 bg-white/5 px-4 py-2 text-sm font-medium text-slate-200 transition hover:bg-white/10">
-            Zpět do aplikace
-          </Link>
-        </nav>
+        <AdminNav />
 
         {error && (
           <p role="alert" className="rounded-2xl border border-red-300/25 bg-red-500/10 px-4 py-3 text-sm text-red-100">

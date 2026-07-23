@@ -1,6 +1,5 @@
-import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getAdminIdentity } from "@/lib/adminAuth";
+import { adminJson, requireAdminApi } from "@/lib/adminAuth";
 
 export const dynamic = "force-dynamic";
 
@@ -23,10 +22,8 @@ function serializeSeries(rows: DayCount[], days: number): { day: string; count: 
 
 // GET /api/admin/overview — aggregated read-only stats for the admin page.
 export async function GET() {
-  const admin = await getAdminIdentity();
-  if (!admin) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
+  const guard = await requireAdminApi("overview");
+  if ("response" in guard) return guard.response;
 
   const now = new Date();
   const dayAgo = new Date(now.getTime() - 86_400_000);
@@ -145,7 +142,7 @@ export async function GET() {
       ? Math.round(((reviewTotals.correctCount ?? 0) / reviewTotals.reviewCount) * 100)
       : null;
 
-  return NextResponse.json({
+  return adminJson({
     generatedAt: now.toISOString(),
     users: {
       total: usersTotal,

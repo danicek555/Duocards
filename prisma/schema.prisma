@@ -383,3 +383,14 @@ model Note {
 
   @@map("notes")
 }
+
+model AdminAuditLog {
+  id          Int      @id @default(autoincrement())
+  adminUserId Int
+  action      String   @db.VarChar(64)
+  detail      String?  @db.VarChar(256)
+  createdAt   DateTime @default(now())
+
+  @@index([adminUserId, createdAt])
+  @@map("admin_audit_log")
+}
