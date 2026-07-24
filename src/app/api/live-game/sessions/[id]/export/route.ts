@@ -83,7 +83,6 @@ export async function GET(
       return NextResponse.json({ error: "Game not found" }, { status: 404 });
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const nameById = new Map<string, { nickname: string; team: string | null }>(
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (session.participants as any[]).map((p) => [

@@ -250,6 +250,8 @@ function LiveGameContent() {
     if (showCreateModal) {
       void fetchFlashcardSetsForModal();
     }
+    // Fetch only when the modal opens, not when the fetch helper ref changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showCreateModal]);
 
   useEffect(() => {
@@ -482,6 +484,9 @@ function LiveGameContent() {
         client.close();
       }
     };
+    // t is only used for static labels here; re-running would tear down and
+    // rebuild the Ably connection on every locale change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roomCode, clientId, nickname, liveGameSettings]);
 
   const syncUrlToRoom = (code: string | null) => {

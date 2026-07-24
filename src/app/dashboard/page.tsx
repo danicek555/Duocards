@@ -933,6 +933,9 @@ export default function Dashboard() {
       abort.abort();
       setMediaLoading(false);
     };
+    // Keyed by set id on purpose; depending on the whole selectedSet object
+    // would refetch media on every unrelated re-render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedSet?.id, viewMode]);
 
   if (loading) {

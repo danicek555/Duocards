@@ -1,8 +1,8 @@
 # Architektura DuoCards
 
-> Stav k 2026-07-24 (v1.0.0). Sdílený Fastify backend je aktuálně zapnutý
-> (Cloud Run přes `SHARED_BACKEND_URL`); při jeho výpadku nebo vypnutí web
-> automaticky přepne na vestavěné Next.js routy. Viz README → Nasazení.
+> Stav k 2026-07-24 (v1.0.0). Sdílený Fastify backend je volitelný: je-li
+> připojený přes `SHARED_BACKEND_URL`, provoz jde přes něj, jinak web běží na
+> vestavěných Next.js routách. Přepnutí je automatické. Viz README → Nasazení.
 
 ## Přehled systému
 
@@ -158,7 +158,21 @@ režimu.
 - Resend – ověřovací a resetovací e-maily;
 - Google a Facebook – OAuth;
 - Redis – distribuovaný rate limiting nebo pomocný stav dle konfigurace;
-- Sentry – monitoring a bezpečně filtrovaná diagnostika;
-- Vercel – hosting webu; sdílený Fastify backend běží na Cloud Run a je
-  připojený proměnnou `SHARED_BACKEND_URL` (lze nasadit na libovolný Node
-  hosting; při vypnutí web přepne na vestavěné routy).
+- Sentry – monitoring chyb a výkonu a bezpečně filtrovaná diagnostika;
+- Vercel Analytics – cookieless měření návštěvnosti (bez souhlasu, běží vždy);
+- Google Analytics 4 a Hotjar – návštěvnost, heatmapy a nahrávky relací;
+  načítají se v prohlížeči až po udělení souhlasu (viz níže);
+- Vercel – hosting webu; sdílený Fastify backend lze nasadit na libovolný Node
+  hosting (např. Cloud Run) a připojit proměnnou `SHARED_BACKEND_URL`; není-li
+  připojený, web přepne na vestavěné routy.
+
+## Analytika a souhlas
+
+Web měří anonymní návštěvnost přes Vercel Analytics (cookieless, bez souhlasu).
+Analytika vyžadující souhlas – Google Analytics 4 a Hotjar – se v prohlížeči
+načítá výhradně po odsouhlasení cookie banneru; volba se ukládá lokálně a bez
+souhlasu se žádný skript třetích stran nespustí. Skripty a jejich stav řeší
+`src/components/analytics/` (`ConsentProvider`, `CookieConsentBanner`,
+`AnalyticsScripts`). Měřicí IDčka jsou veřejné client-side identifikátory v
+`NEXT_PUBLIC_GA_MEASUREMENT_ID` a `NEXT_PUBLIC_HOTJAR_ID` (nejsou to secrets);
+prázdná hodnota daný nástroj vypne.

@@ -80,7 +80,6 @@ export async function GET(request: NextRequest) {
         .filter((c): c is string => typeof c === "string" && c.length > 0)
     );
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const [total, sets] = await Promise.all([
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (prisma.flashcardSet.count as any)({ where }),

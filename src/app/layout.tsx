@@ -8,6 +8,8 @@ import AdminEntryButton from "@/components/AdminEntryButton";
 import AiGenerationIndicator from "@/components/AiGenerationIndicator";
 import NotesWidget from "@/components/NotesWidget";
 import MobileNotSupportedOverlay from "@/components/MobileNotSupportedOverlay";
+import CookieConsentBanner from "@/components/analytics/CookieConsentBanner";
+import AnalyticsScripts from "@/components/analytics/AnalyticsScripts";
 import { getPublicAppUrl } from "@/lib/publicUrls";
 
 const geistSans = Geist({
@@ -114,6 +116,8 @@ export default function RootLayout({
           <MobileNotSupportedOverlay />
           <AdminEntryButton />
           <AiGenerationIndicator />
+          <CookieConsentBanner />
+          <AnalyticsScripts />
         </AppProviders>
         <Analytics />
       </body>

@@ -760,10 +760,13 @@ export default function InlineAIGenerateForm({
               {includePronunciation && (
                 <div className="font-medium">{t("createSet.pronunciationCostLine", { count: wordCount, unit: COIN_COSTS.PRONUNCIATION_GENERATION, total: wordCount * COIN_COSTS.PRONUNCIATION_GENERATION })}</div>
               )}
+              {includePhrases && (
+                <div className="font-medium">{t("createSet.phraseCostLine", { count: wordCount, unit: COIN_COSTS.PHRASE_GENERATION, total: wordCount * COIN_COSTS.PHRASE_GENERATION })}</div>
+              )}
               {includeVoice && (
                 <div className="font-medium">{t("createSet.audioCostLine", { count: wordCount, unit: COIN_COSTS.AUDIO_GENERATION, total: wordCount * COIN_COSTS.AUDIO_GENERATION })}</div>
               )}
-              {!includeImage && !includeVoice && !includePronunciation && (
+              {!includeImage && !includeVoice && !includePronunciation && !includePhrases && (
                 <div className="text-purple-600 dark:text-purple-400 italic text-xs">
                   {t("createSet.noAdditionalFeatures")}
                 </div>

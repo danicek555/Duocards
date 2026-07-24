@@ -50,39 +50,6 @@ function trimTrailingSlashes(value: string): string {
 }
 
 /**
- * Actively re-probes which backend is live and updates the reported source.
- * The passively tracked source only changes when apiFetch runs, so a value
- * cached before Cloud Run was enabled can go stale; call this (e.g. when the
- * settings panel opens) to reflect the current reality.
- */
-export async function refreshApiBackendSource(): Promise<ApiBackendSource> {
-  if (
-    forceVercelApi ||
-    trimTrailingSlashes(sharedApiBaseUrl) === trimTrailingSlashes(legacyApiBaseUrl)
-  ) {
-    setApiBackendSource("vercel");
-    return "vercel";
-  }
-  try {
-    const response = await fetchWithTimeout(
-      sharedHealthUrl,
-      { credentials: "include", cache: "no-store" },
-      primaryTimeoutMs,
-    );
-    if (response.ok) {
-      markCloudHealthy();
-      setApiBackendSource("cloud-run");
-      return "cloud-run";
-    }
-  } catch {
-    // fall through to marking Vercel below
-  }
-  markCloudUnavailable();
-  setApiBackendSource("vercel");
-  return "vercel";
-}
-
-/**
  * Builds a URL for endpoints already available on the shared backend.
  *
  * Production defaults to the same-origin /shared-api proxy. Local development

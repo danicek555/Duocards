@@ -1,4 +1,11 @@
 export const en = {
+  cookieConsent: {
+    title: "Cookies & analytics",
+    message:
+      "We use cookies and analytics (Google Analytics, Hotjar) to understand how the app is used and improve it. These load only if you agree.",
+    accept: "Accept",
+    decline: "Decline",
+  },
   common: {
     loading: "Loading...",
     save: "Save",
@@ -944,6 +951,7 @@ export const en = {
     baseCostLine: "{count} words × {unit} AI coin = {total} AI coins",
     imageCostLine: "+ {count} images × {unit} AI coins = {total} AI coins",
     pronunciationCostLine: "+ {count} pronunciations × {unit} AI coin = {total} AI coins",
+    phraseCostLine: "+ {count} example phrases × {unit} AI coin = {total} AI coins",
     audioCostLine: "+ {count} audio files × {unit} AI coins = {total} AI coins",
     previewHint: "Preview: This is how it will appear on flashcards",
     pleaseWait: "Please wait, this may take a moment",

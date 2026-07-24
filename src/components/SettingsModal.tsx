@@ -1,15 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import { useI18n } from "@/i18n/I18nProvider";
-import {
-  getApiBackendSource,
-  isVercelBackendForced,
-  refreshApiBackendSource,
-  subscribeApiBackendSource,
-  type ApiBackendSource,
-} from "@/lib/apiUrl";
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -25,17 +18,6 @@ export default function SettingsModal({
   onOpenLiveGameHistory,
 }: SettingsModalProps) {
   const { t } = useI18n();
-  const [backendSource, setBackendSource] =
-    useState<ApiBackendSource>(getApiBackendSource);
-  const vercelForced = isVercelBackendForced();
-
-  useEffect(() => subscribeApiBackendSource(setBackendSource), []);
-
-  // Re-probe the live backend each time the panel opens so a source cached
-  // before Cloud Run was enabled does not linger as a stale "Vercel".
-  useEffect(() => {
-    if (isOpen) void refreshApiBackendSource();
-  }, [isOpen]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -133,58 +115,6 @@ export default function SettingsModal({
               {t("settings.appLanguageHint")}
             </p>
             <LanguageSwitcher compact />
-          </section>
-
-          <section className="rounded-xl border border-gray-200 p-4 dark:border-gray-700">
-            <div className="flex items-start gap-3">
-              <div className="rounded-xl bg-emerald-100 p-2.5 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">
-                <svg
-                  className="h-6 w-6"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M4 7h16M4 12h16M4 17h16M6 5v4m0 2v4m0 2v2"
-                  />
-                </svg>
-              </div>
-              <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <h3 className="font-semibold text-gray-900 dark:text-white">
-                    {t("settings.apiBackendTitle")}
-                  </h3>
-                  <span
-                    className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
-                      backendSource === "cloud-run"
-                        ? "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300"
-                        : backendSource === "vercel"
-                          ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300"
-                          : "bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300"
-                    }`}
-                  >
-                    {backendSource === "cloud-run"
-                      ? t("settings.apiBackendCloudRun")
-                      : backendSource === "vercel"
-                        ? t("settings.apiBackendVercel")
-                        : t("settings.apiBackendUnknown")}
-                  </span>
-                </div>
-                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                  {t("settings.apiBackendHint")}
-                </p>
-                <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                  {t(
-                    vercelForced
-                      ? "settings.apiBackendForcedHint"
-                      : "settings.apiBackendAutoHint",
-                  )}
-                </p>
-              </div>
-            </div>
           </section>
 
           <button

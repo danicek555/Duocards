@@ -1,4 +1,11 @@
 export const cs = {
+  cookieConsent: {
+    title: "Cookies a analytika",
+    message:
+      "Používáme cookies a analytiku (Google Analytics, Hotjar), abychom rozuměli používání aplikace a mohli ji zlepšovat. Načtou se jen s vaším souhlasem.",
+    accept: "Přijmout",
+    decline: "Odmítnout",
+  },
   common: {
     loading: "Načítám...",
     save: "Uložit",
@@ -943,6 +950,7 @@ export const cs = {
     baseCostLine: "{count} slov × {unit} AI mince = {total} AI mincí",
     imageCostLine: "+ {count} obrázků × {unit} AI mincí = {total} AI mincí",
     pronunciationCostLine: "+ {count} výslovností × {unit} AI mince = {total} AI mincí",
+    phraseCostLine: "+ {count} příkladových vět × {unit} AI mince = {total} AI mincí",
     audioCostLine: "+ {count} audio souborů × {unit} AI mincí = {total} AI mincí",
     previewHint: "Náhled: takto se obrázek zobrazí na kartičkách",
     pleaseWait: "Počkej prosím, může to chvíli trvat",

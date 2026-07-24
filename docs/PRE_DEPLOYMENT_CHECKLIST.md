@@ -1,6 +1,6 @@
 # Pre-Deployment Checklist 🚢
 
-> Stav k 2026-07-24 (v1.0.0): web = Vercel; sdílený backend běží na Cloud Run přes `SHARED_BACKEND_URL` (při vypnutí web přepne na vestavěné routy).
+> Stav k 2026-07-24 (v1.0.0): web = Vercel; sdílený backend je volitelný přes `SHARED_BACKEND_URL` (není-li připojený, web přepne na vestavěné routy).
 
 > **Note:** This is for BEFORE deploying to production. For daily development, see `DEVELOPMENT_WORKFLOW.md`
 
@@ -53,6 +53,8 @@ Verify all required environment variables are set in your deployment platform (V
 - `NEXT_PUBLIC_API_BASE_URL` - API base URL (defaults to /api)
 - `SENTRY_DSN` - If using Sentry (optional)
 - `NEXT_PUBLIC_SENTRY_DSN` - Client-side Sentry DSN (optional)
+- `NEXT_PUBLIC_GA_MEASUREMENT_ID` - Google Analytics 4 ID (optional; loaded only after cookie consent)
+- `NEXT_PUBLIC_HOTJAR_ID` - Hotjar site ID (optional; loaded only after cookie consent)
 
 ## 5. Database Setup 🗄️
 
