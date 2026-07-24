@@ -280,7 +280,9 @@ function LiveGameContent() {
         const isHost = isRoomHostRef.current;
 
         client = new Realtime({
-          authUrl: `/api/ably/token?clientId=${encodeURIComponent(clientId)}`,
+          authUrl: `/api/ably/token?clientId=${encodeURIComponent(
+            clientId
+          )}&channel=${encodeURIComponent(channelName)}`,
         });
         channel = client.channels.get(channelName);
 

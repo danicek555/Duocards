@@ -2,12 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { verifyAuthToken } from "@/lib/auth";
 import {
-  checkCoins,
+  addCoins,
   COIN_TRANSACTION_TYPES,
+  deductCoins,
   InsufficientCoinsError,
 } from "@/lib/coins";
-import { spendCoinsInTransaction } from "@/lib/coinEconomy";
+import { creditCoinsInTransaction } from "@/lib/coinEconomy";
 import { COIN_COSTS } from "@/lib/coin-costs";
+import { enforceAiRateLimit } from "@/lib/aiGuard";
 import { generatePublicCode } from "@/lib/public-code";
 import {
   OPENAI_CHAT_MODEL,
@@ -63,6 +65,10 @@ const PROMPT_EXCLUSION_LIMIT = 300;
 
 // POST - Generate flashcards using AI
 export async function POST(request: NextRequest) {
+  // Coins reserved up front for this generation; refunded on any failure or for
+  // words dropped by dedup. Tracked at function scope so the catch can refund.
+  let coinsReserved = 0;
+  let coinsUserId = 0;
   try {
     const token = request.cookies.get("auth")?.value;
     const payload = await verifyAuthToken(token);
@@ -96,8 +102,6 @@ export async function POST(request: NextRequest) {
     const openai = await getOpenAIClient();
 
     // Check daily AI generation limit (10 per day)
-    // Note: Uncomment this section if you add AiGeneration model to your schema
-    /*
     const today = new Date();
     today.setHours(0, 0, 0, 0); // Start of today
 
@@ -119,7 +123,6 @@ export async function POST(request: NextRequest) {
         { status: 429 }
       );
     }
-    */
 
     // Check maximum flashcard sets limit (100)
     const existingSetsCount = await prisma.flashcardSet.count({
@@ -217,16 +220,21 @@ export async function POST(request: NextRequest) {
       totalCost += wordCount * COIN_COSTS.PRONUNCIATION_GENERATION; // 1 coin per pronunciation
     }
 
-    // Check if user has enough coins
-    const coinCheck = await checkCoins(payload.userId, totalCost);
-    if (!coinCheck.hasEnough) {
-      return NextResponse.json(
-        {
-          error: `Insufficient AI coins. This operation costs ${totalCost} AI coins, but you only have ${coinCheck.currentCoins} AI coins. Please purchase more AI coins or reduce the number of words/images.`,
-        },
-        { status: 402 } // 402 Payment Required
-      );
-    }
+    const rateLimited = await enforceAiRateLimit(payload.userId, "generate");
+    if (rateLimited) return rateLimited;
+
+    // Reserve the full requested cost before any paid AI so concurrent requests
+    // cannot spend more OpenAI budget than the balance covers. Throws
+    // InsufficientCoinsError (handled in catch as 402) without any external
+    // call. Refunded below on failure, and the difference for deduped words is
+    // credited back in the final transaction.
+    await deductCoins(
+      payload.userId,
+      totalCost,
+      COIN_TRANSACTION_TYPES.flashcardGeneration,
+    );
+    coinsReserved = totalCost;
+    coinsUserId = payload.userId;
 
     // Words the user already has for this language pair; generated words
     // colliding with them are excluded from the prompt and filtered out
@@ -416,6 +424,12 @@ Requirements:
     } catch (parseError) {
       console.error("Error parsing AI response:", parseError);
       console.error("Response content:", content);
+      await addCoins(
+        payload.userId,
+        coinsReserved,
+        COIN_TRANSACTION_TYPES.flashcardGeneration,
+      ).catch(() => undefined);
+      coinsReserved = 0;
       return NextResponse.json(
         { error: "Failed to parse AI response. Please try again." },
         { status: 500 }
@@ -434,6 +448,12 @@ Requirements:
     });
 
     if (words.length === 0) {
+      await addCoins(
+        payload.userId,
+        coinsReserved,
+        COIN_TRANSACTION_TYPES.flashcardGeneration,
+      ).catch(() => undefined);
+      coinsReserved = 0;
       return NextResponse.json(
         {
           error:
@@ -579,6 +599,12 @@ Requirements:
     }
 
     if (tagsArray.length > 5) {
+      await addCoins(
+        payload.userId,
+        coinsReserved,
+        COIN_TRANSACTION_TYPES.flashcardGeneration,
+      ).catch(() => undefined);
+      coinsReserved = 0;
       return NextResponse.json(
         { error: "Maximum 5 tags allowed per flashcard set" },
         { status: 400 }
@@ -614,6 +640,12 @@ Requirements:
     const uniqueTagsCount = existingUniqueTags.size + newUniqueTags.length;
 
     if (uniqueTagsCount > 20) {
+      await addCoins(
+        payload.userId,
+        coinsReserved,
+        COIN_TRANSACTION_TYPES.flashcardGeneration,
+      ).catch(() => undefined);
+      coinsReserved = 0;
       return NextResponse.json(
         {
           error: `Maximum 20 different tags allowed across all sets. You currently have ${existingUniqueTags.size} unique tags across all sets.`,
@@ -648,24 +680,26 @@ Requirements:
 
     // Create flashcard set with words and record AI generation in a transaction
     const result = await prisma.$transaction(async (tx) => {
-      // The conditional update and ledger entry share this transaction with the
-      // generated set, so a concurrent request can never make coins negative.
-      // Charge for what was actually created — dedup may have dropped some
-      // of the requested words. The upfront check used the requested count,
-      // so the user always has at least this much.
+      // The full requested cost was already reserved before generation. Charge
+      // only for what was actually created — dedup may have dropped some of the
+      // requested words — by crediting the difference back inside this
+      // transaction so the set creation and the refund commit atomically.
       const perWordCost =
         1 +
         (includeImage ? COIN_COSTS.IMAGE_GENERATION : 0) +
         (includeVoice ? COIN_COSTS.AUDIO_GENERATION : 0) +
         (includePronunciation ? COIN_COSTS.PRONUNCIATION_GENERATION : 0);
       const finalCost = wordsWithImageAndAudioIds.length * perWordCost;
+      const overReserved = coinsReserved - finalCost;
 
-      await spendCoinsInTransaction(
-        tx,
-        payload.userId,
-        finalCost,
-        COIN_TRANSACTION_TYPES.flashcardGeneration,
-      );
+      if (overReserved > 0) {
+        await creditCoinsInTransaction(
+          tx,
+          payload.userId,
+          overReserved,
+          COIN_TRANSACTION_TYPES.flashcardGeneration,
+        );
+      }
 
       // Create words with references to images and audio
       const wordsToCreate = wordsWithImageAndAudioIds.map((wordPair) => {
@@ -751,6 +785,9 @@ Requirements:
       return flashcardSet;
     });
 
+    // Net charge is now settled (reserved minus the credited difference).
+    coinsReserved = 0;
+
     return NextResponse.json(
       {
         flashcardSet: result,
@@ -759,6 +796,16 @@ Requirements:
       { status: 201 }
     );
   } catch (error: unknown) {
+    // Refund any coins still reserved when generation failed after reservation.
+    if (coinsReserved > 0 && coinsUserId > 0) {
+      await addCoins(
+        coinsUserId,
+        coinsReserved,
+        COIN_TRANSACTION_TYPES.flashcardGeneration,
+      ).catch(() => undefined);
+      coinsReserved = 0;
+    }
+
     if (error instanceof InsufficientCoinsError) {
       return NextResponse.json(
         {

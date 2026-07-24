@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { verifyAuthToken } from "@/lib/auth";
-import { checkCoins, COIN_TRANSACTION_TYPES } from "@/lib/coins";
-import { spendCoinsInTransaction } from "@/lib/coinEconomy";
+import { addCoins, COIN_TRANSACTION_TYPES, deductCoins } from "@/lib/coins";
 import { COIN_COSTS } from "@/lib/coin-costs";
+import { enforceAiRateLimit } from "@/lib/aiGuard";
 import { OPENAI_CHAT_MODEL, OPENAI_IMAGE_MODEL } from "@/lib/openaiModels";
 import {
   describeImageScene,
@@ -70,105 +70,108 @@ export async function POST(
       type === "image"
         ? COIN_COSTS.IMAGE_GENERATION
         : COIN_COSTS.WORD_TRANSLATION;
+    const coinType =
+      type === "image"
+        ? COIN_TRANSACTION_TYPES.flashcardGeneration
+        : COIN_TRANSACTION_TYPES.wordTranslation;
 
-    const coinCheck = await checkCoins(payload.userId, cost);
-    if (!coinCheck.hasEnough) {
-      return NextResponse.json(
-        {
-          error: `Insufficient AI coins. This operation costs ${cost} AI coins, but you only have ${coinCheck.currentCoins}.`,
-        },
-        { status: 402 }
-      );
-    }
+    const rateLimited = await enforceAiRateLimit(payload.userId, "regenerate");
+    if (rateLimited) return rateLimited;
 
-    const openai = await getOpenAIClient();
-    const toLanguage = word.flashcardSet?.toLanguage || "the target language";
-    const fromLanguage = word.flashcardSet?.fromLanguage || "the source language";
+    // Reserve coins before the paid AI call so concurrent requests cannot spend
+    // more OpenAI budget than the balance covers. Throws InsufficientCoinsError
+    // (handled below as 402) without any external call. Refunded on any failure.
+    await deductCoins(payload.userId, cost, coinType);
 
-    if (type === "image") {
-      // Describe the concept as a scene first so the image prompt never
-      // contains the quoted word (main source of residual text in images).
-      const scene = await describeImageScene(openai, word.translation, toLanguage);
-      const { imageUrl } = await generateCheckedFlashcardImage(
-        openai,
-        OPENAI_IMAGE_MODEL,
-        scene
-      );
+    const refund = () =>
+      addCoins(payload.userId, cost, coinType).catch(() => undefined);
 
-      if (!imageUrl) {
+    try {
+      const openai = await getOpenAIClient();
+      const toLanguage = word.flashcardSet?.toLanguage || "the target language";
+      const fromLanguage =
+        word.flashcardSet?.fromLanguage || "the source language";
+
+      if (type === "image") {
+        // Describe the concept as a scene first so the image prompt never
+        // contains the quoted word (main source of residual text in images).
+        const scene = await describeImageScene(
+          openai,
+          word.translation,
+          toLanguage
+        );
+        const { imageUrl } = await generateCheckedFlashcardImage(
+          openai,
+          OPENAI_IMAGE_MODEL,
+          scene
+        );
+
+        if (!imageUrl) {
+          await refund();
+          return NextResponse.json(
+            { error: "Image generation failed. No coins were charged." },
+            { status: 502 }
+          );
+        }
+
+        const mimeType = imageUrl.startsWith("data:")
+          ? imageUrl.split(";")[0].split(":")[1] || "image/png"
+          : "image/png";
+
+        const oldImageId = word.imageId;
+        const newImageId = await prisma.$transaction(async (tx) => {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const image = await (tx as any).wordImage.create({
+            data: { dataUrl: imageUrl, mimeType },
+          });
+          await tx.word.update({
+            where: { id: word.id },
+            data: { imageId: image.id },
+          });
+          if (oldImageId) {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            await (tx as any).wordImage.delete({ where: { id: oldImageId } });
+          }
+          return image.id as number;
+        });
+
+        return NextResponse.json({ success: true, type, imageId: newImageId });
+      }
+
+      // type === "translation"
+      const completion = await openai.chat.completions.create({
+        model: OPENAI_CHAT_MODEL,
+        messages: [
+          {
+            role: "user",
+            content: `Translate the ${fromLanguage} word "${word.word}" into ${toLanguage}. The previous translation "${word.translation}" was wrong or low quality — provide the most accurate, natural translation instead. Return ONLY the translation text, no quotes, no explanation.`,
+          },
+        ],
+      });
+
+      const newTranslation = completion.choices[0]?.message?.content?.trim();
+      if (!newTranslation) {
+        await refund();
         return NextResponse.json(
-          { error: "Image generation failed. No coins were charged." },
+          { error: "Translation failed. No coins were charged." },
           { status: 502 }
         );
       }
 
-      const mimeType = imageUrl.startsWith("data:")
-        ? imageUrl.split(";")[0].split(":")[1] || "image/png"
-        : "image/png";
-
-      const oldImageId = word.imageId;
-      const newImageId = await prisma.$transaction(async (tx) => {
-        await spendCoinsInTransaction(
-          tx,
-          payload.userId,
-          cost,
-          COIN_TRANSACTION_TYPES.flashcardGeneration
-        );
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const image = await (tx as any).wordImage.create({
-          data: { dataUrl: imageUrl, mimeType },
-        });
-        await tx.word.update({
-          where: { id: word.id },
-          data: { imageId: image.id },
-        });
-        if (oldImageId) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          await (tx as any).wordImage.delete({ where: { id: oldImageId } });
-        }
-        return image.id as number;
-      });
-
-      return NextResponse.json({ success: true, type, imageId: newImageId });
-    }
-
-    // type === "translation"
-    const completion = await openai.chat.completions.create({
-      model: OPENAI_CHAT_MODEL,
-      messages: [
-        {
-          role: "user",
-          content: `Translate the ${fromLanguage} word "${word.word}" into ${toLanguage}. The previous translation "${word.translation}" was wrong or low quality — provide the most accurate, natural translation instead. Return ONLY the translation text, no quotes, no explanation.`,
-        },
-      ],
-    });
-
-    const newTranslation = completion.choices[0]?.message?.content?.trim();
-    if (!newTranslation) {
-      return NextResponse.json(
-        { error: "Translation failed. No coins were charged." },
-        { status: 502 }
-      );
-    }
-
-    await prisma.$transaction(async (tx) => {
-      await spendCoinsInTransaction(
-        tx,
-        payload.userId,
-        cost,
-        COIN_TRANSACTION_TYPES.wordTranslation
-      );
-      await tx.word.update({
+      await prisma.word.update({
         where: { id: word.id },
         data: { translation: newTranslation.slice(0, 200) },
       });
-    });
 
-    return NextResponse.json({
-      success: true,
-      type,
-      translation: newTranslation.slice(0, 200),
-    });
+      return NextResponse.json({
+        success: true,
+        type,
+        translation: newTranslation.slice(0, 200),
+      });
+    } catch (aiError) {
+      await refund();
+      throw aiError;
+    }
   } catch (error) {
     console.error("Error regenerating word content:", error);
     return NextResponse.json(

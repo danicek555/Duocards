@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyAuthToken } from "@/lib/auth";
 import {
-  checkCoins,
+  addCoins,
   COIN_TRANSACTION_TYPES,
   deductCoins,
   InsufficientCoinsError,
@@ -12,6 +12,12 @@ import {
   isContentViolationBlocked,
   setContentViolationBlock,
 } from "@/lib/rateLimit";
+import { enforceAiRateLimit } from "@/lib/aiGuard";
+
+// Bound the input so a fixed-price chat cannot drive an outsized OpenAI bill.
+const MAX_MESSAGE_LENGTH = 4000;
+const MAX_HISTORY_MESSAGES = 20;
+const MAX_HISTORY_MESSAGE_LENGTH = 4000;
 
 // Initialize OpenAI client lazily to avoid build-time errors
 async function getOpenAIClient() {
@@ -92,6 +98,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (
+      message.length > MAX_MESSAGE_LENGTH ||
+      conversationHistory.length > MAX_HISTORY_MESSAGES ||
+      conversationHistory.some(
+        (msg) => (msg?.content?.length ?? 0) > MAX_HISTORY_MESSAGE_LENGTH,
+      )
+    ) {
+      return NextResponse.json(
+        { error: "Message or conversation history is too long." },
+        { status: 400 }
+      );
+    }
+
     // Local content moderation (dictionary only — no moderation AI API)
     if (chatContainsBlockedContent(message, conversationHistory)) {
       await setContentViolationBlock(request, payload.userId);
@@ -104,16 +123,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check if user has enough coins
-    const coinCheck = await checkCoins(payload.userId, COIN_COSTS.AI_CHAT);
-    if (!coinCheck.hasEnough) {
-      return NextResponse.json(
-        {
-          error: `Insufficient AI coins. This operation costs ${COIN_COSTS.AI_CHAT} AI coin, but you only have ${coinCheck.currentCoins} AI coins. Please purchase more AI coins.`,
-        },
-        { status: 402 } // 402 Payment Required
-      );
-    }
+    const rateLimited = await enforceAiRateLimit(payload.userId, "chat");
+    if (rateLimited) return rateLimited;
+
+    // Reserve coins before the paid AI call (concurrency-safe); throws
+    // InsufficientCoinsError (handled below as 402) without any external call.
+    const remainingCoins = await deductCoins(
+      payload.userId,
+      COIN_COSTS.AI_CHAT,
+      COIN_TRANSACTION_TYPES.aiChat,
+    );
 
     // Use gpt-4o-mini for cost efficiency
     const modelName = "gpt-4o-mini";
@@ -144,26 +163,29 @@ export async function POST(request: NextRequest) {
       content: message.trim(),
     });
 
-    const openai = await getOpenAIClient();
-    const completion = await openai.chat.completions.create({
-      model: modelName,
-      messages,
-      temperature: 0.7,
-      max_tokens: 1000,
-    });
+    let response: string | undefined;
+    try {
+      const openai = await getOpenAIClient();
+      const completion = await openai.chat.completions.create({
+        model: modelName,
+        messages,
+        temperature: 0.7,
+        max_tokens: 1000,
+      });
 
-    const response = completion.choices[0]?.message?.content?.trim();
+      response = completion.choices[0]?.message?.content?.trim();
 
-    if (!response) {
-      throw new Error("No response received from AI");
+      if (!response) {
+        throw new Error("No response received from AI");
+      }
+    } catch (aiError) {
+      await addCoins(
+        payload.userId,
+        COIN_COSTS.AI_CHAT,
+        COIN_TRANSACTION_TYPES.aiChat,
+      ).catch(() => undefined);
+      throw aiError;
     }
-
-    // Deduct coins after successful chat
-    const remainingCoins = await deductCoins(
-      payload.userId,
-      COIN_COSTS.AI_CHAT,
-      COIN_TRANSACTION_TYPES.aiChat,
-    );
 
     return NextResponse.json({ response, remainingCoins }, { status: 200 });
   } catch (error) {

@@ -1,12 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyAuthToken } from "@/lib/auth";
 import {
-  checkCoins,
+  addCoins,
   COIN_TRANSACTION_TYPES,
   deductCoins,
   InsufficientCoinsError,
 } from "@/lib/coins";
 import { COIN_COSTS } from "@/lib/coin-costs";
+import { enforceAiRateLimit } from "@/lib/aiGuard";
+
+// Cap the uploaded image so a fixed-price OCR call cannot drive an outsized
+// OpenAI bill. ~10 MB of base64 (~7.5 MB decoded) is plenty for a book page.
+const MAX_IMAGE_DATA_URL_LENGTH = 10_000_000;
 
 // Initialize OpenAI client lazily to avoid build-time errors
 async function getOpenAIClient() {
@@ -64,19 +69,30 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check if user has enough coins
-    const coinCheck = await checkCoins(
-      payload.userId,
-      COIN_COSTS.OCR_EXTRACTION
-    );
-    if (!coinCheck.hasEnough) {
+    if (imageDataUrl.length > MAX_IMAGE_DATA_URL_LENGTH) {
       return NextResponse.json(
-        {
-          error: `Insufficient AI coins. This operation costs ${COIN_COSTS.OCR_EXTRACTION} AI coins, but you only have ${coinCheck.currentCoins} AI coins. Please purchase more AI coins.`,
-        },
-        { status: 402 } // 402 Payment Required
+        { error: "Image is too large." },
+        { status: 400 }
       );
     }
+
+    const rateLimited = await enforceAiRateLimit(payload.userId, "ocr");
+    if (rateLimited) return rateLimited;
+
+    // Reserve coins before the paid AI call (concurrency-safe); throws
+    // InsufficientCoinsError (handled below as 402) without any external call.
+    // Refunded below when no usable text is extracted or the call fails.
+    const remainingCoins = await deductCoins(
+      payload.userId,
+      COIN_COSTS.OCR_EXTRACTION,
+      COIN_TRANSACTION_TYPES.ocrExtraction,
+    );
+    const refundOcr = () =>
+      addCoins(
+        payload.userId,
+        COIN_COSTS.OCR_EXTRACTION,
+        COIN_TRANSACTION_TYPES.ocrExtraction,
+      ).catch(() => undefined);
 
     // Extract base64 data (remove data URL prefix if present)
     let base64Data = imageDataUrl;
@@ -85,33 +101,40 @@ export async function POST(request: NextRequest) {
     }
 
     // Use GPT-4 Vision for OCR
-    const openai = await getOpenAIClient();
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini", // Using mini for cost efficiency
-      messages: [
-        {
-          role: "user",
-          content: [
-            {
-              type: "text",
-              text: "Extract ALL text from this image completely from top to bottom, left to right. Do not truncate, skip, or stop early. Extract every single word, sentence, and paragraph visible in the image. Continue extracting until you have captured ALL text in the image, even if it's very long. Preserve the original formatting, spacing, and line breaks. Return only the extracted text, nothing else. Do not stop after just a few lines - extract everything.",
-            },
-            {
-              type: "image_url",
-              image_url: {
-                url: `data:image/jpeg;base64,${base64Data}`,
+    let extractedText: string | undefined;
+    let finishReason: string | null | undefined;
+    try {
+      const openai = await getOpenAIClient();
+      const completion = await openai.chat.completions.create({
+        model: "gpt-4o-mini", // Using mini for cost efficiency
+        messages: [
+          {
+            role: "user",
+            content: [
+              {
+                type: "text",
+                text: "Extract ALL text from this image completely from top to bottom, left to right. Do not truncate, skip, or stop early. Extract every single word, sentence, and paragraph visible in the image. Continue extracting until you have captured ALL text in the image, even if it's very long. Preserve the original formatting, spacing, and line breaks. Return only the extracted text, nothing else. Do not stop after just a few lines - extract everything.",
               },
-            },
-          ],
-        },
-      ],
-      max_tokens: 16000, // Increased to handle very long book pages (GPT-4o-mini supports up to 128k tokens)
-      temperature: 0, // Use deterministic output to ensure complete extraction
-    });
+              {
+                type: "image_url",
+                image_url: {
+                  url: `data:image/jpeg;base64,${base64Data}`,
+                },
+              },
+            ],
+          },
+        ],
+        max_tokens: 16000, // Increased to handle very long book pages (GPT-4o-mini supports up to 128k tokens)
+        temperature: 0, // Use deterministic output to ensure complete extraction
+      });
 
-    const choice = completion.choices[0];
-    const extractedText = choice?.message?.content?.trim();
-    const finishReason = choice?.finish_reason;
+      const choice = completion.choices[0];
+      extractedText = choice?.message?.content?.trim();
+      finishReason = choice?.finish_reason;
+    } catch (aiError) {
+      await refundOcr();
+      throw aiError;
+    }
 
     // Log for debugging
     console.log("OCR Response:", {
@@ -131,7 +154,8 @@ export async function POST(request: NextRequest) {
     // Check if OpenAI indicates there's no text in the image
     if (!extractedText || extractedText.length === 0) {
       console.log("No text extracted from image");
-      // Don't deduct coins if no text was found
+      // No usable text — refund the reserved coins.
+      await refundOcr();
       return NextResponse.json(
         { error: "There is no text in the picture" },
         { status: 400 }
@@ -165,19 +189,13 @@ export async function POST(request: NextRequest) {
     // Only treat as error if it's clearly an OpenAI error message
     // Be very conservative - actual book text should never be flagged
     if (isObviousErrorMessage) {
-      // Don't deduct coins if no text was found
+      // No usable text — refund the reserved coins.
+      await refundOcr();
       return NextResponse.json(
         { error: "There is no text in the picture" },
         { status: 400 }
       );
     }
-
-    // Deduct coins after successful extraction
-    const remainingCoins = await deductCoins(
-      payload.userId,
-      COIN_COSTS.OCR_EXTRACTION,
-      COIN_TRANSACTION_TYPES.ocrExtraction,
-    );
 
     return NextResponse.json(
       { text: extractedText, remainingCoins },

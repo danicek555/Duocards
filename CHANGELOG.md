@@ -49,7 +49,7 @@ První veřejná verze DuoCards.
 
 - Veřejná knihovna setů s náhledem slov a kopírováním kódem.
 - Admin přehled `/admin` (role v DB): uživatelé, systémové metriky.
-- Lokalizace do 30 jazyků (fallback angličtina), Midnight Indigo design
+- Lokalizace do 29 jazyků (fallback angličtina), Midnight Indigo design
   systém, desktop-first web + průběžně vznikající iOS aplikace
   ([duocards-ios](https://github.com/danicek555/duocards-ios)).
 
@@ -60,8 +60,10 @@ První veřejná verze DuoCards.
 - Globální bezpečnostní hlavičky (nosniff, X-Frame-Options DENY, HSTS,
   Permissions-Policy, Referrer-Policy). CSP je dokumentovaný follow-up.
 - Sdílený backend se konfiguruje výhradně přes `SHARED_BACKEND_URL` (žádné
-  pevné URL v kódu). Aktuálně je vypnutý; znovuzapnutí — včetně připravené
-  Cloud Run služby — je otázka nastavení jedné proměnné.
+  pevné URL v kódu). Když je nastavená, provoz jde přes nasazený backend
+  (Cloud Run); bez ní web běží na vestavěných routách. Zapnutí/vypnutí je
+  otázka jedné proměnné — model popisuje
+  `backend/docs/CLOUD_RUN_AND_LOCAL_BACKEND.md`.
 - Next.js aktualizován na záplatovanou 15.5.21, opraveny tranzitivní
   zranitelnosti (fast-uri, minimatch, brace-expansion). Zbývající nálezy
   auditu jsou pouze v build/dev nástrojích (viz README, sekce Bezpečnost).

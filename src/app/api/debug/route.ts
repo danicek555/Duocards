@@ -7,6 +7,7 @@
 
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireAdminApi } from "@/lib/adminAuth";
 
 interface DebugInfo {
   environment: {
@@ -30,16 +31,18 @@ interface DebugInfo {
 }
 
 export async function GET() {
-  // Only allow in development or if explicitly enabled
-  const isDebugEnabled =
-    process.env.NODE_ENV === "development" ||
-    process.env.ENABLE_DEBUG === "true";
-
-  if (!isDebugEnabled) {
-    return NextResponse.json(
-      { error: "Debug endpoint not available" },
-      { status: 404 }
-    );
+  // Open for local debugging in development. Anywhere else this endpoint leaks
+  // which secrets are configured and table row counts, so it requires an
+  // authenticated admin — regardless of ENABLE_DEBUG, which must never open it
+  // to anonymous callers in production.
+  if (process.env.NODE_ENV !== "development") {
+    const guard = await requireAdminApi("debug.info");
+    if ("response" in guard) {
+      return NextResponse.json(
+        { error: "Debug endpoint not available" },
+        { status: 404 }
+      );
+    }
   }
 
   try {

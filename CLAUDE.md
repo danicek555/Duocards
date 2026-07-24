@@ -29,9 +29,10 @@ iOS (SwiftUI) ----/
 | `danicek555/duocards-backend` | Production Fastify backend (deployed to Cloud Run).                                     |
 | `danicek555/duocards-ios`   | Native iOS app (SwiftUI).                                                                 |
 
-The web proxies `/shared-api` to the Cloud Run backend and falls back to its
-own built-in Next.js `/api` routes when Cloud Run is unavailable — see
-`README.md` for the full runtime description.
+When Cloud Run is on, the web proxies `/shared-api` to the deployed backend;
+when it is off or unavailable, the web falls back to its own built-in Next.js
+`/api` routes. See `README.md` and
+`backend/docs/CLOUD_RUN_AND_LOCAL_BACKEND.md` for the full runtime description.
 
 Unrelated personal projects under the same account (no code relationship to
 DuoCards): `danicek555/vibecoding` (umbrella collection of small projects;

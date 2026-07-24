@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyAuthToken } from "@/lib/auth";
 import {
-  checkCoins,
+  addCoins,
   COIN_TRANSACTION_TYPES,
   deductCoins,
   InsufficientCoinsError,
 } from "@/lib/coins";
 import { COIN_COSTS } from "@/lib/coin-costs";
+import { enforceAiRateLimit } from "@/lib/aiGuard";
 
 // Initialize OpenAI client lazily to avoid build-time errors
 async function getOpenAIClient() {
@@ -77,19 +78,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check if user has enough coins
-    const coinCheck = await checkCoins(
+    const rateLimited = await enforceAiRateLimit(payload.userId, "translate");
+    if (rateLimited) return rateLimited;
+
+    // Reserve coins before calling the paid AI so concurrent requests cannot
+    // spend more OpenAI budget than the balance covers. Throws
+    // InsufficientCoinsError (handled below as 402) without any external call.
+    const remainingCoins = await deductCoins(
       payload.userId,
-      COIN_COSTS.WORD_TRANSLATION
+      COIN_COSTS.WORD_TRANSLATION,
+      COIN_TRANSACTION_TYPES.wordTranslation,
     );
-    if (!coinCheck.hasEnough) {
-      return NextResponse.json(
-        {
-          error: `Insufficient AI coins. This operation costs ${COIN_COSTS.WORD_TRANSLATION} AI coin, but you only have ${coinCheck.currentCoins} AI coins. Please purchase more AI coins.`,
-        },
-        { status: 402 } // 402 Payment Required
-      );
-    }
 
     // Use a lightweight model for single word translation
     const modelName = "gpt-4o-mini";
@@ -161,27 +160,38 @@ Do not include any explanations, context, or additional text - just the translat
         "You are a language translation assistant. Return only the translation, no additional text or explanations.";
     }
 
-    const openai = await getOpenAIClient();
-    const completion = await openai.chat.completions.create({
-      model: modelName,
-      messages: [
-        {
-          role: "system",
-          content: systemMessage,
-        },
-        {
-          role: "user",
-          content: prompt,
-        },
-      ],
-      temperature: 0.3, // Lower temperature for more consistent translations
-      max_tokens: maxTokens,
-    });
+    let translation: string | undefined;
+    try {
+      const openai = await getOpenAIClient();
+      const completion = await openai.chat.completions.create({
+        model: modelName,
+        messages: [
+          {
+            role: "system",
+            content: systemMessage,
+          },
+          {
+            role: "user",
+            content: prompt,
+          },
+        ],
+        temperature: 0.3, // Lower temperature for more consistent translations
+        max_tokens: maxTokens,
+      });
 
-    const translation = completion.choices[0]?.message?.content?.trim();
+      translation = completion.choices[0]?.message?.content?.trim();
 
-    if (!translation) {
-      throw new Error("No translation received from AI");
+      if (!translation) {
+        throw new Error("No translation received from AI");
+      }
+    } catch (aiError) {
+      // The paid call failed; refund the reserved coins.
+      await addCoins(
+        payload.userId,
+        COIN_COSTS.WORD_TRANSLATION,
+        COIN_TRANSACTION_TYPES.wordTranslation,
+      ).catch(() => undefined);
+      throw aiError;
     }
 
     // Clean up the translation (remove quotes if present, remove any extra text)
@@ -192,13 +202,6 @@ Do not include any explanations, context, or additional text - just the translat
     if (lines.length > 1) {
       cleanTranslation = lines[0].trim();
     }
-
-    // Deduct coins after successful translation
-    const remainingCoins = await deductCoins(
-      payload.userId,
-      COIN_COSTS.WORD_TRANSLATION,
-      COIN_TRANSACTION_TYPES.wordTranslation,
-    );
 
     return NextResponse.json(
       { translation: cleanTranslation, remainingCoins },
