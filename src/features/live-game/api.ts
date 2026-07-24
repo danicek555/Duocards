@@ -38,43 +38,104 @@ export interface SubmitLiveAnswerResponse extends LiveSessionResponse {
   answer: { accepted: true; correct: boolean; points: number };
 }
 
-async function liveRequest<T>(
-  path: string,
-  init: RequestInit = {},
-  token?: string,
-): Promise<T> {
+// One fetch attempt with its own timeout controller, linked to the caller's
+// abort signal so a fresh attempt is possible after a fallback.
+async function liveFetchOnce(
+  url: string,
+  init: RequestInit,
+  callerSignal: AbortSignal | null | undefined,
+): Promise<{ response: Response; payload: unknown }> {
   const controller = new AbortController();
-  const abortFromCaller = () => controller.abort(init.signal?.reason);
-  if (init.signal?.aborted) abortFromCaller();
-  else init.signal?.addEventListener("abort", abortFromCaller, { once: true });
+  const abortFromCaller = () => controller.abort(callerSignal?.reason);
+  if (callerSignal?.aborted) abortFromCaller();
+  else callerSignal?.addEventListener("abort", abortFromCaller, { once: true });
   const timer = window.setTimeout(
     () => controller.abort(),
     LIVE_REQUEST_TIMEOUT_MS,
   );
-
   try {
-    const headers = new Headers(init.headers);
-    headers.set("Accept", "application/json");
-    if (init.body !== undefined) headers.set("Content-Type", "application/json");
-    if (token) headers.set("Authorization", `Bearer ${token}`);
-
-    const response = await fetch(apiUrl(path), {
+    const response = await fetch(url, {
       ...init,
-      headers,
       credentials: "include",
       cache: "no-store",
       signal: controller.signal,
     });
     const payload = (await response.json().catch(() => null)) as unknown;
-    if (!response.ok) {
-      const parsed = parseApiError(payload, "Live game request failed");
-      throw new LiveGameApiError(response.status, parsed.code, parsed.message);
-    }
-    return payload as T;
+    return { response, payload };
   } finally {
     window.clearTimeout(timer);
-    init.signal?.removeEventListener("abort", abortFromCaller);
+    callerSignal?.removeEventListener("abort", abortFromCaller);
   }
+}
+
+function internalLiveUrl(path: string): string {
+  return `/api${path.startsWith("/") ? path : `/${path}`}`;
+}
+
+/**
+ * Calls the live game backend. Tries the shared backend (Cloud Run via
+ * /shared-api) first and falls back to the built-in Next.js routes under
+ * /api/live when the shared proxy is unavailable — a disabled /shared-api
+ * proxy answers with a non-JSON 404, and gateways fail with 5xx. This keeps
+ * live games working even when Cloud Run is switched off.
+ */
+async function liveRequest<T>(
+  path: string,
+  init: RequestInit = {},
+  token?: string,
+): Promise<T> {
+  const headers = new Headers(init.headers);
+  headers.set("Accept", "application/json");
+  if (init.body !== undefined) headers.set("Content-Type", "application/json");
+  if (token) headers.set("Authorization", `Bearer ${token}`);
+
+  const callerSignal = init.signal;
+  const attemptInit: RequestInit = { ...init, headers };
+  delete attemptInit.signal;
+
+  const sharedUrl = apiUrl(path);
+  const internalUrl = internalLiveUrl(path);
+
+  let result: { response: Response; payload: unknown } | null = null;
+  let sharedUnavailable = false;
+  try {
+    result = await liveFetchOnce(sharedUrl, attemptInit, callerSignal);
+    const { response, payload } = result;
+    const hasErrorEnvelope = !!(
+      payload &&
+      typeof payload === "object" &&
+      "error" in (payload as Record<string, unknown>)
+    );
+    // 5xx gateway errors or a bare (non-JSON) 404 mean the shared backend is
+    // not reachable; a JSON 404 is a real app response and must not fall back.
+    if (
+      !response.ok &&
+      (response.status >= 500 || (response.status === 404 && !hasErrorEnvelope))
+    ) {
+      sharedUnavailable = true;
+    }
+  } catch (error) {
+    if (callerSignal?.aborted) throw error;
+    sharedUnavailable = true;
+  }
+
+  if (sharedUnavailable && internalUrl !== sharedUrl) {
+    result = await liveFetchOnce(internalUrl, attemptInit, callerSignal);
+  }
+  if (!result) {
+    throw new LiveGameApiError(
+      0,
+      "LIVE_TRANSPORT",
+      "Live game request failed",
+    );
+  }
+
+  const { response, payload } = result;
+  if (!response.ok) {
+    const parsed = parseApiError(payload, "Live game request failed");
+    throw new LiveGameApiError(response.status, parsed.code, parsed.message);
+  }
+  return payload as T;
 }
 
 export function createLiveSession(body: CreateLiveGameSessionRequest) {
