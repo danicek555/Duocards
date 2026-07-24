@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { verifyAuthToken } from "@/lib/auth";
-import { addCoins, COIN_TRANSACTION_TYPES, deductCoins } from "@/lib/coins";
+import {
+  addCoins,
+  COIN_TRANSACTION_TYPES,
+  deductCoins,
+  InsufficientCoinsError,
+} from "@/lib/coins";
 import { COIN_COSTS } from "@/lib/coin-costs";
 import { enforceAiRateLimit } from "@/lib/aiGuard";
 import { OPENAI_CHAT_MODEL, OPENAI_IMAGE_MODEL } from "@/lib/openaiModels";
@@ -182,6 +187,14 @@ export async function POST(
       throw aiError;
     }
   } catch (error) {
+    if (error instanceof InsufficientCoinsError) {
+      return NextResponse.json(
+        {
+          error: `Not enough AI coins. This costs ${error.requiredCoins} AI coins, but you have ${error.currentCoins}.`,
+        },
+        { status: 402 },
+      );
+    }
     console.error("Error regenerating word content:", error);
     return NextResponse.json(
       { error: "Failed to regenerate. Please try again." },

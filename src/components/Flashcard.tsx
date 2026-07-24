@@ -105,6 +105,7 @@ export default function Flashcard({
   const [regenerating, setRegenerating] = useState<
     "image" | "translation" | null
   >(null);
+  const [regenerateError, setRegenerateError] = useState<string | null>(null);
 
   const handleRegenerate = async (
     type: "image" | "translation",
@@ -113,20 +114,23 @@ export default function Flashcard({
     e.stopPropagation();
     if (!wordId || regenerating) return;
     setRegenerating(type);
+    setRegenerateError(null);
     try {
       const res = await fetch(`/api/words/${wordId}/regenerate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ type }),
       });
-      const data = await res.json();
+      const data = await res.json().catch(() => null);
       if (res.ok) {
         onRegenerated?.(data);
       } else {
-        alert(data.error || t("flashcard.regenerateFailed"));
+        setRegenerateError(
+          (data && data.error) || t("flashcard.regenerateFailed"),
+        );
       }
     } catch {
-      alert(t("flashcard.regenerateFailed"));
+      setRegenerateError(t("flashcard.regenerateFailed"));
     } finally {
       setRegenerating(null);
     }
@@ -305,6 +309,37 @@ export default function Flashcard({
 
   return (
     <div className="flex flex-col items-center justify-center h-full min-h-0 w-full px-4 py-2">
+      {/* Regenerate error popup — replaces the old browser alert */}
+      {regenerateError && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          onClick={() => setRegenerateError(null)}
+        >
+          <div
+            className="w-full max-w-sm rounded-2xl bg-white p-6 text-center shadow-2xl dark:bg-gray-800"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-500/20">
+              <svg viewBox="0 0 24 24" className="h-6 w-6 text-amber-600 dark:text-amber-400" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 9v4m0 4h.01M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z" />
+              </svg>
+            </div>
+            <h3 className="mb-1 text-lg font-bold text-gray-900 dark:text-white">
+              {t("flashcard.regenerateFailedTitle")}
+            </h3>
+            <p className="mb-5 text-sm text-gray-600 dark:text-gray-300">
+              {regenerateError}
+            </p>
+            <button
+              type="button"
+              onClick={() => setRegenerateError(null)}
+              className="w-full rounded-xl bg-indigo-600 px-4 py-2.5 font-medium text-white transition hover:bg-indigo-700"
+            >
+              {t("common.close")}
+            </button>
+          </div>
+        </div>
+      )}
       {/* Flashcard */}
       <div className="w-full max-w-xl flex-1 min-h-0 flex flex-col items-center justify-center">
         {/* Flashcard Card */}

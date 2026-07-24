@@ -51,6 +51,44 @@ export default function ImageUploadOCR({
   const [noTextAlert, setNoTextAlert] = useState(false);
 
   const handleImageUploadForOCR = async (file: File) => {
+    const fileExt = file.name.split(".").pop()?.toLowerCase();
+    // PDFs are extracted locally (no image preview, no coins) and jump straight
+    // to word selection with the extracted text.
+    if (file.type === "application/pdf" || fileExt === "pdf") {
+      try {
+        setProcessingImage(true);
+        setUploadedImage(null);
+        setExtractedText("");
+        setSelectedWordIndices(new Set());
+        setUsedWordIndices(new Set());
+        setWordIndexToText(new Map());
+        setNoTextAlert(false);
+        onError?.("");
+
+        const formData = new FormData();
+        formData.append("file", file);
+        const response = await fetch("/api/extract-text-from-pdf", {
+          method: "POST",
+          body: formData,
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          const message = data.error || t("createSet.ocrFailed");
+          if (message === "There is no text in the document") {
+            setNoTextAlert(true);
+          }
+          onError?.(message);
+          return;
+        }
+        setExtractedText(data.text);
+      } catch {
+        onError?.(t("createSet.ocrFailed"));
+      } finally {
+        setProcessingImage(false);
+      }
+      return;
+    }
+
     // Validate file type - allow JPG, PNG, and HEIC
     const allowedTypes = [
       "image/jpeg",
@@ -659,7 +697,7 @@ export default function ImageUploadOCR({
                 </div>
                 <input
                   type="file"
-                  accept="image/jpeg,image/jpg,image/png,image/heic,image/heif,.jpg,.jpeg,.png,.heic,.heif"
+                  accept="image/jpeg,image/jpg,image/png,image/heic,image/heif,application/pdf,.jpg,.jpeg,.png,.heic,.heif,.pdf"
                   onChange={(e) => {
                     const file = e.target.files?.[0];
                     if (file) {

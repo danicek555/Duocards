@@ -218,7 +218,17 @@ function Heatmap({
     x: number;
     y: number;
   } | null>(null);
-  const max = Math.max(1, ...data.map((day) => day.count));
+  // Absolute intensity levels (not normalized to the busiest day) so a light
+  // day stays light: full saturation needs a genuinely heavy day. Thresholds
+  // are reviews per day: 1-9, 10-24, 25-49, 50-99, 100+.
+  const levelAlpha = (count: number): number => {
+    if (count <= 0) return 0;
+    if (count < 10) return 0.22;
+    if (count < 25) return 0.4;
+    if (count < 50) return 0.58;
+    if (count < 100) return 0.78;
+    return 1;
+  };
   // Pad so columns align to weeks ending today.
   const cell = 12;
   const gap = 3;
@@ -252,8 +262,7 @@ function Heatmap({
       >
         {weeks.map((week, weekIndex) =>
           week.map((day, dayIndex) => {
-            const alpha =
-              day.count === 0 ? 0 : 0.25 + 0.75 * (day.count / max);
+            const alpha = levelAlpha(day.count);
             return (
               <rect
                 key={day.date}
@@ -427,6 +436,8 @@ export default function StudyStatsPanel() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [showAllSets, setShowAllSets] = useState(false);
+  const [showAllHardest, setShowAllHardest] = useState(false);
+  const [showAlgoInfo, setShowAlgoInfo] = useState(false);
 
   const fetchStats = useCallback(async () => {
     setLoading(true);
@@ -494,14 +505,77 @@ export default function StudyStatsPanel() {
 
   return (
     <div className="flex-1 overflow-y-auto p-8">
-      <div className="mb-6">
-        <h2 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-white mb-1">
-          {t("stats.title")}
-        </h2>
-        <p className="text-sm text-gray-600 dark:text-gray-400">
-          {t("stats.subtitle")}
-        </p>
+      <div className="mb-6 flex items-start justify-between gap-4">
+        <div>
+          <h2 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-white mb-1">
+            {t("stats.title")}
+          </h2>
+          <p className="text-sm text-gray-600 dark:text-gray-400">
+            {t("stats.subtitle")}
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => setShowAlgoInfo(true)}
+          aria-label={t("stats.infoTitle")}
+          title={t("stats.infoTitle")}
+          className="mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-gray-200 text-gray-500 transition hover:bg-gray-100 hover:text-indigo-600 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-800"
+        >
+          <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="9" />
+            <path d="M12 11v5" />
+            <path d="M12 8h.01" />
+          </svg>
+        </button>
       </div>
+
+      {showAlgoInfo && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          onClick={() => setShowAlgoInfo(false)}
+        >
+          <div
+            className="max-h-[85vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl dark:bg-gray-800"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="mb-4 flex items-start justify-between gap-4">
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white">
+                {t("stats.infoTitle")}
+              </h3>
+              <button
+                type="button"
+                onClick={() => setShowAlgoInfo(false)}
+                aria-label={t("common.close")}
+                className="text-gray-400 transition hover:text-gray-600 dark:hover:text-gray-200"
+              >
+                <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M6 18 18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <div className="space-y-4 text-sm leading-6 text-gray-700 dark:text-gray-300">
+              <div>
+                <h4 className="mb-1 font-semibold text-gray-900 dark:text-white">
+                  {t("stats.infoHowTitle")}
+                </h4>
+                <p>{t("stats.infoHow")}</p>
+              </div>
+              <div>
+                <h4 className="mb-1 font-semibold text-gray-900 dark:text-white">
+                  {t("stats.infoWhyTitle")}
+                </h4>
+                <p>{t("stats.infoWhy")}</p>
+              </div>
+              <div>
+                <h4 className="mb-1 font-semibold text-gray-900 dark:text-white">
+                  {t("stats.infoTrackTitle")}
+                </h4>
+                <p>{t("stats.infoTrack")}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Tiles */}
       <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4 mb-6">
@@ -656,7 +730,10 @@ export default function StudyStatsPanel() {
                 </tr>
               </thead>
               <tbody className="text-gray-700 dark:text-gray-300">
-                {data.hardestWords.map((word) => (
+                {(showAllHardest
+                  ? data.hardestWords
+                  : data.hardestWords.slice(0, 10)
+                ).map((word) => (
                   <tr
                     key={word.id}
                     className="border-t border-gray-100 dark:border-gray-700"
@@ -677,6 +754,30 @@ export default function StudyStatsPanel() {
                 ))}
               </tbody>
             </table>
+          )}
+          {data.hardestWords.length > 10 && (
+            <button
+              type="button"
+              onClick={() => setShowAllHardest((value) => !value)}
+              className="mt-3 flex items-center gap-1 text-sm font-medium text-indigo-600 hover:text-indigo-700 dark:text-indigo-400"
+            >
+              <svg
+                className={`h-4 w-4 transition-transform ${showAllHardest ? "rotate-180" : ""}`}
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M19 9l-7 7-7-7"
+                />
+              </svg>
+              {showAllHardest
+                ? t("stats.showLess")
+                : `${t("stats.showMore")} (${data.hardestWords.length - 10})`}
+            </button>
           )}
         </Card>
 

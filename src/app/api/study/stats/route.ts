@@ -108,7 +108,7 @@ export async function GET(request: NextRequest) {
       daily: buildDailySeries(reviews, now, timezoneOffsetMinutes),
       forecast: buildForecast(words, now, timezoneOffsetMinutes),
       memory: distribution,
-      hardestWords: hardestWords(words).map((word) => ({
+      hardestWords: hardestWords(words, 50).map((word) => ({
         ...word,
         setName:
           word.flashcardSetId != null

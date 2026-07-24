@@ -12,6 +12,9 @@ import { usePathname } from "next/navigation";
 export default function AdminEntryButton() {
   const pathname = usePathname();
   const [isAdmin, setIsAdmin] = useState(false);
+  // Assume the dashboard is loading until it reports otherwise, so the button
+  // never flashes on top of the dashboard loading screen.
+  const [isDashboardLoading, setIsDashboardLoading] = useState(true);
   const onDashboard = pathname === "/dashboard";
 
   useEffect(() => {
@@ -31,7 +34,20 @@ export default function AdminEntryButton() {
     };
   }, [onDashboard]);
 
-  if (!onDashboard || !isAdmin) return null;
+  // Mirror the notes / AI chat buttons: hide while the dashboard is loading.
+  useEffect(() => {
+    setIsDashboardLoading(pathname === "/dashboard");
+    const handleDashboardLoading = (event: Event) => {
+      const detail = (event as CustomEvent<{ loading?: boolean }>).detail;
+      if (detail?.loading !== undefined) setIsDashboardLoading(detail.loading);
+    };
+    window.addEventListener("dashboardLoading", handleDashboardLoading);
+    return () => {
+      window.removeEventListener("dashboardLoading", handleDashboardLoading);
+    };
+  }, [pathname]);
+
+  if (!onDashboard || !isAdmin || isDashboardLoading) return null;
 
   return (
     <Link

@@ -1,8 +1,25 @@
 # Changelog
 
-## v1.0.0 — 2026-07-23
+## v1.0.0 — 2026-07-24
 
 První veřejná verze DuoCards.
+
+### Přidáno v této iteraci (24. 7. 2026)
+
+- **Live game:** všech 9 herních módů v přehledu s popupem „Jak se hraje";
+  interní Next.js fallback, takže živé hry fungují i při vypnutém Cloud Runu;
+  detailní CSV export výsledků pro učitele (otázky, hráči, odpovědi, body, čas).
+- **AI generování:** volitelná příkladová věta ke kartičce; globální indikátor
+  probíhajícího generování (přežije odchod z formuláře).
+- **Vytváření balíčků:** rozpoznání textu i z PDF (vedle obrázku).
+- **Poznámky:** úprava a mazání jednotlivých slov před vytvořením balíčku.
+- **Statistiky:** info o FSRS algoritmu, „Zobrazit vše" u nejtěžších slov,
+  absolutní škála sytosti heatmapy, přestylované dlaždice se streak plamínkem.
+- **Bezpečnost:** rezervace mincí před AI voláním (proti souběžnému zneužití),
+  scopovaný Ably token, admin-only debug endpoint.
+- **UX:** regenerace obrázku ukazuje srozumitelný popup místo alertu (např.
+  nedostatek mincí); průvodce mincemi rozlišuje Zavřít (zpět do nastavení) a X
+  (na dashboard); opravené překrývání a probliknutí plovoucích tlačítek.
 
 ### Učení
 

@@ -43,6 +43,7 @@ interface GenerateRequest {
   includeImage?: boolean;
   includeVoice?: boolean;
   includePronunciation?: boolean;
+  includePhrases?: boolean;
   isPublic?: boolean;
   previewCode?: string;
   onlyNewWords?: boolean;
@@ -148,6 +149,7 @@ export async function POST(request: NextRequest) {
       includeImage = false,
       includeVoice = false,
       includePronunciation = false,
+      includePhrases = false,
       isPublic = false,
       previewCode,
       onlyNewWords = true,
@@ -269,12 +271,12 @@ Return a JSON object with a "flashcards" array containing objects with this exac
       includePronunciation
         ? ', "pronunciation": "Phonetic pronunciation guide"'
         : ""
-    }${includeImage ? ', "imageScene": "Short visual scene in English"' : ""}},
+    }${includePhrases ? ', "examplePhrase": "Short example sentence in ' + toLanguage + '"' : ""}${includeImage ? ', "imageScene": "Short visual scene in English"' : ""}},
     {"word": "Another word in ${fromLanguage}", "translation": "Translation in ${toLanguage}"${
       includePronunciation
         ? ', "pronunciation": "Phonetic pronunciation guide"'
         : ""
-    }${includeImage ? ', "imageScene": "Short visual scene in English"' : ""}}
+    }${includePhrases ? ', "examplePhrase": "Short example sentence in ' + toLanguage + '"' : ""}${includeImage ? ', "imageScene": "Short visual scene in English"' : ""}}
   ]
 }
 
@@ -301,6 +303,10 @@ Requirements:
 
     if (includePronunciation) {
       prompt += `\n- Include pronunciation guide in IPA (International Phonetic Alphabet) format for the ${toLanguage} translation`;
+    }
+
+    if (includePhrases) {
+      prompt += `\n- For every flashcard include "examplePhrase": one short, natural example sentence in ${toLanguage} (max 12 words) that uses the translated word in context`;
     }
 
     if (includeImage) {
@@ -363,6 +369,7 @@ Requirements:
       word: string;
       translation: string;
       pronunciation?: string;
+      examplePhrase?: string;
       imageScene?: string;
     }[];
     try {
@@ -405,6 +412,7 @@ Requirements:
         word: string;
         translation: string;
         pronunciation?: string;
+        examplePhrase?: string;
         imageScene?: string;
       }[];
 
@@ -713,7 +721,13 @@ Requirements:
           audioId?: number;
         } = {
           word: wordPair.word.trim(),
-          translation: wordPair.translation.trim(),
+          // Keep the example phrase on the card by appending it to the
+          // translation (no schema change), matching the "translation — phrase"
+          // shape used elsewhere.
+          translation:
+            includePhrases && wordPair.examplePhrase?.trim()
+              ? `${wordPair.translation.trim()} — ${wordPair.examplePhrase.trim()}`
+              : wordPair.translation.trim(),
           difficulty: 1,
           userId: payload.userId,
         };

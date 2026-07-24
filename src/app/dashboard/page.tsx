@@ -2442,6 +2442,10 @@ export default function Dashboard() {
       <CoinCostsModal
         isOpen={showCostsModal}
         onClose={() => setShowCostsModal(false)}
+        onBack={() => {
+          setShowCostsModal(false);
+          setShowSettingsModal(true);
+        }}
       />
 
       <SettingsModal

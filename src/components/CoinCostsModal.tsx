@@ -6,19 +6,25 @@ import { useI18n } from "@/i18n/I18nProvider";
 
 interface CoinCostsModalProps {
   isOpen: boolean;
+  // Dismiss to the dashboard (the "X" and backdrop).
   onClose: () => void;
+  // Go back to where the guide was opened from — the settings modal. Falls
+  // back to onClose when not provided.
+  onBack?: () => void;
 }
 
 export default function CoinCostsModal({
   isOpen,
   onClose,
+  onBack,
 }: CoinCostsModalProps) {
   const { t } = useI18n();
+  const goBack = onBack ?? onClose;
 
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
-        onClose();
+        goBack();
       }
     };
 
@@ -33,7 +39,7 @@ export default function CoinCostsModal({
       // Restore body scrolling when modal closes
       document.body.style.overflow = "unset";
     };
-  }, [isOpen, onClose]);
+  }, [isOpen, goBack]);
 
   if (!isOpen) return null;
 
@@ -467,7 +473,7 @@ export default function CoinCostsModal({
           {/* Footer */}
           <div className="px-6 py-4 bg-gray-50 dark:bg-gray-700/50 flex justify-end border-t border-gray-200 dark:border-gray-700">
             <button
-              onClick={onClose}
+              onClick={goBack}
               className="px-6 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors font-medium"
             >
               {t("coins.close")}

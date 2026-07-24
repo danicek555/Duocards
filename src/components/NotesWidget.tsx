@@ -86,10 +86,24 @@ export default function NotesWidget() {
   contentRef.current = content;
 
   const parsedPairs = useMemo(() => parseNotesToPairs(content), [content]);
+  // Editable copy shown in the create step so a wrong word/translation can be
+  // fixed or removed before the set is created. Seeded from parsedPairs.
+  const [editablePairs, setEditablePairs] = useState<
+    { word: string; translation: string }[]
+  >([]);
   const missingTranslations = useMemo(
-    () => parsedPairs.filter((p) => !p.translation).length,
-    [parsedPairs]
+    () => editablePairs.filter((p) => !p.translation.trim()).length,
+    [editablePairs]
   );
+
+  const updatePair = (index: number, field: "word" | "translation", value: string) => {
+    setEditablePairs((pairs) =>
+      pairs.map((pair, i) => (i === index ? { ...pair, [field]: value } : pair)),
+    );
+  };
+  const removePair = (index: number) => {
+    setEditablePairs((pairs) => pairs.filter((_, i) => i !== index));
+  };
 
   // Track auth the same way AIChatButton does (localStorage "user").
   useEffect(() => {
@@ -211,6 +225,12 @@ export default function NotesWidget() {
   const openCreateStep = () => {
     flushSave();
     setCreateError("");
+    setEditablePairs(
+      parsedPairs.map((pair) => ({
+        word: pair.word,
+        translation: pair.translation ?? "",
+      })),
+    );
     setSetName(`${t("notes.defaultSetName")} ${new Date().toLocaleDateString(locale)}`);
     setMode("create");
   };
@@ -230,7 +250,10 @@ export default function NotesWidget() {
       setCreateError(t("createSet.languagesDifferent"));
       return;
     }
-    if (parsedPairs.length === 0) {
+    const sourcePairs = editablePairs
+      .map((p) => ({ word: p.word.trim(), translation: p.translation.trim() }))
+      .filter((p) => p.word);
+    if (sourcePairs.length === 0) {
       setCreateError(t("notes.noWords"));
       return;
     }
@@ -239,7 +262,7 @@ export default function NotesWidget() {
     try {
       // Fill missing translations via the existing per-word AI endpoint,
       // a few requests at a time.
-      const pairs = parsedPairs.map((p) => ({ ...p }));
+      const pairs = sourcePairs.map((p) => ({ ...p }));
       const missing = pairs.filter((p) => !p.translation);
       let done = 0;
 
@@ -474,21 +497,42 @@ export default function NotesWidget() {
 
                 <div>
                   <p className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    {t("notes.wordsFound", { count: parsedPairs.length })}
+                    {t("notes.wordsFound", { count: editablePairs.length })}
                   </p>
-                  <ul className="max-h-28 overflow-y-auto rounded-lg border border-gray-200 dark:border-gray-700 divide-y divide-gray-100 dark:divide-gray-700">
-                    {parsedPairs.map((pair, index) => (
+                  <ul className="max-h-40 overflow-y-auto rounded-lg border border-gray-200 dark:border-gray-700 divide-y divide-gray-100 dark:divide-gray-700">
+                    {editablePairs.map((pair, index) => (
                       <li
-                        key={`${pair.word}-${index}`}
-                        className="px-2 py-1 text-xs text-gray-800 dark:text-gray-200"
+                        key={index}
+                        className="flex items-center gap-1.5 px-2 py-1"
                       >
-                        <span className="font-medium">{pair.word}</span>
-                        {pair.translation && (
-                          <span className="text-gray-500 dark:text-gray-400">
-                            {" "}
-                            — {pair.translation}
-                          </span>
-                        )}
+                        <input
+                          value={pair.word}
+                          onChange={(e) =>
+                            updatePair(index, "word", e.target.value)
+                          }
+                          placeholder={t("notes.wordPlaceholder")}
+                          className="min-w-0 flex-1 rounded border border-transparent bg-transparent px-1.5 py-1 text-xs font-medium text-gray-900 focus:border-indigo-400 focus:bg-white focus:outline-none dark:text-white dark:focus:bg-gray-900"
+                        />
+                        <span className="text-gray-400">—</span>
+                        <input
+                          value={pair.translation}
+                          onChange={(e) =>
+                            updatePair(index, "translation", e.target.value)
+                          }
+                          placeholder={t("notes.translationPlaceholder")}
+                          className="min-w-0 flex-1 rounded border border-transparent bg-transparent px-1.5 py-1 text-xs text-gray-600 focus:border-indigo-400 focus:bg-white focus:outline-none dark:text-gray-300 dark:focus:bg-gray-900"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => removePair(index)}
+                          aria-label={t("common.delete")}
+                          title={t("common.delete")}
+                          className="flex h-6 w-6 shrink-0 items-center justify-center rounded text-gray-400 transition hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-500/10"
+                        >
+                          <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M6 18 18 6M6 6l12 12" />
+                          </svg>
+                        </button>
                       </li>
                     ))}
                   </ul>

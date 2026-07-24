@@ -37,6 +37,7 @@ export default function InlineAIGenerateForm({
   const [includeImage, setIncludeImage] = useState(false);
   const [includeVoice, setIncludeVoice] = useState(false);
   const [includePronunciation, setIncludePronunciation] = useState(false);
+  const [includePhrases, setIncludePhrases] = useState(false);
   const [onlyNewWords, setOnlyNewWords] = useState(true);
   const [isPublic, setIsPublic] = useState(false);
   const [publicCode, setPublicCode] = useState<string | null>(null);
@@ -147,6 +148,11 @@ export default function InlineAIGenerateForm({
     }
 
     setLoading(true);
+    // Announce a generation is in flight so a global indicator can show even
+    // after this form unmounts (e.g. the user navigates elsewhere).
+    window.dispatchEvent(
+      new CustomEvent("aiGenerationActive", { detail: { active: true } }),
+    );
 
     try {
       const response = await fetch("/api/flashcard-sets/generate", {
@@ -163,6 +169,7 @@ export default function InlineAIGenerateForm({
           includeImage,
           includeVoice,
           includePronunciation,
+          includePhrases,
           onlyNewWords,
           isPublic,
           previewCode: publicCode, // Send the preview code so it stays the same
@@ -210,6 +217,7 @@ export default function InlineAIGenerateForm({
         setIncludeImage(false);
         setIncludeVoice(false);
         setIncludePronunciation(false);
+        setIncludePhrases(false);
         setIsPublic(false);
       }
     } catch (err) {
@@ -218,6 +226,9 @@ export default function InlineAIGenerateForm({
       );
     } finally {
       setLoading(false);
+      window.dispatchEvent(
+        new CustomEvent("aiGenerationActive", { detail: { active: false } }),
+      );
     }
   };
 
@@ -549,6 +560,33 @@ export default function InlineAIGenerateForm({
                 />
               </svg>
               {t("createSet.pronunciation")}
+            </button>
+
+            {/* Phrases Toggle — add an example sentence to each card */}
+            <button
+              type="button"
+              onClick={() => setIncludePhrases(!includePhrases)}
+              title={t("createSet.phrasesHint")}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                includePhrases
+                  ? "bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 border-2 border-purple-400 dark:border-purple-500"
+                  : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-2 border-gray-300 dark:border-gray-600 hover:border-purple-300 dark:hover:border-purple-600"
+              } cursor-pointer active:scale-95`}
+            >
+              <svg
+                className="w-3.5 h-3.5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M7 8h10M7 12h6m-6 8 3-4h7a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v12l4 2z"
+                />
+              </svg>
+              {t("createSet.phrases")}
             </button>
 
             {/* Only New Words Toggle */}

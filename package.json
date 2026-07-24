@@ -43,7 +43,8 @@
     "redis": "^5.11.0",
     "resend": "^6.1.2",
     "server-only": "^0.0.1",
-    "ts-fsrs": "^5.4.1"
+    "ts-fsrs": "^5.4.1",
+    "unpdf": "^1.7.0"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.0.0",
