@@ -139,14 +139,20 @@ export async function POST(
       }
 
       // type === "translation"
+      // The card's front may be a whole phrase/sentence, and the translation
+      // may carry an example in the "translation: example sentence" form. Keep
+      // that shape when regenerating so a sentence is not silently dropped.
+      const sourceIsPhrase = word.word.trim().split(/\s+/).length > 1;
+      const translationHasExample = /:\s/.test(word.translation);
+      const wantsPhrase = sourceIsPhrase || translationHasExample;
+
+      const prompt = wantsPhrase
+        ? `Translate the ${fromLanguage} text "${word.word}" into ${toLanguage}. The previous translation "${word.translation}" was wrong or low quality. If the text is a single word, return it as "translation: a short natural example sentence in ${toLanguage}". If it is a phrase or full sentence, return the complete natural ${toLanguage} translation of the whole thing (keep the sentence, do not shorten to one word). Return ONLY the result, no quotes, no explanation.`
+        : `Translate the ${fromLanguage} word "${word.word}" into ${toLanguage}. The previous translation "${word.translation}" was wrong or low quality — provide the most accurate, natural translation instead. Return ONLY the translation text, no quotes, no explanation.`;
+
       const completion = await openai.chat.completions.create({
         model: OPENAI_CHAT_MODEL,
-        messages: [
-          {
-            role: "user",
-            content: `Translate the ${fromLanguage} word "${word.word}" into ${toLanguage}. The previous translation "${word.translation}" was wrong or low quality — provide the most accurate, natural translation instead. Return ONLY the translation text, no quotes, no explanation.`,
-          },
-        ],
+        messages: [{ role: "user", content: prompt }],
       });
 
       const newTranslation = completion.choices[0]?.message?.content?.trim();
@@ -158,15 +164,18 @@ export async function POST(
         );
       }
 
+      // Allow room for a sentence, matching the create/translate flow's limit.
+      const storedTranslation = newTranslation.slice(0, 2000);
+
       await prisma.word.update({
         where: { id: word.id },
-        data: { translation: newTranslation.slice(0, 200) },
+        data: { translation: storedTranslation },
       });
 
       return NextResponse.json({
         success: true,
         type,
-        translation: newTranslation.slice(0, 200),
+        translation: storedTranslation,
       });
     } catch (aiError) {
       await refund();

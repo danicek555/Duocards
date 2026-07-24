@@ -1,7 +1,33 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { useI18n } from "@/i18n/I18nProvider";
+import {
+  LIVE_GAME_DEFINITIONS,
+  LIVE_GAME_MODE_DETAIL_TRANSLATIONS,
+  LIVE_GAME_MODE_TRANSLATIONS,
+  type SelectableLiveGameModeId,
+} from "../gameModes";
+
+// Presentation for the browse grid: icon + accent per mode. Everything else
+// (title, description, pacing, recommended players, detail copy) is derived
+// from the shared mode definitions so the grid always lists every mode.
+const HUB_MODES: {
+  modeId: SelectableLiveGameModeId;
+  icon: ModeIconKey;
+  color: string;
+}[] = [
+  { modeId: "classic_arena", icon: "classic", color: "text-amber-300 bg-amber-400/10 border-amber-300/30" },
+  { modeId: "streak_combo", icon: "streak", color: "text-emerald-300 bg-emerald-400/10 border-emerald-300/20" },
+  { modeId: "survival", icon: "survival", color: "text-cyan-300 bg-cyan-400/10 border-cyan-300/20" },
+  { modeId: "accuracy", icon: "accuracy", color: "text-sky-300 bg-sky-400/10 border-sky-300/20" },
+  { modeId: "co_op_mission", icon: "coop", color: "text-teal-300 bg-teal-400/10 border-teal-300/20" },
+  { modeId: "sprint", icon: "sprint", color: "text-yellow-300 bg-yellow-400/10 border-yellow-300/20" },
+  { modeId: "marathon", icon: "marathon", color: "text-indigo-300 bg-indigo-400/10 border-indigo-300/20" },
+  { modeId: "team_battle", icon: "team", color: "text-rose-300 bg-rose-400/10 border-rose-300/20" },
+  { modeId: "risk_bet", icon: "risk", color: "text-violet-300 bg-violet-400/10 border-violet-300/20" },
+];
 
 interface LiveHubProps {
   joinOnly: boolean;
@@ -16,7 +42,18 @@ interface LiveHubProps {
   onCreate: () => void;
 }
 
-function ModeIcon({ mode }: { mode: "classic" | "streak" | "survival" | "team" | "risk" }) {
+type ModeIconKey =
+  | "classic"
+  | "streak"
+  | "survival"
+  | "team"
+  | "risk"
+  | "accuracy"
+  | "coop"
+  | "sprint"
+  | "marathon";
+
+function ModeIcon({ mode }: { mode: ModeIconKey }) {
   if (mode === "team") {
     return (
       <svg aria-hidden="true" viewBox="0 0 48 48" className="h-8 w-8">
@@ -54,6 +91,39 @@ function ModeIcon({ mode }: { mode: "classic" | "streak" | "survival" | "team" |
       </svg>
     );
   }
+  if (mode === "accuracy") {
+    return (
+      <svg aria-hidden="true" viewBox="0 0 48 48" className="h-8 w-8">
+        <circle cx="24" cy="24" r="17" fill="none" stroke="currentColor" strokeWidth="4" />
+        <circle cx="24" cy="24" r="9" fill="none" stroke="currentColor" strokeWidth="4" />
+        <circle cx="24" cy="24" r="2.6" fill="currentColor" />
+      </svg>
+    );
+  }
+  if (mode === "coop") {
+    return (
+      <svg aria-hidden="true" viewBox="0 0 48 48" className="h-8 w-8">
+        <path d="M14 24a6 6 0 1 1 0-12 6 6 0 0 1 0 12ZM34 24a6 6 0 1 1 0-12 6 6 0 0 1 0 12Z" fill="none" stroke="currentColor" strokeWidth="4" />
+        <path d="M4 40c0-5.5 4.5-9 10-9s10 3.5 10 9M24 40c0-5.5 4.5-9 10-9s10 3.5 10 9" fill="none" stroke="currentColor" strokeLinecap="round" strokeWidth="4" />
+      </svg>
+    );
+  }
+  if (mode === "sprint") {
+    return (
+      <svg aria-hidden="true" viewBox="0 0 48 48" className="h-8 w-8">
+        <path d="M26 4 10 28h11l-3 16 20-26H27l3-14Z" fill="none" stroke="currentColor" strokeLinejoin="round" strokeWidth="4" />
+      </svg>
+    );
+  }
+  if (mode === "marathon") {
+    return (
+      <svg aria-hidden="true" viewBox="0 0 48 48" className="h-8 w-8">
+        <circle cx="24" cy="26" r="16" fill="none" stroke="currentColor" strokeWidth="4" />
+        <path d="M24 17v9l6 4" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="4" />
+        <path d="M18 4h12" stroke="currentColor" strokeLinecap="round" strokeWidth="4" />
+      </svg>
+    );
+  }
   return (
     <svg aria-hidden="true" viewBox="0 0 48 48" className="h-8 w-8">
       <path d="M24 7 29 18l12 1-9 8 3 12-11-6-11 6 3-12-9-8 12-1Z" fill="none" stroke="currentColor" strokeLinejoin="round" strokeWidth="3.5" />
@@ -74,6 +144,8 @@ export default function LiveHub({
   onCreate,
 }: LiveHubProps) {
   const { t } = useI18n();
+  const [openDetail, setOpenDetail] =
+    useState<SelectableLiveGameModeId | null>(null);
 
   return (
     <main className="min-h-screen overflow-hidden bg-slate-950 text-white">
@@ -182,28 +254,68 @@ export default function LiveHub({
               </div>
             </div>
             <div className="grid gap-4 md:grid-cols-3">
-              {([
-                { id: "classic", title: "liveGameV2.classicTitle", desc: "liveGameV2.classicDesc", pace: "liveGameV2.synchronized", available: true, color: "text-amber-300 bg-amber-400/10 border-amber-300/30" },
-                { id: "streak", title: "liveGameV2.streakTitle", desc: "liveGameV2.streakDesc", pace: "liveGameV2.synchronized", available: true, color: "text-emerald-300 bg-emerald-400/10 border-emerald-300/20" },
-                { id: "survival", title: "liveGameV2.survivalTitle", desc: "liveGameV2.survivalDesc", pace: "liveGameV2.synchronized", available: true, color: "text-cyan-300 bg-cyan-400/10 border-cyan-300/20" },
-                { id: "team", title: "liveGameV2.teamTitle", desc: "liveGameV2.teamDesc", pace: "liveGameV2.synchronized", available: true, color: "text-rose-300 bg-rose-400/10 border-rose-300/20" },
-                { id: "risk", title: "liveGameV2.riskTitle", desc: "liveGameV2.riskDesc", pace: "liveGameV2.synchronized", available: true, color: "text-violet-300 bg-violet-400/10 border-violet-300/20" },
-              ] as const).map((mode) => (
-                <article key={mode.id} className="rounded-3xl border border-white/10 bg-white/[0.05] p-6">
-                  <div className={`mb-5 flex h-14 w-14 items-center justify-center rounded-2xl border ${mode.color}`}>
-                    <ModeIcon mode={mode.id} />
-                  </div>
-                  <div className="mb-3 flex flex-wrap gap-2">
-                    <span className={`rounded-full px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide ${mode.available ? "bg-blue-500/20 text-blue-200" : "bg-white/10 text-slate-400"}`}>
-                      {mode.available ? t("liveGameV2.availableNow") : t("liveGameV2.comingSoon")}
-                    </span>
-                    <span className="rounded-full bg-white/10 px-2.5 py-1 text-[11px] font-medium text-slate-300">{t(mode.pace)}</span>
-                  </div>
-                  <h3 className="text-xl font-bold">{t(mode.title)}</h3>
-                  <p className="mt-2 min-h-20 text-sm leading-6 text-slate-400">{t(mode.desc)}</p>
-                  <p className="mt-4 text-xs font-medium text-slate-500">{t("liveGameV2.recommendedPlayers", { min: 2, max: 100 })}</p>
-                </article>
-              ))}
+              {HUB_MODES.map((mode) => {
+                const def = LIVE_GAME_DEFINITIONS[mode.modeId];
+                const labels = LIVE_GAME_MODE_TRANSLATIONS[mode.modeId];
+                const detail = LIVE_GAME_MODE_DETAIL_TRANSLATIONS[mode.modeId];
+                const isOpen = openDetail === mode.modeId;
+                const paceKey =
+                  def.pacing === "self-paced"
+                    ? "liveGameV2.selfPaced"
+                    : "liveGameV2.synchronized";
+                return (
+                  <article key={mode.modeId} className="flex flex-col rounded-3xl border border-white/10 bg-white/[0.05] p-6">
+                    <div className="mb-5 flex items-start justify-between">
+                      <div className={`flex h-14 w-14 items-center justify-center rounded-2xl border ${mode.color}`}>
+                        <ModeIcon mode={mode.icon} />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setOpenDetail(isOpen ? null : mode.modeId)}
+                        aria-expanded={isOpen}
+                        aria-label={t("liveGameV2.howToPlay")}
+                        title={t("liveGameV2.howToPlay")}
+                        className={`flex h-8 w-8 items-center justify-center rounded-full border border-white/15 text-slate-300 transition hover:bg-white/10 hover:text-white cursor-pointer ${isOpen ? "bg-white/10 text-white" : ""}`}
+                      >
+                        <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                          <circle cx="12" cy="12" r="9" />
+                          <path d="M12 11v5" />
+                          <path d="M12 8h.01" />
+                        </svg>
+                      </button>
+                    </div>
+                    <div className="mb-3 flex flex-wrap gap-2">
+                      <span className="rounded-full bg-blue-500/20 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-blue-200">
+                        {t("liveGameV2.availableNow")}
+                      </span>
+                      <span className="rounded-full bg-white/10 px-2.5 py-1 text-[11px] font-medium text-slate-300">{t(paceKey)}</span>
+                    </div>
+                    <h3 className="text-xl font-bold">{t(labels.label)}</h3>
+                    <p className="mt-2 min-h-20 text-sm leading-6 text-slate-400">{t(labels.description)}</p>
+                    {isOpen && (
+                      <dl className="mt-4 space-y-2 rounded-2xl border border-white/10 bg-slate-950/40 p-4 text-sm">
+                        <div>
+                          <dt className="text-[11px] font-bold uppercase tracking-wide text-cyan-300">{t("liveGameV2.detailFlowTitle")}</dt>
+                          <dd className="mt-0.5 text-slate-300">{t(detail.flow)}</dd>
+                        </div>
+                        <div>
+                          <dt className="text-[11px] font-bold uppercase tracking-wide text-cyan-300">{t("liveGameV2.detailScoringTitle")}</dt>
+                          <dd className="mt-0.5 text-slate-300">{t(detail.scoring)}</dd>
+                        </div>
+                        <div>
+                          <dt className="text-[11px] font-bold uppercase tracking-wide text-cyan-300">{t("liveGameV2.detailWinTitle")}</dt>
+                          <dd className="mt-0.5 text-slate-300">{t(detail.win)}</dd>
+                        </div>
+                        <div>
+                          <dt className="text-[11px] font-bold uppercase tracking-wide text-cyan-300">{t("liveGameV2.detailTipTitle")}</dt>
+                          <dd className="mt-0.5 text-slate-300">{t(detail.tip)}</dd>
+                        </div>
+                      </dl>
+                    )}
+                    <p className="mt-4 text-xs font-medium text-slate-500">{t("liveGameV2.recommendedPlayers", { min: def.recommendedPlayers[0], max: def.recommendedPlayers[1] })}</p>
+                  </article>
+                );
+              })}
             </div>
           </section>
         )}

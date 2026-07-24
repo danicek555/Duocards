@@ -63,6 +63,7 @@ export default function NotesWidget() {
 
   const [isMounted, setIsMounted] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isDashboardLoading, setIsDashboardLoading] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const [mode, setMode] = useState<PanelMode>("edit");
 
@@ -111,7 +112,24 @@ export default function NotesWidget() {
     if (typeof window !== "undefined") {
       setIsLoggedIn(!!localStorage.getItem("user"));
     }
+    // Assume the dashboard is loading until it reports otherwise, so the notes
+    // button does not flash on top of the dashboard loading screen.
+    setIsDashboardLoading(pathname === "/dashboard");
   }, [pathname]);
+
+  // Mirror the AI chat button: hide while the dashboard is still loading.
+  useEffect(() => {
+    const handleDashboardLoading = (event: Event) => {
+      const detail = (event as CustomEvent<{ loading?: boolean }>).detail;
+      if (detail?.loading !== undefined) {
+        setIsDashboardLoading(detail.loading);
+      }
+    };
+    window.addEventListener("dashboardLoading", handleDashboardLoading);
+    return () => {
+      window.removeEventListener("dashboardLoading", handleDashboardLoading);
+    };
+  }, []);
 
   const persist = useCallback(async (value: string) => {
     dirtyRef.current = false;
@@ -285,7 +303,12 @@ export default function NotesWidget() {
     }
   };
 
-  if (!isMounted || !isLoggedIn || isJoinOnlyLiveBrowser()) {
+  if (
+    !isMounted ||
+    !isLoggedIn ||
+    isDashboardLoading ||
+    isJoinOnlyLiveBrowser()
+  ) {
     return null;
   }
 

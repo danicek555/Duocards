@@ -509,6 +509,7 @@ export const en = {
     nextQuestion: "Next question",
     loadingNext: "Loading next question…",
     finalResults: "Final results",
+    downloadReport: "Download report for teachers (CSV)",
     winner: "Winner",
     winnerName: "{name} wins the arena",
     noWinner: "Game complete",
@@ -572,6 +573,7 @@ export const en = {
     coopDetailTip:
       "Great as a warm-up with friends: no pressure on individuals, the team result is what counts.",
     coopTeamTotal: "Team: {count} correct",
+    howToPlay: "How to play",
     detailFlowTitle: "How the game runs",
     detailScoringTitle: "Scoring",
     detailWinTitle: "Who wins",

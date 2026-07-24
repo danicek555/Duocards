@@ -1328,18 +1328,21 @@ export default function Dashboard() {
                     value: studySummary.dueToday,
                     detail: t("study.cardsWaiting"),
                     color: "from-blue-500 to-indigo-500",
+                    emoji: "📚",
                   },
                   {
                     label: t("study.streak"),
                     value: studySummary.streakDays,
                     detail: t("study.daysInRow"),
                     color: "from-orange-400 to-rose-500",
+                    emoji: "🔥",
                   },
                   {
                     label: t("study.reviewedToday"),
                     value: studySummary.reviewedToday,
                     detail: t("study.answersToday"),
                     color: "from-emerald-400 to-teal-500",
+                    emoji: "✍️",
                   },
                   {
                     label: t("study.accuracy"),
@@ -1348,19 +1351,29 @@ export default function Dashboard() {
                       count: studySummary.masteredWords,
                     }),
                     color: "from-violet-500 to-fuchsia-500",
+                    emoji: "🎯",
                   },
                 ].map((stat) => (
                   <div
                     key={stat.label}
-                    className="relative overflow-hidden rounded-2xl border border-white/70 bg-white/75 p-4 shadow-sm backdrop-blur dark:border-gray-700 dark:bg-gray-800/70"
+                    className="group relative overflow-hidden rounded-2xl border border-white/70 bg-white/80 p-4 shadow-sm backdrop-blur transition hover:shadow-md dark:border-gray-700 dark:bg-gray-800/70"
                   >
                     <div
-                      className={`absolute inset-y-0 left-0 w-1 bg-gradient-to-b ${stat.color}`}
+                      className={`pointer-events-none absolute -right-8 -top-8 h-24 w-24 rounded-full bg-gradient-to-br ${stat.color} opacity-[0.12] blur-2xl transition group-hover:opacity-20`}
                     />
-                    <p className="text-xs font-bold uppercase tracking-[0.12em] text-gray-500 dark:text-gray-400">
-                      {stat.label}
-                    </p>
-                    <p className="mt-1 text-2xl font-black text-gray-900 dark:text-white">
+                    <div className="flex items-center gap-2.5">
+                      <div
+                        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br ${stat.color} text-lg shadow-sm`}
+                      >
+                        <span aria-hidden="true">{stat.emoji}</span>
+                      </div>
+                      <p className="text-[11px] font-bold uppercase leading-tight tracking-[0.12em] text-gray-500 dark:text-gray-400">
+                        {stat.label}
+                      </p>
+                    </div>
+                    <p
+                      className={`mt-3 bg-gradient-to-r ${stat.color} bg-clip-text text-3xl font-black text-transparent`}
+                    >
                       {stat.value}
                     </p>
                     <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">

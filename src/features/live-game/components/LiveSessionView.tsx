@@ -918,6 +918,18 @@ export default function LiveSessionView({
               <h2 className="mb-5 text-xl font-black">{t("liveGameV2.finalResults")}</h2>
               {isTeamBattle && <TeamStandingsPanel session={session} />}
               <ResultsTable session={session} />
+              {isHost && (
+                <a
+                  href={`/api/live-game/sessions/${session.id}/export`}
+                  download
+                  className="mt-5 inline-flex items-center gap-2 rounded-2xl border border-white/15 bg-white/10 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
+                >
+                  <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 3v12m0 0 4-4m-4 4-4-4M5 21h14" />
+                  </svg>
+                  {t("liveGameV2.downloadReport")}
+                </a>
+              )}
               {isHost && resultsSaved && (
                 <p
                   role={resultsSaved === "error" ? "alert" : undefined}

@@ -508,6 +508,7 @@ export const cs = {
     nextQuestion: "Další otázka",
     loadingNext: "Načítám další otázku…",
     finalResults: "Konečné výsledky",
+    downloadReport: "Stáhnout report pro učitele (CSV)",
     winner: "Vítěz",
     winnerName: "Arénu vyhrává {name}",
     noWinner: "Hra je dokončená",
@@ -571,6 +572,7 @@ export const cs = {
     coopDetailTip:
       "Skvělé na rozehřátí s přáteli: nikdo není pod tlakem, počítá se výsledek týmu.",
     coopTeamTotal: "Tým: {count} správně",
+    howToPlay: "Jak se hraje",
     detailFlowTitle: "Průběh hry",
     detailScoringTitle: "Bodování",
     detailWinTitle: "Kdo vyhrává",
