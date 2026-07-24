@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { storeWordImage } from "@/lib/imageStorage";
 import { verifyAuthToken } from "@/lib/auth";
 import {
   addCoins,
@@ -119,15 +120,14 @@ export async function POST(
           );
         }
 
-        const mimeType = imageUrl.startsWith("data:")
-          ? imageUrl.split(";")[0].split(":")[1] || "image/png"
-          : "image/png";
+        // Komprese + upload do Blobu běží před transakcí (síťové volání).
+        const storedImage = await storeWordImage(imageUrl);
 
         const oldImageId = word.imageId;
         const newImageId = await prisma.$transaction(async (tx) => {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const image = await (tx as any).wordImage.create({
-            data: { dataUrl: imageUrl, mimeType },
+            data: { dataUrl: storedImage.dataUrl, mimeType: storedImage.mimeType },
           });
           await tx.word.update({
             where: { id: word.id },

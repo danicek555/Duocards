@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { storeWordAudio, storeWordImage } from "@/lib/imageStorage";
 import { verifyAuthToken } from "@/lib/auth";
 import {
   addCoins,
@@ -558,15 +559,13 @@ Requirements:
 
         // Create image record if exists
         if (wordPair.imageUrl) {
-          const mimeType = wordPair.imageUrl.startsWith("data:")
-            ? wordPair.imageUrl.split(";")[0].split(":")[1] || "image/png"
-            : "image/png";
-          // Prisma client types may not recognize wordImage, but it works at runtime
+          // Zkomprimovat (WebP 512px) a nahrát do Vercel Blob; v DB zůstává jen URL.
+          const storedImage = await storeWordImage(wordPair.imageUrl);
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const image = await (prisma as any).wordImage.create({
             data: {
-              dataUrl: wordPair.imageUrl,
-              mimeType: mimeType,
+              dataUrl: storedImage.dataUrl,
+              mimeType: storedImage.mimeType,
             },
           });
           imageId = image.id;
@@ -574,15 +573,13 @@ Requirements:
 
         // Create audio record if exists
         if (wordPair.audioUrl) {
-          const mimeType = wordPair.audioUrl.startsWith("data:")
-            ? wordPair.audioUrl.split(";")[0].split(":")[1] || "audio/mpeg"
-            : "audio/mpeg";
-          // Prisma client types may not recognize wordAudio, but it works at runtime
+          // Audio se přesouvá do Vercel Blob beze změny formátu.
+          const storedAudio = await storeWordAudio(wordPair.audioUrl);
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const audio = await (prisma as any).wordAudio.create({
             data: {
-              dataUrl: wordPair.audioUrl,
-              mimeType: mimeType,
+              dataUrl: storedAudio.dataUrl,
+              mimeType: storedAudio.mimeType,
             },
           });
           audioId = audio.id;

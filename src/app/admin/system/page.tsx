@@ -29,9 +29,45 @@ function formatBytes(bytes: number): string {
   return `${bytes} B`;
 }
 
+interface MigrationProgress {
+  running: boolean;
+  migrated: number;
+  remaining: number | null;
+  savedBytes: number;
+  error: string | null;
+}
+
 export default function AdminSystemPage() {
   const [data, setData] = useState<SystemData | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [migration, setMigration] = useState<MigrationProgress>({
+    running: false,
+    migrated: 0,
+    remaining: null,
+    savedBytes: 0,
+    error: null,
+  });
+
+  const runMigration = async () => {
+    setMigration({ running: true, migrated: 0, remaining: null, savedBytes: 0, error: null });
+    let migrated = 0;
+    let savedBytes = 0;
+    try {
+      // Dávkuje se po malých krocích, dokud v DB zbývá base64 obsah.
+      for (let round = 0; round < 500; round += 1) {
+        const response = await fetch("/api/admin/migrate-media", { method: "POST" });
+        const payload = await response.json();
+        if (!response.ok) throw new Error(payload.error ?? `HTTP ${response.status}`);
+        migrated += payload.migratedImages + payload.migratedAudio;
+        savedBytes += payload.savedBytes;
+        const remaining = payload.remainingImages + payload.remainingAudio;
+        setMigration({ running: remaining > 0, migrated, remaining, savedBytes, error: null });
+        if (remaining === 0) break;
+      }
+    } catch (err) {
+      setMigration((current) => ({ ...current, running: false, error: (err as Error).message }));
+    }
+  };
 
   useEffect(() => {
     fetch("/api/admin/system")
@@ -78,6 +114,32 @@ export default function AdminSystemPage() {
                 <p className="mt-2 text-2xl font-black">{formatBytes(data.database.media.audio.bytes)}</p>
                 <p className="mt-1 text-xs text-slate-400">{data.database.media.audio.count} souborů (base64)</p>
               </div>
+            </section>
+
+            <section className="mt-8 rounded-2xl border border-white/10 bg-white/[0.06] p-5">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-black">Migrace médií do Vercel Blob</p>
+                  <p className="mt-1 text-xs text-slate-400">
+                    Přesune base64 obrázky (komprese na WebP 512 px) a audio z databáze do Blob úložiště. Bezpečné spouštět opakovaně.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => void runMigration()}
+                  disabled={migration.running}
+                  className="rounded-xl bg-indigo-500 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-indigo-400 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {migration.running ? "Migruji…" : "Spustit migraci"}
+                </button>
+              </div>
+              {(migration.remaining !== null || migration.error) && (
+                <p className={`mt-3 text-sm ${migration.error ? "text-red-200" : "text-slate-300"}`} aria-live="polite">
+                  {migration.error
+                    ? `Chyba: ${migration.error}`
+                    : `Zmigrováno ${migration.migrated} souborů, ušetřeno ${formatBytes(Math.max(0, migration.savedBytes))}, zbývá ${migration.remaining}.`}
+                </p>
+              )}
             </section>
 
             <h3 className="mb-3 mt-10 text-xl font-black">Největší tabulky</h3>
