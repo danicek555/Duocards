@@ -1,6 +1,6 @@
 # Resend Domain Setup Guide
 
-> Stav k 2026-07-23 (v1.0.0): platné.
+> Stav k 2026-07-24 (v1.0.0): platné.
 
 ## Step 1: Add Your Domain to Resend
 

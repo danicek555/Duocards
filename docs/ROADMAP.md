@@ -1,6 +1,6 @@
 # Duocards – Roadmap
 
-> Stav k 2026-07-23 (v1.0.0). Strukturovaný přepis nápadů z `improvements.md`,
+> Stav k 2026-07-24 (v1.0.0). Strukturovaný přehled nápadů a priorit,
 > průběžně aktualizovaný podle skutečného stavu kódu (Next.js + Fastify +
 > Prisma/PostgreSQL). Hotové položky zůstávají se stručným popisem realizace.
 

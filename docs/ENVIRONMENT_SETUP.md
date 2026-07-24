@@ -1,6 +1,6 @@
 # Environment Setup Guide 🔐
 
-> Stav k 2026-07-23 (v1.0.0): platné; přehled proměnných viz .env.example a README → Nasazení.
+> Stav k 2026-07-24 (v1.0.0): platné; přehled proměnných viz .env.example a README → Nasazení.
 
 ## Overview
 

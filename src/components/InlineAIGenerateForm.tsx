@@ -61,8 +61,18 @@ export default function InlineAIGenerateForm({
       cost += wordCount * COIN_COSTS.PRONUNCIATION_GENERATION; // 1 coin per pronunciation
     }
 
+    if (includePhrases) {
+      cost += wordCount * COIN_COSTS.PHRASE_GENERATION; // 1 coin per example phrase
+    }
+
     return cost;
-  }, [wordCount, includeImage, includeVoice, includePronunciation]);
+  }, [
+    wordCount,
+    includeImage,
+    includeVoice,
+    includePronunciation,
+    includePhrases,
+  ]);
 
   // Fetch existing unique tags count
   useEffect(() => {

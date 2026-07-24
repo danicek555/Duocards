@@ -1,6 +1,6 @@
 # Spaced repetition v DuoCards — FSRS a cesta k vlastnímu algoritmu
 
-> Stav k 2026-07-23 (v1.0.0): aktuální — FSRS-6 je nasazený plánovač, telemetrie se sbírá.
+> Stav k 2026-07-24 (v1.0.0): aktuální — FSRS-6 je nasazený plánovač, telemetrie se sbírá.
 
 Tento dokument popisuje, jak funguje plánování opakování slovíček po přechodu
 na FSRS, jaká data se sbírají při každém opakování a jak z nich později

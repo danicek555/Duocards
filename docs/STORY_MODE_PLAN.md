@@ -1,6 +1,6 @@
 # Příběhy DuoCards — produktový a technický plán
 
-> Stav k 2026-07-23: schválený plán, implementace zatím nezačala.
+> Stav k 2026-07-24: schválený plán, implementace zatím nezačala.
 
 Rozpracování roadmapové položky 2.4 (AI hra: Story-telling s doplňováním).
 Cílem jsou dvě podoby jedné funkce nad společným generátorem:

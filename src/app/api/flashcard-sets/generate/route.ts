@@ -222,6 +222,10 @@ export async function POST(request: NextRequest) {
       totalCost += wordCount * COIN_COSTS.PRONUNCIATION_GENERATION; // 1 coin per pronunciation
     }
 
+    if (includePhrases) {
+      totalCost += wordCount * COIN_COSTS.PHRASE_GENERATION; // 1 coin per example phrase
+    }
+
     const rateLimited = await enforceAiRateLimit(payload.userId, "generate");
     if (rateLimited) return rateLimited;
 
@@ -696,7 +700,8 @@ Requirements:
         1 +
         (includeImage ? COIN_COSTS.IMAGE_GENERATION : 0) +
         (includeVoice ? COIN_COSTS.AUDIO_GENERATION : 0) +
-        (includePronunciation ? COIN_COSTS.PRONUNCIATION_GENERATION : 0);
+        (includePronunciation ? COIN_COSTS.PRONUNCIATION_GENERATION : 0) +
+        (includePhrases ? COIN_COSTS.PHRASE_GENERATION : 0);
       const finalCost = wordsWithImageAndAudioIds.length * perWordCost;
       const overReserved = coinsReserved - finalCost;
 
@@ -721,12 +726,12 @@ Requirements:
           audioId?: number;
         } = {
           word: wordPair.word.trim(),
-          // Keep the example phrase on the card by appending it to the
-          // translation (no schema change), matching the "translation — phrase"
-          // shape used elsewhere.
+          // Store the example phrase in the "translation: phrase" form so the
+          // flashcard renders the phrase on its own line below the translation
+          // (the same format the manual per-word phrase translation produces).
           translation:
             includePhrases && wordPair.examplePhrase?.trim()
-              ? `${wordPair.translation.trim()} — ${wordPair.examplePhrase.trim()}`
+              ? `${wordPair.translation.trim()}: ${wordPair.examplePhrase.trim()}`
               : wordPair.translation.trim(),
           difficulty: 1,
           userId: payload.userId,

@@ -1,6 +1,6 @@
 # 🔐 Authentication System Guide
 
-> Stav k 2026-07-23 (v1.0.0): platné. AUTH_SECRET je v produkci povinný — server bez něj odmítne start.
+> Stav k 2026-07-24 (v1.0.0): platné. AUTH_SECRET je v produkci povinný — server bez něj odmítne start.
 
 This guide explains the complete authentication system I've built for your DuoCards project using Prisma, bcryptjs, and Next.js API routes.
 

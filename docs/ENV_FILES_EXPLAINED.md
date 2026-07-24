@@ -1,6 +1,6 @@
 # Environment Files Explained 🔐
 
-> Stav k 2026-07-23 (v1.0.0): platné.
+> Stav k 2026-07-24 (v1.0.0): platné.
 
 ## Why So Many `.env` Files?
 

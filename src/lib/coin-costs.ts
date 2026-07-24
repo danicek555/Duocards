@@ -12,6 +12,9 @@ export const COIN_COSTS = {
   // Pronunciation generation (cheap - just text)
   PRONUNCIATION_GENERATION: 1, // Very cheap
 
+  // Example phrase generation (cheap - just text)
+  PHRASE_GENERATION: 1, // Very cheap
+
   // Word translation (cheap - minimal tokens)
   WORD_TRANSLATION: 1, // Very cheap
 

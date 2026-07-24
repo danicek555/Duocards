@@ -90,6 +90,28 @@ export default function CoinCostsModal({
       ),
     },
     {
+      name: t("coins.phrase"),
+      description: t("coins.phraseDesc"),
+      cost: COIN_COSTS.PHRASE_GENERATION,
+      costPerItem: true,
+      itemName: "word",
+      icon: (
+        <svg
+          className="w-6 h-6"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M7 8h10M7 12h6m-6 8 3-4h7a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v12l4 2z"
+          />
+        </svg>
+      ),
+    },
+    {
       name: t("coins.translation"),
       description: t("coins.translationDesc"),
       cost: COIN_COSTS.WORD_TRANSLATION,

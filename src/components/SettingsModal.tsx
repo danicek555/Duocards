@@ -6,6 +6,7 @@ import { useI18n } from "@/i18n/I18nProvider";
 import {
   getApiBackendSource,
   isVercelBackendForced,
+  refreshApiBackendSource,
   subscribeApiBackendSource,
   type ApiBackendSource,
 } from "@/lib/apiUrl";
@@ -29,6 +30,12 @@ export default function SettingsModal({
   const vercelForced = isVercelBackendForced();
 
   useEffect(() => subscribeApiBackendSource(setBackendSource), []);
+
+  // Re-probe the live backend each time the panel opens so a source cached
+  // before Cloud Run was enabled does not linger as a stale "Vercel".
+  useEffect(() => {
+    if (isOpen) void refreshApiBackendSource();
+  }, [isOpen]);
 
   useEffect(() => {
     if (!isOpen) return;

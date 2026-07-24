@@ -1,6 +1,6 @@
 # Pre-Deployment Checklist 🚢
 
-> Stav k 2026-07-23 (v1.0.0): web = Vercel; sdílený backend je volitelný a aktuálně vypnutý (SHARED_BACKEND_URL). Kroky specifické pro Cloud Run platí jen při jeho znovuzapnutí.
+> Stav k 2026-07-24 (v1.0.0): web = Vercel; sdílený backend běží na Cloud Run přes `SHARED_BACKEND_URL` (při vypnutí web přepne na vestavěné routy).
 
 > **Note:** This is for BEFORE deploying to production. For daily development, see `DEVELOPMENT_WORKFLOW.md`
 

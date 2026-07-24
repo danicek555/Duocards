@@ -1,6 +1,6 @@
 # Development Workflow Guide 🚀
 
-> Stav k 2026-07-23 (v1.0.0): platné; rychlý přehled kontrol viz DEVELOPMENT.md.
+> Stav k 2026-07-24 (v1.0.0): platné; rychlý přehled kontrol viz DEVELOPMENT.md.
 
 ## Quick Answer: npm run dev vs Docker?
 

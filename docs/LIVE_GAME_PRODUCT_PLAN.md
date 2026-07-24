@@ -1,6 +1,6 @@
 # DuoCards Live Game 2.0 — produktový a technický plán
 
-> Stav k 2026-07-23 (v1.0.0): produktový plán. Implementováno: engine v2 a
+> Stav k 2026-07-24 (v1.0.0): produktový plán. Implementováno: engine v2 a
 > všech 9 režimů volitelných v dialogu vytvoření hry (Classic Arena,
 > Accuracy, Streak Combo, Survival, Team Battle, Risk, Sprint, Maraton,
 > Co-op mise — každý s „Jak to funguje?" popupem), psané odpovědi, historie

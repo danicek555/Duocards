@@ -1,6 +1,6 @@
 # UI a design systém
 
-> Stav k 2026-07-23 (v1.0.0): platné. Design systém „Midnight Indigo" —
+> Stav k 2026-07-24 (v1.0.0): platné. Design systém „Midnight Indigo" —
 > tokeny jsou v `src/app/globals.css` (půlnoční modro-šedé neutrály, indigo
 > jako primární akcent, violet vyhrazený pro AI, emerald úspěch, amber mince,
 > font Geist).

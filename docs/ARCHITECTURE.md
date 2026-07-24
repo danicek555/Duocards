@@ -1,7 +1,8 @@
 # Architektura DuoCards
 
-> Stav k 2026-07-23 (v1.0.0). Sdílený Fastify backend je aktuálně vypnutý —
-> web běží na vestavěných Next.js routách; zapnutí viz README → Nasazení.
+> Stav k 2026-07-24 (v1.0.0). Sdílený Fastify backend je aktuálně zapnutý
+> (Cloud Run přes `SHARED_BACKEND_URL`); při jeho výpadku nebo vypnutí web
+> automaticky přepne na vestavěné Next.js routy. Viz README → Nasazení.
 
 ## Přehled systému
 
@@ -158,5 +159,6 @@ režimu.
 - Google a Facebook – OAuth;
 - Redis – distribuovaný rate limiting nebo pomocný stav dle konfigurace;
 - Sentry – monitoring a bezpečně filtrovaná diagnostika;
-- Vercel – hosting webu; sdílený Fastify backend lze nasadit na libovolný
-  Node hosting a připojit proměnnou `SHARED_BACKEND_URL` (aktuálně vypnuto).
+- Vercel – hosting webu; sdílený Fastify backend běží na Cloud Run a je
+  připojený proměnnou `SHARED_BACKEND_URL` (lze nasadit na libovolný Node
+  hosting; při vypnutí web přepne na vestavěné routy).

@@ -1,6 +1,6 @@
 # Vývoj a ověřování
 
-> Stav k 2026-07-23 (v1.0.0).
+> Stav k 2026-07-24 (v1.0.0).
 
 ## Požadavky
 

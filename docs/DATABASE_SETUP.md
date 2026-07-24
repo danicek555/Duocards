@@ -1,6 +1,6 @@
 # Your Database Setup ✅
 
-> Stav k 2026-07-23 (v1.0.0): platné; produkce běží na Prisma Postgres (db.prisma.io).
+> Stav k 2026-07-24 (v1.0.0): platné; produkce běží na Prisma Postgres (db.prisma.io).
 
 ## Dual Database Setup 🎯
 

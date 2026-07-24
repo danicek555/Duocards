@@ -1,6 +1,6 @@
 # Database Options Explained 🗄️
 
-> Stav k 2026-07-23 (v1.0.0): srovnání možností; zvolena Prisma Postgres, Cloud SQL varianty jsou archiv.
+> Stav k 2026-07-24 (v1.0.0): srovnání možností; zvolena Prisma Postgres, Cloud SQL varianty jsou archiv.
 
 ## Important: Prisma is NOT a Database!
 

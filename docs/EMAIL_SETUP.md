@@ -1,6 +1,6 @@
 # Email Verification Setup Guide
 
-> Stav k 2026-07-23 (v1.0.0): platné (Resend).
+> Stav k 2026-07-24 (v1.0.0): platné (Resend).
 
 Your DuoCards app is now configured to send real verification emails using Resend! Here's how to complete the setup:
 

@@ -1,6 +1,6 @@
 # Lokalizace
 
-> Stav k 2026-07-23 (v1.0.0): platné — 30 jazyků, fallback angličtina.
+> Stav k 2026-07-24 (v1.0.0): platné — 30 jazyků, fallback angličtina.
 
 ## Jak lokalizace funguje
 
