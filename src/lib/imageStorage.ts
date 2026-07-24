@@ -19,6 +19,8 @@ const WEBP_QUALITY = 78;
 export interface StoredWordImage {
   dataUrl: string;
   mimeType: string;
+  /** Vyplněno, když se musel použít fallback — důvod pro diagnostiku. */
+  error?: string;
 }
 
 function hasBlobToken(): boolean {
@@ -35,32 +37,38 @@ function parseDataUrl(dataUrl: string): Buffer | null {
   }
 }
 
-async function compressToWebp(input: Buffer): Promise<Buffer | null> {
+async function compressToWebp(
+  input: Buffer,
+): Promise<{ buffer: Buffer } | { error: string }> {
   try {
-    return await sharp(input)
+    const buffer = await sharp(input)
       .resize(TARGET_SIZE, TARGET_SIZE, {
         fit: "inside",
         withoutEnlargement: true,
       })
       .webp({ quality: WEBP_QUALITY })
       .toBuffer();
-  } catch {
-    return null;
+    return { buffer };
+  } catch (error) {
+    console.error("word image compression failed:", error);
+    return { error: `sharp: ${(error as Error).message}` };
   }
 }
 
-async function uploadToBlob(webp: Buffer): Promise<string | null> {
-  if (!hasBlobToken()) return null;
+async function uploadToBlob(
+  webp: Buffer,
+): Promise<{ url: string } | { error: string }> {
+  if (!hasBlobToken()) return { error: "blob: missing BLOB_READ_WRITE_TOKEN" };
   try {
     const blob = await put(`word-images/${randomUUID()}.webp`, webp, {
       access: "public",
       contentType: "image/webp",
       cacheControlMaxAge: 31_536_000,
     });
-    return blob.url;
+    return { url: blob.url };
   } catch (error) {
     console.error("word image blob upload failed:", error);
-    return null;
+    return { error: `blob: ${(error as Error).message}` };
   }
 }
 
@@ -79,18 +87,23 @@ export async function storeWordImage(
   }
 
   const original = parseDataUrl(sourceDataUrl);
-  if (!original) return { dataUrl: sourceDataUrl, mimeType: sourceMimeType };
+  if (!original) {
+    return { dataUrl: sourceDataUrl, mimeType: sourceMimeType, error: "parse: not a base64 data url" };
+  }
 
-  const webp = await compressToWebp(original);
-  if (!webp) return { dataUrl: sourceDataUrl, mimeType: sourceMimeType };
+  const compressed = await compressToWebp(original);
+  if ("error" in compressed) {
+    return { dataUrl: sourceDataUrl, mimeType: sourceMimeType, error: compressed.error };
+  }
 
-  const url = await uploadToBlob(webp);
-  if (url) return { dataUrl: url, mimeType: "image/webp" };
+  const uploaded = await uploadToBlob(compressed.buffer);
+  if ("url" in uploaded) return { dataUrl: uploaded.url, mimeType: "image/webp" };
 
-  // No Blob token (or upload failed): keep at least the compression win.
+  // Upload selhal: v DB zůstane aspoň komprimovaná verze.
   return {
-    dataUrl: `data:image/webp;base64,${webp.toString("base64")}`,
+    dataUrl: `data:image/webp;base64,${compressed.buffer.toString("base64")}`,
     mimeType: "image/webp",
+    error: uploaded.error,
   };
 }
 
@@ -103,8 +116,12 @@ export async function storeWordAudio(
     return { dataUrl: sourceDataUrl, mimeType: sourceMimeType };
   }
   const buffer = parseDataUrl(sourceDataUrl);
-  if (!buffer) return { dataUrl: sourceDataUrl, mimeType: sourceMimeType };
-  if (!hasBlobToken()) return { dataUrl: sourceDataUrl, mimeType: sourceMimeType };
+  if (!buffer) {
+    return { dataUrl: sourceDataUrl, mimeType: sourceMimeType, error: "parse: not a base64 data url" };
+  }
+  if (!hasBlobToken()) {
+    return { dataUrl: sourceDataUrl, mimeType: sourceMimeType, error: "blob: missing BLOB_READ_WRITE_TOKEN" };
+  }
   try {
     const blob = await put(`word-audio/${randomUUID()}.mp3`, buffer, {
       access: "public",
@@ -114,6 +131,10 @@ export async function storeWordAudio(
     return { dataUrl: blob.url, mimeType: sourceMimeType };
   } catch (error) {
     console.error("word audio blob upload failed:", error);
-    return { dataUrl: sourceDataUrl, mimeType: sourceMimeType };
+    return {
+      dataUrl: sourceDataUrl,
+      mimeType: sourceMimeType,
+      error: `blob: ${(error as Error).message}`,
+    };
   }
 }

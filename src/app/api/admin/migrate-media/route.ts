@@ -107,7 +107,7 @@ export async function POST(request: Request) {
     try {
       const stored = await storeWordImage(row.dataUrl, row.mimeType);
       if (!/^https?:\/\//.test(stored.dataUrl)) {
-        failed.push({ table: "word_images", id: row.id, reason: "upload failed" });
+        failed.push({ table: "word_images", id: row.id, reason: stored.error ?? "upload failed" });
         continue;
       }
       await updateRow("word_images", row.id, stored.dataUrl, stored.mimeType);
@@ -142,7 +142,7 @@ export async function POST(request: Request) {
     try {
       const stored = await storeWordAudio(row.dataUrl, row.mimeType);
       if (!/^https?:\/\//.test(stored.dataUrl)) {
-        failed.push({ table: "word_audio", id: row.id, reason: "upload failed" });
+        failed.push({ table: "word_audio", id: row.id, reason: stored.error ?? "upload failed" });
         continue;
       }
       await updateRow("word_audio", row.id, stored.dataUrl, stored.mimeType);

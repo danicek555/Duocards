@@ -68,7 +68,7 @@ export default function AdminSystemPage() {
           migratedImages: number;
           migratedAudio: number;
           savedBytes: number;
-          failed: unknown[];
+          failed: { table: string; id: number; reason: string }[];
           afterImageId: number;
           afterAudioId: number;
           remainingImages: number;
@@ -88,7 +88,10 @@ export default function AdminSystemPage() {
         const stalled =
           payload.migratedImages + payload.migratedAudio === 0 &&
           payload.failed.length === 0;
-        setMigration({ running: remaining > 0 && !stalled, migrated, remaining, savedBytes, error: null });
+        const failNote = payload.failed.length > 0
+          ? `přeskočeno ${payload.failed.length}, poslední důvod: ${payload.failed[payload.failed.length - 1].reason}`
+          : null;
+        setMigration({ running: remaining > 0 && !stalled, migrated, remaining, savedBytes, error: failNote });
         if (remaining === 0 || stalled) break;
       }
     } catch (err) {
