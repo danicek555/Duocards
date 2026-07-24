@@ -52,17 +52,44 @@ export default function AdminSystemPage() {
     setMigration({ running: true, migrated: 0, remaining: null, savedBytes: 0, error: null });
     let migrated = 0;
     let savedBytes = 0;
+    let afterImageId = 0;
+    let afterAudioId = 0;
     try {
       // Dávkuje se po malých krocích, dokud v DB zbývá base64 obsah.
-      for (let round = 0; round < 500; round += 1) {
-        const response = await fetch("/api/admin/migrate-media", { method: "POST" });
-        const payload = await response.json();
+      for (let round = 0; round < 1000; round += 1) {
+        const response = await fetch("/api/admin/migrate-media", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ afterImageId, afterAudioId }),
+        });
+        const text = await response.text();
+        let payload: {
+          error?: string;
+          migratedImages: number;
+          migratedAudio: number;
+          savedBytes: number;
+          failed: unknown[];
+          afterImageId: number;
+          afterAudioId: number;
+          remainingImages: number;
+          remainingAudio: number;
+        };
+        try {
+          payload = JSON.parse(text);
+        } catch {
+          throw new Error(`HTTP ${response.status}: ${text.slice(0, 160) || "prázdná odpověď (timeout funkce?)"}`);
+        }
         if (!response.ok) throw new Error(payload.error ?? `HTTP ${response.status}`);
         migrated += payload.migratedImages + payload.migratedAudio;
         savedBytes += payload.savedBytes;
+        afterImageId = payload.afterImageId;
+        afterAudioId = payload.afterAudioId;
         const remaining = payload.remainingImages + payload.remainingAudio;
-        setMigration({ running: remaining > 0, migrated, remaining, savedBytes, error: null });
-        if (remaining === 0) break;
+        const stalled =
+          payload.migratedImages + payload.migratedAudio === 0 &&
+          payload.failed.length === 0;
+        setMigration({ running: remaining > 0 && !stalled, migrated, remaining, savedBytes, error: null });
+        if (remaining === 0 || stalled) break;
       }
     } catch (err) {
       setMigration((current) => ({ ...current, running: false, error: (err as Error).message }));
